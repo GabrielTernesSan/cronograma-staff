@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0a0e14;
+  --color-surface: #111823;
+  --color-surface2: #16202e;
+  --color-line: #223044;
+  --color-text: #e6edf3;
+  --color-muted: #8b9bb0;
+  --color-accent: #4f8cff;
+  --color-ok: #34d399;
+  --color-warn: #f5a524;
+  --color-decisao: #c084fc;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-bg: #f6f8fb;
+    --color-surface: #ffffff;
+    --color-surface2: #eef2f7;
+    --color-line: #d8e0ea;
+    --color-text: #101720;
+    --color-muted: #5a6b80;
+    --color-accent: #2563eb;
+    --color-ok: #059669;
+    --color-warn: #b45309;
+    --color-decisao: #7c3aed;
+  }
+}
+
+html {
+  color-scheme: dark light;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* checkbox nativo estilizado — mais confiável que reimplementar com div */
+input[type="checkbox"] {
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+/* barra de progresso */
+.bar {
+  background-color: var(--color-surface2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.bar > span {
+  display: block;
+  height: 100%;
+  background-color: var(--color-accent);
+  transition: width 220ms ease;
+}
+.bar[data-full="true"] > span {
+  background-color: var(--color-ok);
+}
+
+details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  details {
+    display: block !important;
+  }
+  details > div {
+    display: block !important;
+  }
+}
