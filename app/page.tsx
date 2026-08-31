@@ -2,9 +2,10 @@
 
 import { ProgressHeader } from "@/components/ProgressHeader";
 import { QuarterCard } from "@/components/QuarterCard";
+import { TrilhasSection } from "@/components/TrilhasSection";
 import { AppProvider } from "@/lib/app-context";
 import type { Quarter } from "@/lib/types";
-import { CURSO_URL } from "@/lib/data/curso";
+import { FIDELIS_URL, MUKESH_BLOG_URL } from "@/lib/data/blocos";
 import {
   FORA_DE_PROPOSITO,
   PRIORIDADE,
@@ -14,10 +15,13 @@ import {
   quarters,
 } from "@/lib/data/cronograma";
 
-export default function Page() {
-  const ano1 = quarters.filter((q) => q.year === 1);
-  const ano2 = quarters.filter((q) => q.year === 2);
+const ANOS: { title: string; year: Quarter["year"] }[] = [
+  { title: "Ano 1 — fundação, cache, resiliência e persistência", year: 1 },
+  { title: "Ano 2 — mensageria, observabilidade, escala e fechamento", year: 2 },
+  { title: "Ano 3 — mercado e decisão", year: 3 },
+];
 
+export default function Page() {
   return (
     <AppProvider>
       <ProgressHeader />
@@ -27,7 +31,7 @@ export default function Page() {
 
         <section className="mb-10 rounded-2xl border border-line bg-surface p-4 sm:p-5">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-            Ritmo semanal — vale para os 24 meses
+            Ritmo semanal — vale para os 30 meses
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[24rem] text-sm">
@@ -46,14 +50,15 @@ export default function Page() {
           <p className="mt-3 text-sm leading-relaxed text-muted">{RITMO_NOTA}</p>
         </section>
 
-        <YearSection
-          title="Ano 1 — ficar útil e virar sênior de fato"
-          quarters={ano1}
-        />
-        <YearSection
-          title="Ano 2 — virar candidato aos dois caminhos"
-          quarters={ano2}
-        />
+        {ANOS.map(({ title, year }) => (
+          <YearSection
+            key={year}
+            title={title}
+            quarters={quarters.filter((q) => q.year === year)}
+          />
+        ))}
+
+        <TrilhasSection />
 
         <section className="mt-10 grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
@@ -72,27 +77,27 @@ export default function Page() {
 
         <footer className="mt-10 border-t border-line pt-5 text-xs text-muted">
           <p>
-            Curso:{" "}
+            Material de apoio:{" "}
             <a
-              href={CURSO_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-accent hover:underline"
-            >
-              .NET Web API: Zero to Hero — codewithmukesh
-            </a>{" "}
-            · Arquitetura:{" "}
-            <a
-              href="https://fidelissauro.dev/system-design-sumario/"
+              href={FIDELIS_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="text-accent hover:underline"
             >
               fidelissauro.dev
+            </a>{" "}
+            ·{" "}
+            <a
+              href={MUKESH_BLOG_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:underline"
+            >
+              codewithmukesh.com
             </a>
           </p>
           <p className="mt-1">
-            Progresso salvo neste navegador. Use{" "}
+            Progresso e medições salvos neste navegador. Use{" "}
             <strong className="font-semibold">exportar</strong> antes de trocar de
             máquina ou limpar o cache.
           </p>

@@ -84,3 +84,22 @@ details > summary::-webkit-details-marker {
     display: block !important;
   }
 }
+
+/* campo de medição — o registro do número que ele mediu */
+input.medicao {
+  background-color: var(--color-surface2);
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  color: var(--color-text);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 8px;
+}
+input.medicao:focus {
+  border-color: var(--color-accent);
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+  outline-offset: 0;
+}
+input.medicao[data-preenchida="true"] {
+  border-color: color-mix(in srgb, var(--color-ok) 55%, transparent);
+}

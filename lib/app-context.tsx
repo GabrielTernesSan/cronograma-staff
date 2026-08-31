@@ -5,7 +5,6 @@ import { useProgress, type ProgressApi } from "./useProgress";
 
 export type Filters = {
   onlyPending: boolean;
-  hidePlanned: boolean;
 };
 
 type Ctx = ProgressApi & {
@@ -19,7 +18,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const progress = useProgress();
   const [filters, setFilters] = useState<Filters>({
     onlyPending: false,
-    hidePlanned: false,
   });
 
   const value = useMemo<Ctx>(

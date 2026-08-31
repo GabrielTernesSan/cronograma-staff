@@ -1,30 +1,31 @@
-import type { Quarter, TaskKind } from "../types";
+import type { Quarter, TaskKind, Trilha } from "../types";
 
+// A conta das 6h semanais: 4h de bloco, 1h de leitura de arquitetura, 1h de
+// inglês. Um trimestre tem ~13 semanas, logo ~52h de bloco por trimestre.
 export const RITMO_SEMANAL = [
-  { bloco: ".NET + arquitetura (estudo aplicado)", tempo: "6–8h" },
-  { bloco: "Fidelis / leitura de design", tempo: "1–2h" },
+  { bloco: "Bloco corrente (estudo + aplicação)", tempo: "4h" },
+  { bloco: "Leitura de arquitetura — Fidelis", tempo: "1h" },
   { bloco: "Inglês conversação", tempo: "1h" },
-  { bloco: "Escrita (design doc, documentação)", tempo: "1h" },
 ];
 
 export const RITMO_NOTA =
-  "Total: ~10h/semana. É sustentável. Se em algum mês não der, corta o estudo — nunca o inglês, porque 1h é justamente o que impede o relógio de parar.";
+  "Total: 6h/semana. Os 7 blocos custam ~315h — a 4h/semana são ~78 semanas, 18 meses só de projeto. Somando certificações, preparação de mercado e folga, o plano ocupa 10 trimestres. Não é atraso: o plano de 24 meses supunha 10h/semana e o curso do Mukesh como espinha. Com 6h e foco em arquitetura aplicada, 30 meses é o número honesto.";
 
 export const KIND_META: Record<TaskKind, { label: string; icon: string }> = {
-  estudo: { label: "Estudo complementar", icon: "📚" },
   arq: { label: "Arquitetura — Fidelis", icon: "🏛️" },
   trabalho: { label: "Trabalho", icon: "💼" },
-  ingles: { label: "Inglês", icon: "🇬🇧" },
   cert: { label: "Certificação", icon: "📜" },
+  ingles: { label: "Inglês", icon: "🇬🇧" },
+  ia: { label: "IA — Rodrigo Branas", icon: "🤖" },
   check: { label: "Checkpoint", icon: "✅" },
 };
 
 export const KIND_ORDER: TaskKind[] = [
-  "estudo",
   "arq",
   "trabalho",
   "cert",
   "ingles",
+  "ia",
   "check",
 ];
 
@@ -33,10 +34,10 @@ export const quarters: Quarter[] = [
     id: "t1",
     label: "T1",
     period: "set–nov/2026",
-    theme: "Fundamento",
+    theme: "Fundamento e cache",
     year: 1,
-    moduleIds: ["m01"],
-    note: "Rodar o código, não só assistir. O módulo 1 é a base que o plano original mandava pular — agora ela vem inteira, e é justamente o que sustenta os outros 12 módulos.",
+    blocoIds: ["b0", "b1"],
+    note: "O bloco 0 não passa de uma semana. O resto do trimestre é o bloco 1 inteiro — e o aprendizado central dele é ver duas réplicas discordarem, não configurar Redis.",
     tasks: [
       {
         id: "t1-arq-1",
@@ -59,7 +60,7 @@ export const quarters: Quarter[] = [
       {
         id: "t1-trabalho-1",
         kind: "trabalho",
-        text: "Escolher UM sistema que você mantém e desenhar a arquitetura dele no papel",
+        text: "Desenhar no papel a arquitetura de um dos sistemas da SLC — não depende do projeto, dá para fazer já",
       },
       {
         id: "t1-trabalho-2",
@@ -69,17 +70,22 @@ export const quarters: Quarter[] = [
       {
         id: "t1-trabalho-3",
         kind: "trabalho",
+        text: "Classificar os últimos 10 BOs em 5 categorias: requisito, arquitetura, bug, infra, prazo",
+      },
+      {
+        id: "t1-trabalho-4",
+        kind: "trabalho",
         text: "Meta do trimestre: explicar esse sistema em 10 minutos para alguém de fora",
       },
       {
         id: "t1-ingles-1",
         kind: "ingles",
-        text: "Contratar professor em setembro (italki ou Preply) — não adiar para \"quando sobrar\"",
+        text: "Contratar professor em setembro (italki ou Preply) — não adiar para “quando sobrar”",
       },
       {
         id: "t1-ingles-2",
         kind: "ingles",
-        text: "Manter 1 aula/semana durante todo o trimestre",
+        text: "Manter 1h/semana durante todo o trimestre",
       },
     ],
   },
@@ -87,36 +93,11 @@ export const quarters: Quarter[] = [
     id: "t2",
     label: "T2",
     period: "dez/2026–fev/2027",
-    theme: "Profundidade e o primeiro design doc",
+    theme: "Resiliência e o primeiro design doc",
     year: 1,
-    moduleIds: ["m02"],
-    note: "Se o design doc não sai no papel, a ideia ainda está confusa — aí você estuda aquele buraco específico.",
+    blocoIds: ["b2"],
+    note: "Se o design doc não sai no papel, a ideia ainda está confusa — aí você estuda aquele buraco específico. O bloco 2 custa ~60h contra 52h de capacidade: transbordar ~2 semanas para o T3 é previsto, não falha.",
     tasks: [
-      {
-        id: "t2-estudo-1",
-        kind: "estudo",
-        text: "Internals: performance, alocação e GC — canal do Nick Chapsas",
-        url: "https://www.youtube.com/@nickchapsas",
-      },
-      {
-        id: "t2-estudo-2",
-        kind: "estudo",
-        text: "Pro .NET Memory Management (Kokosa) — 1 capítulo a cada 2 semanas",
-      },
-      {
-        id: "t2-estudo-3",
-        kind: "estudo",
-        text: "Benchmark de verdade em algo do seu sistema — medir antes e depois",
-      },
-      {
-        id: "t2-arq-1",
-        kind: "arq",
-        text: "Fidelis — System Design, começar pelo sumário",
-        url: "https://fidelissauro.dev/system-design-sumario/",
-      },
-      { id: "t2-arq-2", kind: "arq", text: "Capacity planning" },
-      { id: "t2-arq-3", kind: "arq", text: "Single point of failure" },
-      { id: "t2-arq-4", kind: "arq", text: "Observabilidade" },
       {
         id: "t2-trabalho-1",
         kind: "trabalho",
@@ -127,6 +108,11 @@ export const quarters: Quarter[] = [
         kind: "trabalho",
         text: "Apresentar esse design doc para o time",
       },
+      {
+        id: "t2-trabalho-3",
+        kind: "trabalho",
+        text: "Propor a trilha de estudo por senioridade — item de clima que já virou iniciativa",
+      },
       { id: "t2-ingles-1", kind: "ingles", text: "Manter 1h/semana" },
     ],
   },
@@ -134,29 +120,20 @@ export const quarters: Quarter[] = [
     id: "t3",
     label: "T3",
     period: "mar–mai/2027",
-    theme: "Azure e escopo maior",
+    theme: "Persistência e performance",
     year: 1,
-    moduleIds: ["m03"],
-    note: "⚠️ A AZ-204 foi aposentada em 31/07/2026. A alternativa dev é a AI-200, mas para o objetivo (arquitetura/Staff) o caminho AZ-104 → AZ-305 é melhor.",
+    blocoIds: ["b3"],
+    transbordoIds: ["b2"],
     tasks: [
-      {
-        id: "t3-cert-1",
-        kind: "cert",
-        text: "AZ-104 (Azure Administrator) — 8 a 10 semanas de estudo",
-        url: "https://learn.microsoft.com/credentials/certifications/",
-      },
-      {
-        id: "t3-cert-2",
-        kind: "cert",
-        text: "Agendar e fazer o exame AZ-104 no fim do trimestre",
-      },
-      { id: "t3-arq-1", kind: "arq", text: "Fidelis — bulkheads" },
-      { id: "t3-arq-2", kind: "arq", text: "Fidelis — cell-based architecture" },
-      { id: "t3-arq-3", kind: "arq", text: "Fidelis — disaster recovery" },
       {
         id: "t3-trabalho-1",
         kind: "trabalho",
         text: "Assumir uma feature ponta a ponta: você desenha, decide e entrega — não pegar task pronta",
+      },
+      {
+        id: "t3-trabalho-2",
+        kind: "trabalho",
+        text: "Classificar os BOs reais dos dois sistemas nos padrões de resiliência do bloco 2",
       },
       { id: "t3-ingles-1", kind: "ingles", text: "Manter 1h/semana" },
     ],
@@ -165,12 +142,25 @@ export const quarters: Quarter[] = [
     id: "t4",
     label: "T4",
     period: "jun–ago/2027",
-    theme: "Consolidação",
+    theme: "Consolidação e AZ-104",
     year: 1,
     highlight: "marco",
-    moduleIds: ["m04", "m05"],
-    note: "Se a resposta for \"não\" em alguma pergunta do checkpoint, este trimestre é para fechar a lacuna — não para começar coisa nova.",
+    highlightLabel: "MARCO 12 MESES",
+    blocoIds: [],
+    transbordoIds: ["b3"],
+    note: "Trimestre sem bloco novo, de propósito: absorve o atraso acumulado do ano 1 e cabe a AZ-104. Se tudo correu no prazo, sobra tempo — e sobra é recurso, não desperdício. Se a resposta for “não” em alguma pergunta do checkpoint, este trimestre é para fechar a lacuna.",
     tasks: [
+      {
+        id: "t4-cert-1",
+        kind: "cert",
+        text: "AZ-104 (Azure Administrator) — 8 a 10 semanas de estudo",
+        url: "https://learn.microsoft.com/credentials/certifications/",
+      },
+      {
+        id: "t4-cert-2",
+        kind: "cert",
+        text: "Agendar e fazer o exame AZ-104 no fim do trimestre",
+      },
       {
         id: "t4-check-1",
         kind: "check",
@@ -202,22 +192,10 @@ export const quarters: Quarter[] = [
     id: "t5",
     label: "T5",
     period: "set–nov/2027",
-    theme: "Arquitetura formal",
+    theme: "Mensageria e eventos",
     year: 2,
-    moduleIds: ["m06", "m07"],
+    blocoIds: ["b4"],
     tasks: [
-      {
-        id: "t5-cert-1",
-        kind: "cert",
-        text: "AZ-305 — estudo. É expert-level, exige 3–6 meses",
-        url: "https://learn.microsoft.com/credentials/certifications/",
-      },
-      {
-        id: "t5-arq-1",
-        kind: "arq",
-        text: "Fidelis — capítulos restantes de System Design",
-        url: "https://fidelissauro.dev/system-design-sumario/",
-      },
       {
         id: "t5-trabalho-1",
         kind: "trabalho",
@@ -230,67 +208,105 @@ export const quarters: Quarter[] = [
     id: "t6",
     label: "T6",
     period: "dez/2027–fev/2028",
-    theme: "Exame e inglês em escala",
+    theme: "Observabilidade e início da AZ-305",
     year: 2,
-    moduleIds: ["m08"],
+    blocoIds: ["b5"],
+    transbordoIds: ["b4"],
     tasks: [
-      { id: "t6-cert-1", kind: "cert", text: "AZ-305 — fazer o exame" },
       {
-        id: "t6-ingles-1",
-        kind: "ingles",
-        text: "Subir para 3x/semana — aqui você já deve aguentar reunião",
+        id: "t6-cert-1",
+        kind: "cert",
+        text: "AZ-305 — começar o estudo. É expert-level, exige 3–6 meses",
+        url: "https://learn.microsoft.com/credentials/certifications/",
       },
-      {
-        id: "t6-trabalho-1",
-        kind: "trabalho",
-        text: "Acompanhar vagas em dólar só para calibrar expectativa — não aplicar ainda",
-      },
+      { id: "t6-ingles-1", kind: "ingles", text: "Manter 2h/semana" },
     ],
   },
   {
     id: "t7",
     label: "T7",
     period: "mar–mai/2028",
-    theme: "Preparação de mercado",
+    theme: "Escala e capacidade",
     year: 2,
-    moduleIds: ["m09", "m10"],
-    note: "Saber projetar ≠ saber projetar falando inglês sob pressão. São habilidades separadas e a segunda também se treina.",
+    blocoIds: ["b6"],
     tasks: [
-      {
-        id: "t7-trabalho-1",
-        kind: "trabalho",
-        text: "Mock interviews de system design EM INGLÊS",
-      },
-      {
-        id: "t7-trabalho-2",
-        kind: "trabalho",
-        text: "Currículo e LinkedIn em inglês, com o sistema do ano 1 como peça central",
-      },
-      { id: "t7-ingles-1", kind: "ingles", text: "Manter 3x/semana" },
+      { id: "t7-cert-1", kind: "cert", text: "AZ-305 — fazer o exame" },
+      { id: "t7-ingles-1", kind: "ingles", text: "Manter 2h/semana" },
     ],
   },
   {
     id: "t8",
     label: "T8",
     period: "jun–ago/2028",
-    theme: "DECISÃO",
+    theme: "Fechamento do projeto",
     year: 2,
+    highlight: "marco",
+    highlightLabel: "MARCO 24 MESES",
+    blocoIds: [],
+    note: "Trimestre sem bloco novo, de propósito: fecha o projeto e absorve o atraso do ano 2.",
+    tasks: [
+      {
+        id: "t8-trabalho-1",
+        kind: "trabalho",
+        text: "Design doc de 2 páginas do projeto inteiro: arquitetura, decisões, trade-offs, limites conhecidos",
+      },
+      {
+        id: "t8-trabalho-2",
+        kind: "trabalho",
+        text: "Acompanhar vagas em dólar só para calibrar expectativa — não aplicar ainda",
+      },
+      {
+        id: "t8-ingles-1",
+        kind: "ingles",
+        text: "Subir para 3h/semana — aqui você já deve aguentar reunião",
+      },
+    ],
+  },
+  {
+    id: "t9",
+    label: "T9",
+    period: "set–nov/2028",
+    theme: "Preparação de mercado",
+    year: 3,
+    blocoIds: [],
+    note: "Saber projetar ≠ saber projetar falando inglês sob pressão. São habilidades separadas e a segunda também se treina.",
+    tasks: [
+      {
+        id: "t9-trabalho-1",
+        kind: "trabalho",
+        text: "Mock interviews de system design EM INGLÊS",
+      },
+      {
+        id: "t9-trabalho-2",
+        kind: "trabalho",
+        text: "Currículo e LinkedIn em inglês, com o projeto dos 6 blocos como peça central",
+      },
+      { id: "t9-ingles-1", kind: "ingles", text: "Manter 3h/semana" },
+    ],
+  },
+  {
+    id: "t10",
+    label: "T10",
+    period: "dez/2028–fev/2029",
+    theme: "DECISÃO",
+    year: 3,
     highlight: "decisao",
-    moduleIds: ["m11", "m12", "m13"],
+    highlightLabel: "PONTO DE DECISÃO",
+    blocoIds: [],
     note: "Você chega aqui apto aos dois caminhos e escolhe com informação que hoje não tem. Não precisa decidir agora — precisa chegar aí podendo escolher.",
     tasks: [
       {
-        id: "t8-check-1",
+        id: "t10-check-1",
         kind: "check",
         text: "Caminho A — Staff no Brasil: negociar promoção interna ou trocar de empresa por nível",
       },
       {
-        id: "t8-check-2",
+        id: "t10-check-2",
         kind: "check",
         text: "Caminho B — Contractor em dólar: .NET + Azure + inglês é combinação escassa no corporativo americano/europeu",
       },
       {
-        id: "t8-check-3",
+        id: "t10-check-3",
         kind: "check",
         text: "Reavaliar o que ficou de fora de propósito (micro-SaaS, pós, side project)",
       },
@@ -298,11 +314,58 @@ export const quarters: Quarter[] = [
   },
 ];
 
+// Correm fora dos trimestres e não competem com os blocos na barra principal.
+// As que têm `kind` derivam o progresso dos marcos espalhados pela grade —
+// assim nenhum ID de marco existe em dois lugares.
+export const trilhas: Trilha[] = [
+  {
+    id: "tr-ia",
+    titulo: "Curso de IA — Rodrigo Branas",
+    icon: "🤖",
+    regra: "Pago pela empresa, ritmo próprio. Se começar a consumir as 6h semanais inteiras, o bloco corrente para — e isso precisa ser uma decisão consciente, não um deslize.",
+    itens: [
+      {
+        id: "tr-ia-1",
+        kind: "ia",
+        text: "Definir quantas horas semanais o curso vai ocupar, e de onde elas saem",
+      },
+      { id: "tr-ia-2", kind: "ia", text: "Concluir o curso" },
+      {
+        id: "tr-ia-3",
+        kind: "ia",
+        text: "Aplicar uma coisa do curso no projeto ou num sistema da SLC",
+      },
+    ],
+  },
+  {
+    id: "tr-ingles",
+    titulo: "Inglês",
+    icon: "🇬🇧",
+    kind: "ingles",
+    regra: "1h/semana fixo, sobe para 2h após o marco de 12 meses e 3h no ano 2. Nunca é o primeiro item a ser cortado numa semana ruim — 1h é justamente o que impede o relógio de parar.",
+  },
+  {
+    id: "tr-cert",
+    titulo: "Certificação Azure",
+    icon: "📜",
+    kind: "cert",
+    regra: "AZ-104 → AZ-305. Sem data fixa: entra quando um bloco terminar e antes do próximo começar.",
+    aviso: "A AZ-204 foi aposentada em 31/07/2026. Para o objetivo de arquitetura/Staff, o caminho AZ-104 → AZ-305 é melhor que a alternativa dev.",
+  },
+  {
+    id: "tr-trabalho",
+    titulo: "Trabalho",
+    icon: "💼",
+    kind: "trabalho",
+    regra: "O que dá para fazer sem depender do projeto: desenhar a arquitetura de um sistema da SLC, classificar BOs, escrever design doc e apresentar ao time.",
+  },
+];
+
 export const FORA_DE_PROPOSITO =
   "Micro-SaaS, side project, pós-graduação, curso de liderança, novo framework. Nada disso é ruim — todos competem com os itens acima por um tempo que você não tem. Reavaliar só depois do marco de 12 meses.";
 
 export const REGRA_UNICA =
-  "Todo estudo precisa de um objeto de aplicação. Leu sobre bulkhead? Pergunte onde encaixa no sistema que você mantém. Se não encaixa em lugar nenhum, é conhecimento de reserva — anota e segue.";
+  "Etapa cortada é medição não feita. Se um bloco escorregar mais que as ~2 semanas previstas, o ajuste é empurrar a grade — nunca cortar etapa.";
 
 export const PRIORIDADE =
-  "Ordem de prioridade: (1) .NET + arquitetura · (2) utilidade no trabalho · (3) inglês em dose mínima";
+  "Ordem de prioridade: (1) o bloco corrente · (2) utilidade no trabalho · (3) inglês em dose mínima";

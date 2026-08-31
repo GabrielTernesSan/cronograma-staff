@@ -4,28 +4,42 @@ import { useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { quarters } from "@/lib/data/cronograma";
 import {
-  ALL_ITEM_IDS,
-  ALL_LESSON_IDS,
+  ALL_ETAPA_IDS,
+  ALL_MEDICAO_IDS,
   ALL_TASK_IDS,
-  TOTAL_LESSON_MINUTES,
+  BLOCOS_CONCEITO,
+  blocosConcluidos,
   countDone,
-  formatHours,
-  minutesDone,
+  countPreenchidas,
   pct,
 } from "@/lib/stats";
 
 export function ProgressHeader() {
-  const { done, loaded, exportJson, importJson, reset, filters, setFilters } =
-    useApp();
+  const {
+    done,
+    valores,
+    loaded,
+    exportJson,
+    importJson,
+    reset,
+    filters,
+    setFilters,
+  } = useApp();
   const fileRef = useRef<HTMLInputElement>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const lessonsDone = countDone(ALL_LESSON_IDS, done);
+  const etapasDone = countDone(ALL_ETAPA_IDS, done);
+  const medicoesDone = countPreenchidas(ALL_MEDICAO_IDS, valores);
   const tasksDone = countDone(ALL_TASK_IDS, done);
-  const totalDone = countDone(ALL_ITEM_IDS, done);
-  const percent = pct(totalDone, ALL_ITEM_IDS.length);
-  const minutes = minutesDone(done);
+  const nBlocos = blocosConcluidos(done, valores);
+
+  // O anel mede o projeto: etapas + medições. As trilhas paralelas não
+  // competem com os blocos na barra principal.
+  const percent = pct(
+    etapasDone + medicoesDone,
+    ALL_ETAPA_IDS.length + ALL_MEDICAO_IDS.length,
+  );
 
   return (
     <header className="border-b border-line bg-surface">
@@ -35,25 +49,27 @@ export function ProgressHeader() {
 
           <div className="min-w-0 flex-1">
             <h1 className="text-xl font-bold leading-tight sm:text-2xl">
-              Cronograma 24 meses
+              Cronograma 30 meses
             </h1>
             <p className="text-sm text-muted">
-              .NET · Arquitetura · Staff — set/2026 a ago/2028
+              .NET · Arquitetura · Staff — set/2026 a fev/2029
             </p>
 
-            <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
+            <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
               <Stat
-                label="Lições"
-                value={`${lessonsDone}/${ALL_LESSON_IDS.length}`}
+                label="Blocos"
+                value={`${nBlocos}/${BLOCOS_CONCEITO.length}`}
               />
               <Stat
-                label="Marcos"
-                value={`${tasksDone}/${ALL_TASK_IDS.length}`}
+                label="Etapas"
+                value={`${etapasDone}/${ALL_ETAPA_IDS.length}`}
               />
               <Stat
-                label="Vídeo assistido"
-                value={`${formatHours(minutes)} / ${formatHours(TOTAL_LESSON_MINUTES)}`}
+                label="Medições"
+                value={`${medicoesDone}/${ALL_MEDICAO_IDS.length}`}
+                destaque
               />
+              <Stat label="Marcos" value={`${tasksDone}/${ALL_TASK_IDS.length}`} />
             </dl>
           </div>
         </div>
@@ -66,14 +82,6 @@ export function ProgressHeader() {
             }
           >
             só pendentes
-          </Toggle>
-          <Toggle
-            active={filters.hidePlanned}
-            onClick={() =>
-              setFilters((f) => ({ ...f, hidePlanned: !f.hidePlanned }))
-            }
-          >
-            ocultar planejadas
           </Toggle>
 
           <span className="mx-1 h-5 w-px bg-line" />
@@ -154,17 +162,27 @@ function Ring({ percent }: { percent: number }) {
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-2xl font-bold tabular-nums">{percent}%</span>
         <span className="text-[10px] uppercase tracking-wide text-muted">
-          concluído
+          do projeto
         </span>
       </div>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  value,
+  destaque,
+}: {
+  label: string;
+  value: string;
+  destaque?: boolean;
+}) {
   return (
     <div>
-      <dt className="text-xs text-muted">{label}</dt>
+      <dt className={`text-xs ${destaque ? "text-accent" : "text-muted"}`}>
+        {label}
+      </dt>
       <dd className="font-semibold tabular-nums">{value}</dd>
     </div>
   );

@@ -1,12 +1,17 @@
 "use client";
 
 import { useApp } from "@/lib/app-context";
-import { moduleById } from "@/lib/data/curso";
 import { KIND_META, KIND_ORDER } from "@/lib/data/cronograma";
-import { countDone, formatHours, quarterItemIds, quarterLessons } from "@/lib/stats";
+import {
+  quarterBlocos,
+  quarterDone,
+  quarterItemIds,
+  quarterTransbordos,
+  semanasLabel,
+} from "@/lib/stats";
 import type { Quarter, TaskKind } from "@/lib/types";
 import { Bar } from "./Bar";
-import { ModuleAccordion } from "./ModuleAccordion";
+import { BlocoCard } from "./BlocoCard";
 import { TaskRow } from "./TaskRow";
 
 const HIGHLIGHT: Record<string, string> = {
@@ -14,23 +19,15 @@ const HIGHLIGHT: Record<string, string> = {
   decisao: "border-decisao/50",
 };
 
-const HIGHLIGHT_LABEL: Record<string, string> = {
-  marco: "MARCO DE 12 MESES",
-  decisao: "PONTO DE DECISÃO",
-};
-
 export function QuarterCard({ quarter }: { quarter: Quarter }) {
-  const { done, filters } = useApp();
+  const { done, valores, filters } = useApp();
 
   const ids = quarterItemIds(quarter);
-  const nDone = countDone(ids, done);
+  const nDone = quarterDone(quarter, done, valores);
   const complete = nDone === ids.length && ids.length > 0;
 
-  const lessons = quarterLessons(quarter);
-  const minutes = lessons.reduce((s, l) => s + l.min, 0);
-  const mods = quarter.moduleIds
-    .map((id) => moduleById.get(id))
-    .filter((m) => m !== undefined);
+  const blocos = quarterBlocos(quarter);
+  const transbordos = quarterTransbordos(quarter);
 
   const tasksByKind = KIND_ORDER.map((kind) => ({
     kind,
@@ -59,7 +56,7 @@ export function QuarterCard({ quarter }: { quarter: Quarter }) {
               ✓ concluído
             </span>
           )}
-          {quarter.highlight && (
+          {quarter.highlight && quarter.highlightLabel && (
             <span
               className={`rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wide ${
                 quarter.highlight === "marco"
@@ -67,16 +64,16 @@ export function QuarterCard({ quarter }: { quarter: Quarter }) {
                   : "bg-decisao/15 text-decisao"
               }`}
             >
-              {HIGHLIGHT_LABEL[quarter.highlight]}
+              {quarter.highlightLabel}
             </span>
           )}
         </div>
         <p className="mt-0.5 text-sm text-muted">
           {quarter.period}
-          {lessons.length > 0 && (
+          {blocos.length > 0 && (
             <>
               {" · "}
-              {lessons.length} lições · {formatHours(minutes)} de vídeo
+              {blocos.map((b) => semanasLabel(b)).join(" + ")} de bloco
             </>
           )}
         </p>
@@ -88,16 +85,31 @@ export function QuarterCard({ quarter }: { quarter: Quarter }) {
         </div>
       </header>
 
-      {mods.length > 0 && (
+      {blocos.length > 0 && (
         <div className="mb-4">
           <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
-            🎓 Curso — .NET Web API Zero to Hero
+            🧱 Blocos do projeto
           </h4>
           <div className="space-y-2">
-            {mods.map((m) => (
-              <ModuleAccordion key={m.id} module={m} />
+            {blocos.map((b) => (
+              <BlocoCard key={b.id} bloco={b} />
             ))}
           </div>
+        </div>
+      )}
+
+      {transbordos.length > 0 && (
+        <div className="mb-4 space-y-1">
+          {transbordos.map((b) => (
+            <p key={b.id} className="text-xs text-muted">
+              ↳ O{" "}
+              <a href={`#${b.id}`} className="text-accent hover:underline">
+                bloco {b.numero} · {b.titulo}
+              </a>{" "}
+              transborda para cá (~2 semanas). Previsto, não falha — o progresso
+              dele conta no trimestre de origem.
+            </p>
+          ))}
         </div>
       )}
 

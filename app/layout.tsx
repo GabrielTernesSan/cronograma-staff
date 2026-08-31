@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Cronograma 24 meses — .NET / Arquitetura / Staff",
+  title: "Cronograma 30 meses — .NET / Arquitetura / Staff",
   description:
-    "Plano de set/2026 a ago/2028: curso .NET Web API Zero to Hero completo, arquitetura, Azure e inglês — com progresso marcável.",
+    "Plano de set/2026 a fev/2029: 7 blocos de arquitetura aplicada, com etapas de projeto, medições registradas e os marcos de trabalho, Azure e inglês.",
 };
 
 export const viewport: Viewport = {
