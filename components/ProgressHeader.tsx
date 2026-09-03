@@ -2,12 +2,12 @@
 
 import { useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
+import { blocos } from "@/lib/data/blocos";
 import { quarters } from "@/lib/data/cronograma";
 import {
   ALL_ETAPA_IDS,
   ALL_MEDICAO_IDS,
   ALL_TASK_IDS,
-  BLOCOS_CONCEITO,
   blocosConcluidos,
   countDone,
   countPreenchidas,
@@ -57,8 +57,8 @@ export function ProgressHeader() {
 
             <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
               <Stat
-                label="Blocos"
-                value={`${nBlocos}/${BLOCOS_CONCEITO.length}`}
+                label="Assuntos"
+                value={`${nBlocos}/${blocos.length}`}
               />
               <Stat
                 label="Etapas"

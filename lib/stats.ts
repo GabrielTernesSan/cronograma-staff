@@ -10,9 +10,6 @@ export const ALL_TASK_IDS = [
   ...trilhas.flatMap((t) => t.itens?.map((i) => i.id) ?? []),
 ];
 
-// Bloco 0 é esqueleto, não conceito — a spec conta 6 blocos, não 7.
-export const BLOCOS_CONCEITO = blocos.filter((b) => b.numero > 0);
-
 export function etapaIds(b: Bloco) {
   return b.etapas.map((e) => e.id);
 }
@@ -49,7 +46,7 @@ export function blocoCompleto(b: Bloco, done: Set<string>, valores: Valores) {
 }
 
 export function blocosConcluidos(done: Set<string>, valores: Valores) {
-  return BLOCOS_CONCEITO.filter((b) => blocoCompleto(b, done, valores)).length;
+  return blocos.filter((b) => blocoCompleto(b, done, valores)).length;
 }
 
 export function quarterBlocos(q: Quarter) {

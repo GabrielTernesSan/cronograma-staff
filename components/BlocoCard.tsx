@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
+import { REPO_BLOB_URL } from "@/lib/data/blocos";
 import {
   blocoCompleto,
   countDone,
@@ -111,6 +112,38 @@ export function BlocoCard({ bloco }: { bloco: Bloco }) {
             ))}
           </div>
         )}
+
+        <Secao titulo="🎯 O projetinho">
+          <div className="rounded-lg border border-accent/30 bg-surface2 px-3 py-2.5">
+            <p className="font-mono text-sm font-semibold text-accent">
+              {bloco.projeto.nome}
+            </p>
+            <p className="mt-1 text-sm leading-relaxed">
+              {bloco.projeto.resumo}
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              <strong className="font-semibold text-text">
+                Terminei quando:{" "}
+              </strong>
+              {bloco.projeto.criterio}
+            </p>
+            <p className="mt-2 text-xs text-muted">
+              Roteiro completo:{" "}
+              {REPO_BLOB_URL ? (
+                <a
+                  href={`${REPO_BLOB_URL}${bloco.roteiro}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-accent hover:underline"
+                >
+                  {bloco.roteiro}
+                </a>
+              ) : (
+                <span className="font-mono">{bloco.roteiro}</span>
+              )}
+            </p>
+          </div>
+        </Secao>
 
         {bloco.leituras.length > 0 && (
           <Secao titulo="📖 Leituras">

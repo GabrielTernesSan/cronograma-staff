@@ -104,7 +104,7 @@ export function QuarterCard({ quarter }: { quarter: Quarter }) {
             <p key={b.id} className="text-xs text-muted">
               ↳ O{" "}
               <a href={`#${b.id}`} className="text-accent hover:underline">
-                bloco {b.numero} · {b.titulo}
+                assunto {b.numero} · {b.titulo}
               </a>{" "}
               transborda para cá (~2 semanas). Previsto, não falha — o progresso
               dele conta no trimestre de origem.

@@ -17,7 +17,7 @@ import {
 
 const ANOS: { title: string; year: Quarter["year"] }[] = [
   { title: "Ano 1 — fundação, cache, resiliência e persistência", year: 1 },
-  { title: "Ano 2 — mensageria, observabilidade, escala e fechamento", year: 2 },
+  { title: "Ano 2 — mensageria, observabilidade, escala e o sistema inteiro", year: 2 },
   { title: "Ano 3 — mercado e decisão", year: 3 },
 ];
 

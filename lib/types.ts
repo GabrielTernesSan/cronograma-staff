@@ -18,6 +18,14 @@ export type Leitura = {
   confirmado: boolean;
 };
 
+// O exercício isolado do assunto. Cada bloco tem o seu, montado do zero — o
+// resumo aqui é a versão curta do que `roteiro/NN-*.md` descreve por inteiro.
+export type Projeto = {
+  nome: string;
+  resumo: string;
+  criterio: string;
+};
+
 export type Bloco = {
   id: string;
   numero: number;
@@ -25,6 +33,9 @@ export type Bloco = {
   duracaoSemanas: [number, number];
   conceitos: string[];
   leituras: Leitura[];
+  projeto: Projeto;
+  // caminho do roteiro completo, ex. "roteiro/01-cache.md"
+  roteiro: string;
   etapas: Etapa[];
   medicoes: Medicao[];
   // o que ele deve escrever com as próprias palavras ao fechar o bloco

@@ -1,15 +1,15 @@
 import type { Quarter, TaskKind, Trilha } from "../types";
 
-// A conta das 6h semanais: 4h de bloco, 1h de leitura de arquitetura, 1h de
-// inglês. Um trimestre tem ~13 semanas, logo ~52h de bloco por trimestre.
+// A conta das 6h semanais: 4h de projetinho, 1h de leitura de arquitetura, 1h de
+// inglês. Um trimestre tem ~13 semanas, logo ~52h de projetinho por trimestre.
 export const RITMO_SEMANAL = [
-  { bloco: "Bloco corrente (estudo + aplicação)", tempo: "4h" },
+  { bloco: "Assunto corrente — o projetinho", tempo: "4h" },
   { bloco: "Leitura de arquitetura — Fidelis", tempo: "1h" },
   { bloco: "Inglês conversação", tempo: "1h" },
 ];
 
 export const RITMO_NOTA =
-  "Total: 6h/semana. Os 7 blocos custam ~315h — a 4h/semana são ~78 semanas, 18 meses só de projeto. Somando certificações, preparação de mercado e folga, o plano ocupa 10 trimestres. Não é atraso: o plano de 24 meses supunha 10h/semana e o curso do Mukesh como espinha. Com 6h e foco em arquitetura aplicada, 30 meses é o número honesto.";
+  "Total: 6h/semana. Os 7 primeiros assuntos custam ~315h — a 4h/semana são ~78 semanas, 18 meses só de projetinho. Somando certificações, preparação de mercado e folga, o plano ocupa 10 trimestres. Não é atraso: o plano de 24 meses supunha 10h/semana e o curso do Mukesh como espinha. Com 6h e foco em arquitetura aplicada, 30 meses é o número honesto. O assunto 7, o projeto grande do fim, custa mais ~36h e ocupa o T8.";
 
 export const KIND_META: Record<TaskKind, { label: string; icon: string }> = {
   arq: { label: "Arquitetura — Fidelis", icon: "🏛️" },
@@ -37,7 +37,7 @@ export const quarters: Quarter[] = [
     theme: "Fundamento e cache",
     year: 1,
     blocoIds: ["b0", "b1"],
-    note: "O bloco 0 não passa de uma semana. O resto do trimestre é o bloco 1 inteiro — e o aprendizado central dele é ver duas réplicas discordarem, não configurar Redis.",
+    note: "O assunto 0 não passa de uma semana. O resto do trimestre é o assunto 1 inteiro — e o aprendizado central dele é ver duas réplicas discordarem, não configurar Redis.",
     tasks: [
       {
         id: "t1-arq-1",
@@ -96,7 +96,7 @@ export const quarters: Quarter[] = [
     theme: "Resiliência e o primeiro design doc",
     year: 1,
     blocoIds: ["b2"],
-    note: "Se o design doc não sai no papel, a ideia ainda está confusa — aí você estuda aquele buraco específico. O bloco 2 custa ~60h contra 52h de capacidade: transbordar ~2 semanas para o T3 é previsto, não falha.",
+    note: "Se o design doc não sai no papel, a ideia ainda está confusa — aí você estuda aquele buraco específico. O assunto 2 custa ~60h contra 52h de capacidade: transbordar ~2 semanas para o T3 é previsto, não falha.",
     tasks: [
       {
         id: "t2-trabalho-1",
@@ -133,7 +133,7 @@ export const quarters: Quarter[] = [
       {
         id: "t3-trabalho-2",
         kind: "trabalho",
-        text: "Classificar os BOs reais dos dois sistemas nos padrões de resiliência do bloco 2",
+        text: "Classificar os BOs reais dos dois sistemas nos padrões de resiliência do assunto 2",
       },
       { id: "t3-ingles-1", kind: "ingles", text: "Manter 1h/semana" },
     ],
@@ -148,7 +148,7 @@ export const quarters: Quarter[] = [
     highlightLabel: "MARCO 12 MESES",
     blocoIds: [],
     transbordoIds: ["b3"],
-    note: "Trimestre sem bloco novo, de propósito: absorve o atraso acumulado do ano 1 e cabe a AZ-104. Se tudo correu no prazo, sobra tempo — e sobra é recurso, não desperdício. Se a resposta for “não” em alguma pergunta do checkpoint, este trimestre é para fechar a lacuna.",
+    note: "Trimestre sem assunto novo, de propósito: absorve o atraso acumulado do ano 1 e cabe a AZ-104. Se tudo correu no prazo, sobra tempo — e sobra é recurso, não desperdício. Se a resposta for “não” em alguma pergunta do checkpoint, este trimestre é para fechar a lacuna.",
     tasks: [
       {
         id: "t4-cert-1",
@@ -238,17 +238,17 @@ export const quarters: Quarter[] = [
     id: "t8",
     label: "T8",
     period: "jun–ago/2028",
-    theme: "Fechamento do projeto",
+    theme: "Assunto 7 — o sistema inteiro",
     year: 2,
     highlight: "marco",
     highlightLabel: "MARCO 24 MESES",
-    blocoIds: [],
-    note: "Trimestre sem bloco novo, de propósito: fecha o projeto e absorve o atraso do ano 2.",
+    blocoIds: ["b7"],
+    note: "O único projeto grande do plano: os sete assuntos viram um sistema só, e é aí que eles se contradizem. São 8–10 semanas contra ~13 de trimestre — a folga é a mesma que absorveria o atraso do ano 2. Se o ano 2 escorregou, o assunto 7 entra no T9, e isso não atrapalha: as mock interviews do T9 são sobre ele.",
     tasks: [
       {
         id: "t8-trabalho-1",
         kind: "trabalho",
-        text: "Design doc de 2 páginas do projeto inteiro: arquitetura, decisões, trade-offs, limites conhecidos",
+        text: "Apresentar o design doc do cotacao ao time — a etapa 8 do assunto 7 escreve, esta aqui defende em voz alta",
       },
       {
         id: "t8-trabalho-2",
@@ -279,7 +279,7 @@ export const quarters: Quarter[] = [
       {
         id: "t9-trabalho-2",
         kind: "trabalho",
-        text: "Currículo e LinkedIn em inglês, com o projeto dos 6 blocos como peça central",
+        text: "Currículo e LinkedIn em inglês, com o cotacao e o design doc dele como peça central",
       },
       { id: "t9-ingles-1", kind: "ingles", text: "Manter 3h/semana" },
     ],
@@ -314,7 +314,7 @@ export const quarters: Quarter[] = [
   },
 ];
 
-// Correm fora dos trimestres e não competem com os blocos na barra principal.
+// Correm fora dos trimestres e não competem com os assuntos na barra principal.
 // As que têm `kind` derivam o progresso dos marcos espalhados pela grade —
 // assim nenhum ID de marco existe em dois lugares.
 export const trilhas: Trilha[] = [
@@ -322,7 +322,7 @@ export const trilhas: Trilha[] = [
     id: "tr-ia",
     titulo: "Curso de IA — Rodrigo Branas",
     icon: "🤖",
-    regra: "Pago pela empresa, ritmo próprio. Se começar a consumir as 6h semanais inteiras, o bloco corrente para — e isso precisa ser uma decisão consciente, não um deslize.",
+    regra: "Pago pela empresa, ritmo próprio. Se começar a consumir as 6h semanais inteiras, o projetinho corrente para — e isso precisa ser uma decisão consciente, não um deslize.",
     itens: [
       {
         id: "tr-ia-1",
@@ -349,7 +349,7 @@ export const trilhas: Trilha[] = [
     titulo: "Certificação Azure",
     icon: "📜",
     kind: "cert",
-    regra: "AZ-104 → AZ-305. Sem data fixa: entra quando um bloco terminar e antes do próximo começar.",
+    regra: "AZ-104 → AZ-305. Sem data fixa: entra quando um assunto terminar e antes do próximo começar.",
     aviso: "A AZ-204 foi aposentada em 31/07/2026. Para o objetivo de arquitetura/Staff, o caminho AZ-104 → AZ-305 é melhor que a alternativa dev.",
   },
   {
@@ -365,7 +365,7 @@ export const FORA_DE_PROPOSITO =
   "Micro-SaaS, side project, pós-graduação, curso de liderança, novo framework. Nada disso é ruim — todos competem com os itens acima por um tempo que você não tem. Reavaliar só depois do marco de 12 meses.";
 
 export const REGRA_UNICA =
-  "Etapa cortada é medição não feita. Se um bloco escorregar mais que as ~2 semanas previstas, o ajuste é empurrar a grade — nunca cortar etapa.";
+  "Etapa cortada é medição não feita. Se um assunto escorregar mais que as ~2 semanas previstas, o ajuste é empurrar a grade — nunca cortar etapa.";
 
 export const PRIORIDADE =
-  "Ordem de prioridade: (1) o bloco corrente · (2) utilidade no trabalho · (3) inglês em dose mínima";
+  "Ordem de prioridade: (1) o assunto corrente · (2) utilidade no trabalho · (3) inglês em dose mínima";
