@@ -11,12 +11,11 @@ import {
 } from "@/lib/stats";
 import type { Quarter, TaskKind } from "@/lib/types";
 import { Bar } from "./Bar";
-import { BlocoCard } from "./BlocoCard";
 import { TaskRow } from "./TaskRow";
 
 const HIGHLIGHT: Record<string, string> = {
-  marco: "border-ok/50",
-  decisao: "border-decisao/50",
+  marco: "border-ok",
+  decisao: "border-decisao",
 };
 
 export function QuarterCard({ quarter }: { quarter: Quarter }) {
@@ -43,22 +42,22 @@ export function QuarterCard({ quarter }: { quarter: Quarter }) {
   return (
     <section
       id={quarter.id}
-      className={`scroll-mt-24 rounded-2xl border ${border} bg-surface p-4 sm:p-5`}
+      className={`scroll-mt-6 border ${border} bg-surface px-5 py-4`}
     >
-      <header className="mb-4">
+      <header>
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h3 className="text-lg font-bold">
-            <span className="text-accent">{quarter.label}</span>{" "}
+          <h3 className="text-[17px] font-bold">
+            <span className="font-mono text-accent">{quarter.label}</span>{" "}
             <span className="text-muted">·</span> {quarter.theme}
           </h3>
           {complete && (
-            <span className="rounded-md bg-ok/15 px-2 py-0.5 text-xs font-semibold text-ok">
-              ✓ concluído
+            <span className="bg-ok/15 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-ok">
+              concluído
             </span>
           )}
           {quarter.highlight && quarter.highlightLabel && (
             <span
-              className={`rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wide ${
+              className={`px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${
                 quarter.highlight === "marco"
                   ? "bg-ok/15 text-ok"
                   : "bg-decisao/15 text-decisao"
@@ -67,41 +66,43 @@ export function QuarterCard({ quarter }: { quarter: Quarter }) {
               {quarter.highlightLabel}
             </span>
           )}
-        </div>
-        <p className="mt-0.5 text-sm text-muted">
-          {quarter.period}
-          {blocos.length > 0 && (
-            <>
-              {" · "}
-              {blocos.map((b) => semanasLabel(b)).join(" + ")} de bloco
-            </>
-          )}
-        </p>
-        <div className="mt-3 flex items-center gap-3">
-          <Bar value={nDone} total={ids.length} className="flex-1" height={8} />
-          <span className="shrink-0 text-xs font-semibold tabular-nums text-muted">
+          <span className="ml-auto shrink-0 font-mono text-xs tabular-nums text-muted">
             {nDone}/{ids.length}
           </span>
         </div>
+        <p className="mt-0.5 font-mono text-[11px] text-muted tabular-nums">
+          {quarter.period}
+        </p>
+        <Bar value={nDone} total={ids.length} className="mt-3" height={4} />
       </header>
 
       {blocos.length > 0 && (
-        <div className="mb-4">
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
-            🧱 Blocos do projeto
-          </h4>
-          <div className="space-y-2">
+        <div className="mt-4">
+          <p className="label mb-1.5">O assunto do trimestre</p>
+          <div className="flex flex-col gap-1">
             {blocos.map((b) => (
-              <BlocoCard key={b.id} bloco={b} />
+              <a
+                key={b.id}
+                href={`#${b.id}`}
+                className="group flex items-baseline gap-2 text-[15px] hover:underline"
+              >
+                <span className="font-mono text-[11px] font-bold text-accent tabular-nums">
+                  {String(b.numero).padStart(2, "0")}
+                </span>
+                <span className="font-medium">{b.titulo}</span>
+                <span className="font-mono text-[11px] text-muted">
+                  {semanasLabel(b)}
+                </span>
+              </a>
             ))}
           </div>
         </div>
       )}
 
       {transbordos.length > 0 && (
-        <div className="mb-4 space-y-1">
+        <div className="mt-3 flex flex-col gap-1">
           {transbordos.map((b) => (
-            <p key={b.id} className="text-xs text-muted">
+            <p key={b.id} className="text-[13.5px] leading-snug text-muted">
               ↳ O{" "}
               <a href={`#${b.id}`} className="text-accent hover:underline">
                 assunto {b.numero} · {b.titulo}
@@ -118,7 +119,7 @@ export function QuarterCard({ quarter }: { quarter: Quarter }) {
       ))}
 
       {quarter.note && (
-        <p className="mt-4 rounded-lg border-l-2 border-accent/60 bg-surface2 px-3 py-2 text-sm leading-relaxed text-muted">
+        <p className="mt-4 border-l-2 border-accent bg-surface2 px-4 py-2.5 text-[14.5px] leading-relaxed text-muted">
           {quarter.note}
         </p>
       )}
@@ -135,10 +136,10 @@ function TaskGroup({
 }) {
   const meta = KIND_META[kind];
   return (
-    <div className="mb-3">
-      <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+    <div className="mt-4">
+      <p className="label mb-1">
         {meta.icon} {meta.label}
-      </h4>
+      </p>
       <div>
         {tasks.map((t) => (
           <TaskRow key={t.id} task={t} />

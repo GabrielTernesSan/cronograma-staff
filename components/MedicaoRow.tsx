@@ -3,22 +3,34 @@
 import { useApp } from "@/lib/app-context";
 import type { Medicao } from "@/lib/types";
 
+/** Uma linha da tabela de medições: o que medir, o que o número prova, e o
+ *  campo onde o número entra. As três colunas juntas são o argumento de que
+ *  medição não é burocracia. */
 export function MedicaoRow({ medicao }: { medicao: Medicao }) {
   const { valorDe, temValor, setValor } = useApp();
   const preenchida = temValor(medicao.id);
 
   return (
-    <div className="flex flex-col gap-1.5 px-2 py-2 sm:flex-row sm:items-center sm:gap-3">
-      <label
-        htmlFor={medicao.id}
-        className="min-w-0 flex-1 text-sm leading-snug"
-      >
-        <span className={preenchida ? "text-muted" : "text-text"}>
+    <tr>
+      <td className="!pl-6">
+        <label
+          htmlFor={medicao.id}
+          className={`block max-w-[30ch] cursor-pointer text-[15px] leading-snug ${
+            preenchida ? "text-muted" : "text-text"
+          }`}
+        >
           {medicao.label}
-        </span>
-        {preenchida && <span className="ml-2 text-xs text-ok">✓</span>}
-      </label>
-      <div className="flex shrink-0 items-center gap-2">
+        </label>
+        {medicao.unidade && (
+          <span className="mt-1 inline-block bg-measure/10 px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-measure">
+            {medicao.unidade}
+          </span>
+        )}
+      </td>
+      <td className="max-w-[34ch] text-[14.5px] leading-snug text-muted">
+        {medicao.prova}
+      </td>
+      <td className="!pr-6">
         <input
           id={medicao.id}
           type="text"
@@ -28,17 +40,12 @@ export function MedicaoRow({ medicao }: { medicao: Medicao }) {
           autoComplete="off"
           value={valorDe(medicao.id)}
           onChange={(e) => setValor(medicao.id, e.target.value)}
-          placeholder="—"
+          placeholder="anotar"
           data-preenchida={preenchida}
-          className="medicao w-full sm:w-44"
+          className="medicao w-full min-w-[8rem]"
           aria-label={medicao.label}
         />
-        {medicao.unidade && (
-          <span className="shrink-0 text-xs tabular-nums text-muted">
-            {medicao.unidade}
-          </span>
-        )}
-      </div>
-    </div>
+      </td>
+    </tr>
   );
 }

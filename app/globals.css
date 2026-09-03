@@ -1,46 +1,81 @@
 @import "tailwindcss";
 
+/* Paleta clara é a base: papel de leve viés verde, tinta quase preta, teal
+   estrutural e âmbar reservado para medição — o único lugar onde a cor grita.
+   O tema escuro só redefine os tokens, mais abaixo. */
 @theme {
-  --color-bg: #0a0e14;
-  --color-surface: #111823;
-  --color-surface2: #16202e;
-  --color-line: #223044;
-  --color-text: #e6edf3;
-  --color-muted: #8b9bb0;
-  --color-accent: #4f8cff;
-  --color-ok: #34d399;
-  --color-warn: #f5a524;
-  --color-decisao: #c084fc;
+  --color-bg: #f6f8f6;
+  --color-surface: #ffffff;
+  --color-surface2: #eef2ef;
+  --color-line: #dce3df;
+  --color-line-soft: #e8edea;
+  --color-text: #141a18;
+  --color-muted: #5c6864;
+  --color-accent: #0d5b50;
+  --color-measure: #a05c00;
+  --color-ok: #2f7a3d;
+  --color-warn: #8a4b12;
+  --color-decisao: #6b46c1;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-archivo), "Segoe UI", system-ui, sans-serif;
+  --font-body: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, Consolas, monospace;
 }
 
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #f6f8fb;
-    --color-surface: #ffffff;
-    --color-surface2: #eef2f7;
-    --color-line: #d8e0ea;
-    --color-text: #101720;
-    --color-muted: #5a6b80;
-    --color-accent: #2563eb;
-    --color-ok: #059669;
-    --color-warn: #b45309;
-    --color-decisao: #7c3aed;
+    --color-bg: #0d1211;
+    --color-surface: #141a18;
+    --color-surface2: #1a2220;
+    --color-line: #253029;
+    --color-line-soft: #1c2422;
+    --color-text: #e3e9e6;
+    --color-muted: #8d9a95;
+    --color-accent: #52c9ae;
+    --color-measure: #dfa254;
+    --color-ok: #6fce8b;
+    --color-warn: #d99a5e;
+    --color-decisao: #b794f6;
   }
 }
 
 html {
-  color-scheme: dark light;
+  color-scheme: light dark;
   scroll-behavior: smooth;
 }
 
 body {
   background-color: var(--color-bg);
   color: var(--color-text);
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.62;
   -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+  font-family: var(--font-display);
+  text-wrap: balance;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 
 /* checkbox nativo estilizado — mais confiável que reimplementar com div */
@@ -52,7 +87,6 @@ input[type="checkbox"] {
 /* barra de progresso */
 .bar {
   background-color: var(--color-surface2);
-  border-radius: 999px;
   overflow: hidden;
 }
 .bar > span {
@@ -73,6 +107,67 @@ details > summary::-webkit-details-marker {
   display: none;
 }
 
+/* Rótulo de seção: mono, caixa alta, espaçado. Repete em todo o documento e é
+   o que dá o ar de ficha técnica. */
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+/* campo de medição — o registro do número que ele mediu */
+input.medicao {
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-line);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  padding: 5px 8px;
+}
+input.medicao::placeholder {
+  color: var(--color-muted);
+  opacity: 0.6;
+}
+input.medicao:focus {
+  border-color: var(--color-measure);
+  outline: 2px solid color-mix(in srgb, var(--color-measure) 30%, transparent);
+  outline-offset: 0;
+}
+input.medicao[data-preenchida="true"] {
+  border-color: color-mix(in srgb, var(--color-measure) 60%, transparent);
+  background-color: color-mix(in srgb, var(--color-measure) 8%, transparent);
+}
+
+/* tabelas do documento */
+.doc-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.doc-table th,
+.doc-table td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-line-soft);
+  vertical-align: top;
+}
+.doc-table thead th {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  font-weight: 500;
+  border-bottom: 1px solid var(--color-line);
+  white-space: nowrap;
+}
+.doc-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
 @media print {
   .no-print {
     display: none !important;
@@ -83,23 +178,4 @@ details > summary::-webkit-details-marker {
   details > div {
     display: block !important;
   }
-}
-
-/* campo de medição — o registro do número que ele mediu */
-input.medicao {
-  background-color: var(--color-surface2);
-  border: 1px solid var(--color-line);
-  border-radius: 6px;
-  color: var(--color-text);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  padding: 4px 8px;
-}
-input.medicao:focus {
-  border-color: var(--color-accent);
-  outline: 2px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
-  outline-offset: 0;
-}
-input.medicao[data-preenchida="true"] {
-  border-color: color-mix(in srgb, var(--color-ok) 55%, transparent);
 }

@@ -8,30 +8,36 @@ export function EtapaRow({ etapa, num }: { etapa: Etapa; num: number }) {
   const checked = isDone(etapa.id);
 
   return (
-    <label className="group flex items-start gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface2">
-      <input
-        type="checkbox"
-        className="mt-1 size-4 shrink-0"
-        checked={checked}
-        onChange={() => toggle(etapa.id)}
-      />
-      <span className="mt-px shrink-0 text-xs font-semibold tabular-nums text-muted">
-        {num}
-      </span>
-      <span className="min-w-0 flex-1">
+    <li className="list-none border-t border-line-soft first:border-t-0">
+      <label className="grid cursor-pointer grid-cols-[auto_1.4rem_1fr] items-start gap-x-2.5 py-2.5">
+        <input
+          type="checkbox"
+          className="mt-[5px] size-4 shrink-0"
+          checked={checked}
+          onChange={() => toggle(etapa.id)}
+        />
         <span
-          className={`block text-sm leading-snug ${
-            checked ? "text-muted line-through" : "text-text"
+          className={`pt-[3px] font-mono text-[11px] font-bold tabular-nums ${
+            checked ? "text-muted" : "text-measure"
           }`}
         >
-          {etapa.texto}
+          {num}
         </span>
-        {etapa.detalhe && (
-          <span className="mt-0.5 block text-xs leading-relaxed text-muted">
-            {etapa.detalhe}
+        <span className="min-w-0">
+          <span
+            className={`block text-[15.5px] font-medium leading-relaxed ${
+              checked ? "text-muted line-through" : "text-text"
+            }`}
+          >
+            {etapa.texto}
           </span>
-        )}
-      </span>
-    </label>
+          {etapa.detalhe && (
+            <span className="mt-1 block max-w-[62ch] text-[14.5px] leading-relaxed text-muted">
+              {etapa.detalhe}
+            </span>
+          )}
+        </span>
+      </label>
+    </li>
   );
 }

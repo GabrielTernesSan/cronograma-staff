@@ -6,10 +6,12 @@ Duas coisas neste repositório:
    com os conceitos explicados, o que ler, e **um projetinho isolado** para revisar
    aquele conceito na prática — mais **um oitavo projeto, grande**, onde os sete se
    encontram e brigam entre si. É aqui que mora o conteúdo.
-2. **O site** — o acompanhamento. A grade de set/2026 a fev/2029 com etapas marcáveis e
-   medições registráveis, salvo no navegador.
+2. **O site** — o mesmo roteiro por inteiro, mais o acompanhamento: a grade de set/2026
+   a fev/2029, com etapas marcáveis e medições registráveis salvas no navegador.
 
-Se os dois discordarem, o roteiro está certo.
+O conteúdo vive em dois formatos: `lib/data/blocos.ts` é o que o site renderiza,
+`roteiro/*.md` é a cópia portátil para ler no GitHub ou no Obsidian. **Mexeu num, mexa
+no outro.**
 
 ## Os assuntos
 
@@ -48,7 +50,8 @@ O que atravessa os 30 meses não é o código — é a pasta de notas e as medi�
 - **4 trilhas paralelas** (Branas, inglês, Azure, trabalho) com progresso próprio.
 - Progresso e medições no **localStorage**, com **exportar/importar JSON** para backup
   ou troca de máquina.
-- Filtro `só pendentes` e `marcar etapas` por assunto.
+- Filtro `só pendentes` e `marcar todas` por assunto.
+- Índice fixo na lateral que acompanha a seção em que você está.
 
 ## A grade
 
@@ -100,9 +103,10 @@ Todo push na branch principal redeploya automaticamente.
 
 ## Onde mexer no conteúdo
 
-- **`roteiro/*.md`** — o conteúdo de verdade. Mexa aqui primeiro.
-- `lib/data/blocos.ts` — o resumo que o site mostra: conceitos, leituras, o projetinho,
-  etapas e medições de cada assunto.
+- `lib/data/blocos.ts` — o conteúdo que o site renderiza: intro, conceitos com
+  definição, leituras, o projetinho (escopo, passo a passo, medições, critério), os
+  conflitos do assunto 7.
+- **`roteiro/*.md`** — a mesma coisa em Markdown, para ler fora do site.
 - `lib/data/cronograma.ts` — os 10 trimestres, os marcos e as 4 trilhas paralelas.
 
 ⚠️ Os **IDs são posicionais** (`b1-e3` = 3ª etapa do assunto 1, `t4-cert-2` = 2º marco de
@@ -112,9 +116,9 @@ já salvo passa a apontar para o item errado. Para acrescentar, adicione no fim 
 Uma leitura com `confirmado: false` mostra a badge `link não confirmado` — é o lembrete
 de que o endereço ainda precisa ser procurado no blog.
 
-Preenchendo `REPO_BLOB_URL` em `lib/data/blocos.ts` (ex.
-`https://github.com/user/repo/blob/main/`), o caminho do roteiro em cada card vira link
-clicável. Vazio, ele aparece só como texto — melhor que um link morto.
+`REPO_BLOB_URL` em `lib/data/blocos.ts` aponta para o repo no GitHub: é o que faz o
+caminho do roteiro, no rodapé de cada assunto, virar link para o `.md`. Vazio, ele
+aparece só como texto — melhor que um link morto.
 
 ## Persistência
 
