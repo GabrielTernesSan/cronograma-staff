@@ -27,7 +27,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Roteiro Staff .NET — 30 meses",
+  title: "Software Architecture, AI Engineering, Cloud & Product",
   description:
     "Sete assuntos de arquitetura, cada um com leitura e um projetinho isolado para revisar o conceito na prática, e um projeto final onde todos se encontram. Com progresso e medições marcáveis.",
 };
