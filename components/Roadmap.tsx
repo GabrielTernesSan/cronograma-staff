@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
 import { DESTINOS, DESTINOS_NOTA, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, PILARES, RITMO, RITMO_NOTA, ROTA, trimestres } from "@/lib/data/cronograma";
-import { assuntos, assuntosDoMes } from "@/lib/data/trilha";
+import { assuntos, assuntosDoMes, horasPratica, horasTeoria, MIN_LEITURA } from "@/lib/data/trilha";
 import { ALL_ACTIVITY_IDS, ALL_ASSUNTO_IDS, ALL_EVIDENCE_IDS, ALL_LEITURA_IDS, ALL_MARCO_IDS, assuntoDone, assuntoIds, countDone, countValues, labComplete, labsComplete, pct } from "@/lib/stats";
 import type { Assunto, Laboratorio, Pilar, Trimestre } from "@/lib/types";
 
@@ -62,7 +62,7 @@ export function Roadmap() {
 /* ───────── Trilha (mapa de nós) ───────── */
 function Trilha({ onSelect }: { onSelect: (s: Sel) => void }) {
   return <section aria-labelledby="trilha-h">
-    <div className="flex flex-wrap items-end justify-between gap-4"><div><h2 id="trilha-h" className="text-2xl font-bold">Trilha</h2><p className="mt-2 max-w-[70ch] text-muted">Cada mês é um nó central; os assuntos saem dele. Clique num assunto para ver subtópicos, leituras e prática. Clique no mês para ver o laboratório.</p></div>
+    <div className="flex flex-wrap items-end justify-between gap-4"><div><h2 id="trilha-h" className="text-2xl font-bold">Trilha</h2><p className="mt-2 max-w-[70ch] text-muted">Cada mês é um nó central; os assuntos saem dele. Clique num assunto: primeiro a teoria (o que estudar e leituras, com tempo estimado), depois a prática. Clique no mês para ver o laboratório.</p></div>
       <ul className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-muted"><li className="flex items-center gap-1.5"><span className="inline-block size-3 border border-line bg-surface" />não iniciado</li><li className="flex items-center gap-1.5"><span className="inline-block size-3 border-2 border-accent bg-surface" />em andamento</li><li className="flex items-center gap-1.5"><span className="inline-block size-3 border border-ok bg-ok/20" />concluído</li></ul></div>
     {ANOS.map(ano => <div key={ano.n} className="mt-10">
       <div className="sticky top-0 z-20 -mx-6 border-b border-line bg-bg/95 px-6 py-3 backdrop-blur"><p className="label">Ano {ano.n} · {ano.meses}</p><h3 className="text-xl font-bold">{ano.nome}</h3></div>
@@ -107,10 +107,10 @@ function TopicNode({ x, side, onClick }: { x: Assunto; side: "left" | "right"; o
   const a = useApp(); const ids = assuntoIds(x); const n = assuntoDone(x, a.done); const complete = n === ids.length;
   const dim = (a.filters.pillars.length > 0 && !a.filters.pillars.includes(x.pilar)) || (a.filters.onlyPending && complete);
   const state = complete ? "border-ok bg-ok/15" : n > 0 ? "border-accent border-2 bg-surface" : "border-line bg-surface";
-  return <div className={`flex items-center ${side === "left" ? "md:flex-row" : "md:flex-row-reverse"} ${dim ? "opacity-35" : ""}`}>
-    <button type="button" onClick={onClick} className={`w-full max-w-[19rem] border px-3 py-2 text-left transition hover:-translate-y-px hover:shadow-sm ${state}`}>
+  return <div className={`flex w-full items-center md:justify-end ${side === "left" ? "md:flex-row" : "md:flex-row-reverse"} ${dim ? "opacity-35" : ""}`}>
+    <button type="button" onClick={onClick} className={`w-full border px-3 md:w-[17rem] py-2 text-left transition hover:-translate-y-px hover:shadow-sm ${state}`}>
       <span className="flex items-center gap-2"><span className={`inline-block size-2 shrink-0 rounded-full ${DOT[x.pilar]}`} /><span className="font-display text-[14px] font-semibold leading-snug">{x.titulo}</span></span>
-      <span className="mt-1 flex justify-between font-mono text-[10.5px] text-muted"><span>{x.leituras.length} leituras</span><span>{complete ? "✓ feito" : `${n}/${ids.length}`}</span></span>
+      <span className="mt-1 flex justify-between font-mono text-[10.5px] text-muted"><span>teoria {horasTeoria(x)}h · prática {horasPratica(x)}h</span><span>{complete ? "✓ feito" : `${n}/${ids.length}`}</span></span>
     </button>
     <span aria-hidden className="hidden h-0 w-8 shrink-0 border-t border-dashed border-muted md:block" />
   </div>;
@@ -140,13 +140,13 @@ function AssuntoPanel({ id, onSelect }: { id: string; onSelect: (s: Sel) => void
     <h2 className="mt-2 text-2xl font-bold">{x.titulo}</h2>
     <p className="mt-2 text-[16px] leading-relaxed text-muted">{x.resumo}</p>
     <Bar n={n} total={ids.length} /><p className="mt-1 font-mono text-[11px] text-muted">{n}/{ids.length} itens</p>
-    <h3 className="label mt-7 mb-1">O que estudar</h3>{x.subtopicos.map(s => <Check key={s.id} id={s.id} text={s.texto} />)}
+    <div className="mt-6 border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Ordem:</strong> primeiro a teoria (~{horasTeoria(x)}h), depois a prática (~{horasPratica(x)}h). Comece a prática quando conseguir explicar cada subtópico em voz alta sem consultar.</p></div><h3 className="mt-7 text-lg font-bold">Passo 1 · Teoria <span className="font-mono text-[12px] font-normal text-muted">~{horasTeoria(x)}h</span></h3><h3 className="label mt-3 mb-1">O que estudar</h3>{x.subtopicos.map(s => <Check key={s.id} id={s.id} text={s.texto} />)}
     <h3 className="label mt-7 mb-1">Leituras</h3>
     <ul>{x.leituras.map(l => <li key={l.id} className="flex items-start gap-3 border-t border-line-soft py-3 first:border-t-0">
       <input aria-label={`Marcar como lida: ${l.titulo}`} className="mt-1.5 size-4 shrink-0" type="checkbox" checked={a.done.has(l.id)} onChange={() => a.toggle(l.id)} />
-      <div className="min-w-0"><a href={l.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${a.done.has(l.id) ? "text-muted line-through" : ""}`}>{l.titulo} ↗</a><p className="font-mono text-[11px] text-muted">{l.fonte} · {l.tipo}</p></div>
+      <div className="min-w-0"><a href={l.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${a.done.has(l.id) ? "text-muted line-through" : ""}`}>{l.titulo} ↗</a><p className="font-mono text-[11px] text-muted">{l.fonte} · {l.tipo} · ~{MIN_LEITURA[l.tipo]} min</p></div>
     </li>)}</ul>
-    <h3 className="label mt-7 mb-1">Prática</h3><Check id={x.pratica.id} text={x.pratica.texto} />
+    <h3 className="mt-8 text-lg font-bold">Passo 2 · Prática <span className="font-mono text-[12px] font-normal text-muted">~{horasPratica(x)}h</span></h3><Check id={x.pratica.id} text={x.pratica.texto} />
     <div className="mt-8 flex flex-wrap justify-between gap-2 border-t border-line pt-4">
       {prev ? <Btn onClick={() => onSelect({ kind: "assunto", id: prev.id })}>← {prev.titulo}</Btn> : <span />}
       <Btn onClick={() => onSelect({ kind: "mes", mes: x.mes })}>laboratório do mês</Btn>
@@ -164,7 +164,7 @@ function MesPanel({ mes, onSelect }: { mes: number; onSelect: (s: Sel) => void }
     <div className="mt-3 flex flex-wrap gap-2">{l.pilares.map(p => <span key={p} className={`border border-line px-2 py-0.5 font-mono text-[10px] ${PILARES[p].cor}`}>{title(p)}</span>)}</div>
     <p className="mt-4"><strong>Problema real: </strong>{l.problema}</p>
     <p className="mt-2 text-muted"><strong className="text-text">Objetivo: </strong>{l.objetivo}</p>
-    <h3 className="label mt-7 mb-2">Assuntos deste mês</h3>
+    <div className="mt-6 border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Semanas 1–2 · teoria:</strong> o que estudar e as leituras dos assuntos abaixo (~{assuntosDoMes(mes).reduce((t, x) => t + horasTeoria(x), 0)}h).</p><p className="mt-1"><strong>Semanas 3–4 · prática:</strong> a prática de cada assunto e as atividades do laboratório (~{assuntosDoMes(mes).reduce((t, x) => t + horasPratica(x), 0)}h).</p></div><h3 className="label mt-7 mb-2">Assuntos deste mês</h3>
     <div className="flex flex-col gap-2">{assuntosDoMes(mes).map(x => <button key={x.id} type="button" onClick={() => onSelect({ kind: "assunto", id: x.id })} className="flex items-center justify-between gap-3 border border-line bg-surface px-3 py-2 text-left hover:border-accent"><span className="flex items-center gap-2"><span className={`inline-block size-2 rounded-full ${DOT[x.pilar]}`} />{x.titulo}</span><span className="font-mono text-[11px] text-muted">{assuntoDone(x, a.done)}/{assuntoIds(x).length}</span></button>)}</div>
     <div className="mt-7 flex items-center gap-3"><h3 className="label">Atividades do laboratório</h3><button type="button" className="ml-auto border border-line px-2 py-1 font-mono text-[10px] text-muted" onClick={() => a.setMany(ids, countDone(ids, a.done) !== ids.length)}>{countDone(ids, a.done) === ids.length ? "desmarcar" : "marcar todas"}</button></div>
     {l.atividades.map(x => <Check key={x.id} id={x.id} text={x.texto} />)}

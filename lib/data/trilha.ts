@@ -387,3 +387,8 @@ export const assuntos: Assunto[] = [
 ];
 
 export const assuntosDoMes = (mes: number) => assuntos.filter((x) => x.mes === mes);
+
+// Tempo estimado: leitura por tipo + 20 min de anotação por subtópico (teoria); prática por trilha.
+export const MIN_LEITURA: Record<TipoLeitura, number> = { artigo: 40, doc: 60, curso: 180, livro: 120, ferramenta: 30, "vídeo": 60 };
+export const horasTeoria = (x: Assunto) => Math.round((x.leituras.reduce((t, l) => t + MIN_LEITURA[l.tipo], 0) + x.subtopicos.length * 20) / 30) / 2;
+export const horasPratica = (x: Assunto) => (x.pilar === "ingles" || x.pilar === "carreira" ? 2 : 4);
