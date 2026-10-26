@@ -27,9 +27,9 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Software Architecture, AI Engineering, Cloud & Product",
+  title: "Senior Abroad: Architecture, AI Engineering & Cloud",
   description:
-    "Sete assuntos de arquitetura, cada um com leitura e um projetinho isolado para revisar o conceito na prática, e um projeto final onde todos se encontram. Com progresso e medições marcáveis.",
+    "Plano de 36 meses para chegar a sênior em IA e plataforma, fechar contrato remoto internacional e sair do Brasil com visto. Com progresso e evidências marcáveis.",
 };
 
 export const viewport: Viewport = {

@@ -1,21 +1,20 @@
-# Software Architecture, AI Engineering, Cloud & Product
+# Senior Abroad: Architecture, AI Engineering & Cloud
 
-Roadmap de 30 meses, com seis horas semanais como referência, para aprofundar arquitetura de software, fundamentos e engenharia de IA, cloud-native com Azure e produto/negócio.
+Roadmap de 36 meses (nov/2026 → out/2029), com oito horas semanais como referência, para chegar a sênior em IA e plataforma, fechar um contrato remoto internacional e sair do Brasil com visto de trabalho.
 
 ## O que mudou
 
-- 30 laboratórios mensais orientados a problemas, organizados em 10 trimestres.
-- Arquitetura e Formação de IA do Rodrigo Branas, além de *System Design* de Matheus Fidelis, começam em paralelo no mês 1.
-- Azure, fundamentos de IA e produto entram progressivamente sem ampliar a referência de seis horas semanais.
-- A plataforma interna de publicação de aplicações departamentais é o contexto comum dos laboratórios; a PoC continua explicitamente limitada a aplicações estáticas, e-mail/senha, auditoria e integração Vercel.
-- Todo laboratório contém contexto, objetivo, requisitos funcionais e não funcionais, tecnologias sugeridas, alternativas, atividades, uso e validação independente de IA, critérios, evidências e entregáveis.
-- *Revenue Architecture*, de Jacco van der Kooij, entra no segundo semestre como trilha de receita e negócio.
+- 36 laboratórios mensais em 12 trimestres, divididos em três anos: base sênior com IA, contrato remoto internacional e mudança com visto.
+- Os laboratórios técnicos da versão anterior (especificação, Clean Architecture, RAG, agentes, evals, segurança, plataforma, eventos, SRE, governança) continuam; produto, receita e SaaS saíram do caminho principal.
+- Novas trilhas de Inglês e Carreira & mudança: portfólio público, entrevistas de system design, busca de vaga, contrato, documentos, visto, saída fiscal e chegada.
+- Seção de mercado (o que as vagas pedem em 2026 e leitura de futuro) e tabela de destinos com o salário mínimo de visto de 2026.
+- Ritmo de 8h/semana: inglês e carreira ganharam horas próprias.
 
 ## Dados e progresso
 
 O conteúdo está em `lib/data/blocos.ts` e `lib/data/cronograma.ts`. A interface está em `components/Roadmap.tsx`.
 
-O progresso é salvo localmente em `cronograma-staff:v3`, com exportação/importação JSON. Ao abrir a nova versão, o estado anterior `cronograma-staff:v2` é preservado no exportável como histórico legado e **não** é contabilizado como avanço no novo roadmap.
+O progresso é salvo localmente em `cronograma-staff:v4`, com exportação/importação JSON. Ao abrir a nova versão, o estado anterior `cronograma-staff:v3` é preservado no exportável como histórico legado e **não** é contabilizado como avanço no novo roadmap.
 
 ## Rodar localmente
 
