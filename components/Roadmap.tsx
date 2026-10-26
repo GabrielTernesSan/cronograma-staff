@@ -1,22 +1,191 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
 import { DESTINOS, DESTINOS_NOTA, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, PILARES, RITMO, RITMO_NOTA, ROTA, trimestres } from "@/lib/data/cronograma";
-import { ALL_ACTIVITY_IDS, ALL_EVIDENCE_IDS, ALL_MARCO_IDS, countDone, countValues, labComplete, labsComplete, pct, quarterDone, quarterIds, quarterLabs } from "@/lib/stats";
-import type { Laboratorio, Pilar } from "@/lib/types";
+import { assuntos, assuntosDoMes } from "@/lib/data/trilha";
+import { ALL_ACTIVITY_IDS, ALL_ASSUNTO_IDS, ALL_EVIDENCE_IDS, ALL_LEITURA_IDS, ALL_MARCO_IDS, assuntoDone, assuntoIds, countDone, countValues, labComplete, labsComplete, pct } from "@/lib/stats";
+import type { Assunto, Laboratorio, Pilar, Trimestre } from "@/lib/types";
+
 const title = (p: Pilar) => PILARES[p].titulo;
+const DOT: Record<Pilar, string> = { arquitetura: "bg-accent", ia: "bg-measure", cloud: "bg-ok", ingles: "bg-decisao", carreira: "bg-warn" };
+const ANOS = [
+  { n: 1, nome: "Base sênior com IA", meses: "nov/2026 – out/2027" },
+  { n: 2, nome: "Contrato remoto internacional", meses: "nov/2027 – out/2028" },
+  { n: 3, nome: "Mudança com visto", meses: "nov/2028 – out/2029" },
+];
+type Sel = { kind: "assunto"; id: string } | { kind: "mes"; mes: number } | { kind: "tri"; id: string } | null;
 
 export function Roadmap() {
- const app = useApp(); const file = useRef<HTMLInputElement>(null); const [msg, setMsg] = useState(""); const [confirm, setConfirm] = useState(false);
- const { done, valores, filters } = app; const visible = laboratorios.filter(l => (!filters.pillars.length || l.pilares.some(p => filters.pillars.includes(p))) && (!filters.onlyPending || !labComplete(l, done, valores)));
- const flip = (p: Pilar) => app.setFilters(f => ({ ...f, pillars: f.pillars.includes(p) ? f.pillars.filter(x => x !== p) : [...f.pillars, p] }));
- const activities = countDone(ALL_ACTIVITY_IDS, done), evidence = countValues(ALL_EVIDENCE_IDS, valores);
- return <div className="mx-auto max-w-[1180px] px-6 pb-24"><header className="border-b-2 border-text pb-6 pt-12"><p className="label mb-4">36 meses · nov/2026 → out/2029 · 8h/semana · decisões com evidência</p><h1 className="max-w-[19ch] text-[clamp(2.1rem,6vw,3.7rem)] font-bold leading-[1.08] tracking-tight">Senior Abroad: Architecture, AI Engineering &amp; Cloud</h1><p className="mt-4 max-w-[70ch] text-[18px] leading-relaxed">Engenheiro sênior de .NET e Azure que constrói e opera sistemas com IA em produção: agentes com limites, RAG com avaliação, plataforma e custo. A saída do Brasil acontece em dois passos: primeiro um contrato remoto internacional, que prova o nível e forma reserva; depois a mudança com visto patrocinado.</p><ol className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 font-mono">{ROTA.map((r, i) => <li key={r.codigo} className="flex items-center gap-3">{i > 0 && <span aria-hidden className="h-px w-8 border-t border-dashed border-muted sm:w-14"/>}<span className="flex flex-col"><span className="font-display text-xl font-bold">{r.codigo}</span><span className="text-[11px] text-muted">{r.quando} · {r.texto}</span></span></li>)}</ol><dl className="mt-6 flex flex-wrap gap-x-7 gap-y-2 font-mono text-xs text-muted"><Stat l="laboratórios" v={`${labsComplete(done, valores)}/${laboratorios.length}`} /><Stat l="atividades" v={`${activities}/${ALL_ACTIVITY_IDS.length}`} /><Stat l="evidências" v={`${evidence}/${ALL_EVIDENCE_IDS.length}`} /><Stat l="marcos" v={`${countDone(ALL_MARCO_IDS, done)}/${ALL_MARCO_IDS.length}`} /><Stat l="progresso real" v={`${app.loaded ? pct(activities + evidence, ALL_ACTIVITY_IDS.length + ALL_EVIDENCE_IDS.length) : 0}%`} /></dl><div className="no-print mt-5 flex flex-wrap gap-2"><Btn active={filters.onlyPending} onClick={() => app.setFilters(f => ({ ...f, onlyPending: !f.onlyPending }))}>só pendentes</Btn>{(Object.keys(PILARES) as Pilar[]).map(p => <Btn key={p} active={filters.pillars.includes(p)} onClick={() => flip(p)}>{title(p)}</Btn>)}<span className="mx-1 h-4 w-px bg-line"/><Btn onClick={app.exportJson}>exportar</Btn><Btn onClick={() => file.current?.click()}>importar</Btn><input ref={file} className="hidden" type="file" accept="application/json,.json" onChange={async e => { const f=e.target.files?.[0]; e.target.value=""; if(f) setMsg((await app.importJson(f)).message); }}/>{confirm ? <><Btn danger onClick={() => { app.reset(); setConfirm(false); }}>confirmar zerar</Btn><Btn onClick={() => setConfirm(false)}>cancelar</Btn></> : <Btn onClick={() => setConfirm(true)}>zerar</Btn>}{msg && <span className="font-mono text-[11px] text-accent">{msg}</span>}</div>{app.legacy && <p className="mt-4 border-l-2 border-warn bg-warn/10 px-4 py-2 text-[14px] text-muted">O progresso do cronograma anterior está preservado no exportável como histórico ({app.legacy.done.length} marcações). Ele não conta como avanço novo, para não inventar histórico.</p>}</header><main className="mt-10"><section><p className="label mb-3">Semana-padrão · 8h</p><div className="grid gap-5 md:grid-cols-[24rem_1fr]"><div className="border border-line bg-surface px-5 py-4"><table className="w-full"><tbody>{RITMO.map(([x,h]) => <tr key={x} className="border-b border-line-soft last:border-0"><td className="py-1.5 text-[15px]">{x}</td><td className="py-1.5 text-right font-mono font-bold text-accent">{h}</td></tr>)}</tbody></table></div><p className="m-0 max-w-[65ch] text-[15.5px] leading-relaxed text-muted">{RITMO_NOTA}</p></div></section><section className="mt-12 border-t border-line pt-10"><h2 className="text-2xl font-bold">Mercado, futuro e destino</h2><div className="mt-5 grid gap-8 md:grid-cols-2"><div className="min-w-0"><p className="label mb-3">O que o mercado pede em 2026</p><ul className="list-disc space-y-2 pl-5 text-[15.5px] leading-relaxed">{MERCADO_DADOS.map(x => <li key={x}>{x}</li>)}</ul></div><div className="min-w-0"><p className="label mb-3">Leitura do futuro (2027–2029)</p><ul className="list-disc space-y-2 pl-5 text-[15.5px] leading-relaxed">{MERCADO_LEITURA.map(x => <li key={x}>{x}</li>)}</ul></div></div><p className="label mb-3 mt-8">Destinos e régua de salário para visto</p><p className="mb-3 max-w-[70ch] text-[14.5px] text-muted">{DESTINOS_NOTA}</p><div className="overflow-x-auto border border-line bg-surface"><table className="doc-table min-w-[640px] text-[14.5px]"><thead><tr><th>Destino</th><th>Via</th><th>Mínimo 2026</th><th>Prós</th><th>Contras</th></tr></thead><tbody>{DESTINOS.map(d => <tr key={d.pais}><td className="font-semibold">{d.pais}</td><td>{d.via}</td><td className="whitespace-nowrap font-mono text-[13px]">{d.minimo}</td><td className="text-muted">{d.pros}</td><td className="text-muted">{d.contras}</td></tr>)}</tbody></table></div><p className="mt-4 font-mono text-[11px] text-muted">fontes: {MERCADO_FONTES.map(([t, u], i) => <span key={u}>{i > 0 && " · "}<a className="text-accent hover:underline" href={u} target="_blank" rel="noreferrer">{t}</a></span>)}</p></section><section className="mt-12 border-t border-line pt-10"><h2 className="text-2xl font-bold">Materiais e hábitos</h2><p className="mt-2 text-muted">Materiais acompanháveis, sem criar títulos de aulas ou capítulos inexistentes.</p><div className="mt-5 grid gap-4 md:grid-cols-2">{materiais.map(m => <label key={m.id} className="block cursor-pointer border border-line bg-surface p-5"><div className="flex gap-3"><input className="mt-1 size-4" type="checkbox" checked={done.has(m.id)} onChange={() => app.toggle(m.id)}/><div><p className="label mb-1">{m.tipo}</p><p className={done.has(m.id)?"font-semibold text-muted line-through":"font-semibold"}>{m.titulo}</p><p className="mt-2 text-[14.5px] leading-relaxed text-muted">{m.descricao}</p>{m.url && <a className="mt-2 inline-block font-mono text-[11px] text-accent hover:underline" href={m.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>fonte pública ↗</a>}</div></div></label>)}</div></section><section className="mt-12 border-t border-line pt-10"><h2 className="text-2xl font-bold">Mapa trimestral e dependências</h2><div className="mt-5 grid gap-4 lg:grid-cols-2">{trimestres.map(t => {const ids=quarterIds(t), n=quarterDone(t,done,valores); return <article key={t.id} className="border border-line bg-surface p-5"><div className="flex gap-3"><h3 className="font-bold"><span className="font-mono text-accent">{t.rotulo}</span> · {t.tema}</h3><span className="ml-auto font-mono text-xs text-muted">{n}/{ids.length}</span></div><p className="mt-1 font-mono text-[11px] text-muted">{t.periodo}{t.marco ? ` · ${t.marco}` : ""}</p><Bar n={n} total={ids.length}/><p className="mt-3 text-[14px] text-muted"><strong className="text-text">Dependências: </strong>{t.dependencias}</p>{quarterLabs(t).map(l => <a key={l.id} href={`#${l.id}`} className="mt-1 block text-[14px] hover:text-accent hover:underline">M{String(l.mes).padStart(2,"0")} · {l.titulo}</a>)}<div className="mt-3 border-t border-line-soft pt-2">{t.marcos.map(m => <Check key={m.id} id={m.id} text={m.texto}/>)}</div></article>})}</div></section><section className="mt-12 border-t border-line pt-10"><h2 className="text-2xl font-bold">Laboratórios mensais</h2><p className="mt-2 max-w-[70ch] text-muted">Cada laboratório registra problema e contexto de negócio, objetivo, pré-requisitos, requisitos, tecnologias, alternativas, atividades, uso e validação da IA, critérios, evidências e entregáveis.</p><div className="mt-7 flex flex-col gap-7">{visible.map(l => <Lab key={l.id} l={l}/>)}{!visible.length && <p className="border border-line p-5 text-muted">Nenhum laboratório corresponde aos filtros.</p>}</div></section></main></div>;
+  const app = useApp(); const file = useRef<HTMLInputElement>(null);
+  const [msg, setMsg] = useState(""); const [confirm, setConfirm] = useState(false); const [sel, setSel] = useState<Sel>(null);
+  const { done, valores, filters } = app;
+  const flip = (p: Pilar) => app.setFilters(f => ({ ...f, pillars: f.pillars.includes(p) ? f.pillars.filter(x => x !== p) : [...f.pillars, p] }));
+  const activities = countDone(ALL_ACTIVITY_IDS, done), evidence = countValues(ALL_EVIDENCE_IDS, valores), topicItems = countDone(ALL_ASSUNTO_IDS, done);
+  const topicsDone = assuntos.filter(x => assuntoDone(x, done) === assuntoIds(x).length).length;
+  const total = ALL_ACTIVITY_IDS.length + ALL_EVIDENCE_IDS.length + ALL_ASSUNTO_IDS.length;
+  return <div className="mx-auto max-w-[1180px] px-6 pb-24">
+    <header className="border-b-2 border-text pb-6 pt-12">
+      <p className="label mb-4">36 meses · nov/2026 → out/2029 · 8h/semana · decisões com evidência</p>
+      <h1 className="max-w-[19ch] text-[clamp(2.1rem,6vw,3.7rem)] font-bold leading-[1.08] tracking-tight">Senior Abroad: Architecture, AI Engineering &amp; Cloud</h1>
+      <p className="mt-4 max-w-[70ch] text-[18px] leading-relaxed">Engenheiro sênior de .NET e Azure que constrói e opera sistemas com IA em produção: agentes com limites, RAG com avaliação, plataforma e custo. A saída do Brasil acontece em dois passos: primeiro um contrato remoto internacional, que prova o nível e forma reserva; depois a mudança com visto patrocinado.</p>
+      <ol className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 font-mono">{ROTA.map((r, i) => <li key={r.codigo} className="flex items-center gap-3">{i > 0 && <span aria-hidden className="h-px w-8 border-t border-dashed border-muted sm:w-14" />}<span className="flex flex-col"><span className="font-display text-xl font-bold">{r.codigo}</span><span className="text-[11px] text-muted">{r.quando} · {r.texto}</span></span></li>)}</ol>
+      <dl className="mt-6 flex flex-wrap gap-x-7 gap-y-2 font-mono text-xs text-muted">
+        <Stat l="assuntos" v={`${topicsDone}/${assuntos.length}`} /><Stat l="leituras" v={`${countDone(ALL_LEITURA_IDS, done)}/${ALL_LEITURA_IDS.length}`} /><Stat l="laboratórios" v={`${labsComplete(done, valores)}/${laboratorios.length}`} /><Stat l="marcos" v={`${countDone(ALL_MARCO_IDS, done)}/${ALL_MARCO_IDS.length}`} /><Stat l="progresso real" v={`${app.loaded ? pct(activities + evidence + topicItems, total) : 0}%`} />
+      </dl>
+      <div className="no-print mt-5 flex flex-wrap gap-2">
+        <Btn active={filters.onlyPending} onClick={() => app.setFilters(f => ({ ...f, onlyPending: !f.onlyPending }))}>só pendentes</Btn>
+        {(Object.keys(PILARES) as Pilar[]).map(p => <Btn key={p} active={filters.pillars.includes(p)} onClick={() => flip(p)}><span className={`mr-1.5 inline-block size-2 rounded-full ${DOT[p]}`} />{title(p)}</Btn>)}
+        <span className="mx-1 h-4 w-px bg-line" />
+        <Btn onClick={app.exportJson}>exportar</Btn><Btn onClick={() => file.current?.click()}>importar</Btn>
+        <input ref={file} className="hidden" type="file" accept="application/json,.json" onChange={async e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setMsg((await app.importJson(f)).message); }} />
+        {confirm ? <><Btn danger onClick={() => { app.reset(); setConfirm(false); }}>confirmar zerar</Btn><Btn onClick={() => setConfirm(false)}>cancelar</Btn></> : <Btn onClick={() => setConfirm(true)}>zerar</Btn>}
+        {msg && <span className="font-mono text-[11px] text-accent">{msg}</span>}
+      </div>
+      {app.legacy && <p className="mt-4 border-l-2 border-warn bg-warn/10 px-4 py-2 text-[14px] text-muted">O progresso do cronograma anterior está preservado no exportável como histórico ({app.legacy.done.length} marcações). Ele não conta como avanço novo, para não inventar histórico.</p>}
+    </header>
+    <main className="mt-10">
+      <Trilha onSelect={setSel} />
+      <section className="mt-16 border-t border-line pt-10"><p className="label mb-3">Semana-padrão · 8h</p><div className="grid gap-5 md:grid-cols-[24rem_1fr]"><div className="border border-line bg-surface px-5 py-4"><table className="w-full"><tbody>{RITMO.map(([x, h]) => <tr key={x} className="border-b border-line-soft last:border-0"><td className="py-1.5 text-[15px]">{x}</td><td className="py-1.5 text-right font-mono font-bold text-accent">{h}</td></tr>)}</tbody></table></div><p className="m-0 max-w-[65ch] text-[15.5px] leading-relaxed text-muted">{RITMO_NOTA}</p></div></section>
+      <section className="mt-12 border-t border-line pt-10"><h2 className="text-2xl font-bold">Mercado, futuro e destino</h2>
+        <div className="mt-5 grid gap-8 md:grid-cols-2"><div className="min-w-0"><p className="label mb-3">O que o mercado pede em 2026</p><ul className="list-disc space-y-2 pl-5 text-[15.5px] leading-relaxed">{MERCADO_DADOS.map(x => <li key={x}>{x}</li>)}</ul></div><div className="min-w-0"><p className="label mb-3">Leitura do futuro (2027–2029)</p><ul className="list-disc space-y-2 pl-5 text-[15.5px] leading-relaxed">{MERCADO_LEITURA.map(x => <li key={x}>{x}</li>)}</ul></div></div>
+        <p className="label mb-3 mt-8">Destinos e régua de salário para visto</p><p className="mb-3 max-w-[70ch] text-[14.5px] text-muted">{DESTINOS_NOTA}</p>
+        <div className="overflow-x-auto border border-line bg-surface"><table className="doc-table min-w-[640px] text-[14.5px]"><thead><tr><th>Destino</th><th>Via</th><th>Mínimo 2026</th><th>Prós</th><th>Contras</th></tr></thead><tbody>{DESTINOS.map(d => <tr key={d.pais}><td className="font-semibold">{d.pais}</td><td>{d.via}</td><td className="whitespace-nowrap font-mono text-[13px]">{d.minimo}</td><td className="text-muted">{d.pros}</td><td className="text-muted">{d.contras}</td></tr>)}</tbody></table></div>
+        <p className="mt-4 font-mono text-[11px] text-muted">fontes: {MERCADO_FONTES.map(([t, u], i) => <span key={u}>{i > 0 && " · "}<a className="text-accent hover:underline" href={u} target="_blank" rel="noreferrer">{t}</a></span>)}</p>
+      </section>
+      <section className="mt-12 border-t border-line pt-10"><h2 className="text-2xl font-bold">Materiais e hábitos</h2><div className="mt-5 grid gap-4 md:grid-cols-2">{materiais.map(m => <label key={m.id} className="block cursor-pointer border border-line bg-surface p-5"><div className="flex gap-3"><input className="mt-1 size-4" type="checkbox" checked={done.has(m.id)} onChange={() => app.toggle(m.id)} /><div><p className="label mb-1">{m.tipo}</p><p className={done.has(m.id) ? "font-semibold text-muted line-through" : "font-semibold"}>{m.titulo}</p><p className="mt-2 text-[14.5px] leading-relaxed text-muted">{m.descricao}</p>{m.url && <a className="mt-2 inline-block font-mono text-[11px] text-accent hover:underline" href={m.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>fonte pública ↗</a>}</div></div></label>)}</div></section>
+    </main>
+    <Drawer sel={sel} onClose={() => setSel(null)} onSelect={setSel} />
+  </div>;
 }
-function Lab({l}:{l:Laboratorio}) {const a=useApp();const complete=labComplete(l,a.done,a.valores);const ids=l.atividades.map(x=>x.id);const acts=l.atividades.filter(x=>!a.filters.onlyPending||!a.done.has(x.id));const ev=l.evidencias.filter(x=>!a.filters.onlyPending||!a.temValor(x.id));return <article id={l.id} className="scroll-mt-6 border-t border-line pt-8"><header className="flex flex-wrap items-baseline gap-3"><span className="font-mono font-bold text-accent">M{String(l.mes).padStart(2,"0")}</span><h3 className="text-xl font-bold">{l.titulo}</h3><span className="ml-auto font-mono text-xs text-muted">{complete?"concluído":`${countDone(ids,a.done)+countValues(l.evidencias.map(x=>x.id),a.valores)}/${ids.length+l.evidencias.length}`}</span></header><p className="mt-1 font-mono text-[11px] text-muted">{l.fase} · {l.tipo === "projeto-integrador" ? "projeto integrador" : "laboratório prático"}</p><div className="mt-3 flex flex-wrap gap-2">{l.pilares.map(p=><span key={p} className={`border border-line px-2 py-0.5 font-mono text-[10px] ${PILARES[p].cor}`}>{title(p)}</span>)}</div><p className="mt-4 max-w-[70ch]"><strong>Problema real: </strong>{l.problema}</p><p className="mt-2 text-muted"><strong className="text-text">Objetivo: </strong>{l.objetivo}</p><details className="mt-5 border border-line bg-surface" open={l.mes<=3}><summary className="cursor-pointer px-5 py-3 font-medium">Plano completo, critérios e evidências</summary><div className="grid gap-6 border-t border-line p-5 md:grid-cols-2"><Info h="Contexto de negócio" x={[l.contexto]}/><Info h="Pré-requisitos" x={l.preRequisitos}/><Info h="Requisitos funcionais" x={l.requisitosFuncionais}/><Info h="Requisitos não funcionais" x={l.requisitosNaoFuncionais}/><Info h="Tecnologias sugeridas" x={l.tecnologias}/><Info h="Alternativas arquiteturais" x={l.alternativas}/><Info h="Como utilizar IA" x={[l.usoIa]}/><Info h="Como validar IA independentemente" x={[l.validacaoIa]}/><Info h="Critérios objetivos de conclusão" x={l.criterios}/><Info h="Entregáveis" x={l.entregaveis}/></div><div className="border-t border-line p-5"><div className="flex items-center gap-3"><p className="label">Atividades práticas</p><button type="button" className="ml-auto border border-line px-2 py-1 font-mono text-[10px] text-muted" onClick={()=>a.setMany(ids,countDone(ids,a.done)!==ids.length)}>{countDone(ids,a.done)===ids.length?"desmarcar":"marcar todas"}</button></div>{acts.map(x=><Check key={x.id} id={x.id} text={x.texto}/>)}{!acts.length&&<p className="text-sm text-muted">Atividades já marcadas.</p>}</div><div className="border-t border-line p-5"><p className="label mb-2">Métricas ou evidências esperadas</p>{ev.map(x=><label key={x.id} className="grid gap-2 border-t border-line-soft py-3 first:border-t-0 sm:grid-cols-[1fr_13rem]"><span><span className="block font-medium">{x.label}</span><span className="text-[13px] text-muted">{x.prova}</span></span><input className="medicao w-full" value={a.valorDe(x.id)} placeholder="registrar evidência real" onChange={e=>a.setValor(x.id,e.target.value)}/></label>)}{!ev.length&&<p className="text-sm text-muted">Evidências registradas.</p>}</div></details></article>}
-function Info({h,x}:{h:string;x:string[]}){return <div><p className="label mb-2">{h}</p><ul className="space-y-1.5 text-[14.5px] leading-relaxed text-muted">{x.map(y=><li key={y}>{y}</li>)}</ul></div>}
-function Check({id,text}:{id:string;text:string}){const a=useApp();const c=a.isDone(id);return <label className="flex cursor-pointer items-start gap-2 border-t border-line-soft py-2 first:border-t-0"><input className="mt-1 size-4" type="checkbox" checked={c} onChange={()=>a.toggle(id)}/><span className={c?"text-[14px] text-muted line-through":"text-[14px]"}>{text}</span></label>}
-function Bar({n,total}:{n:number;total:number}){return <div className="mt-3 h-1 bg-line"><div className="h-full bg-accent" style={{width:`${pct(n,total)}%`}}/></div>}
-function Stat({l,v}:{l:string;v:string}){return <div className="flex gap-1.5"><dt className="uppercase tracking-wider">{l}</dt><dd className="font-semibold text-text">{v}</dd></div>}
-function Btn({children,onClick,active,danger}:{children:React.ReactNode;onClick:()=>void;active?:boolean;danger?:boolean}){return <button type="button" onClick={onClick} aria-pressed={active} className={`border px-2.5 py-1 font-mono text-[11px] ${danger?"border-warn text-warn":active?"border-accent bg-accent/10 text-accent":"border-line text-muted hover:border-accent hover:text-accent"}`}>{children}</button>}
+
+/* ───────── Trilha (mapa de nós) ───────── */
+function Trilha({ onSelect }: { onSelect: (s: Sel) => void }) {
+  return <section aria-labelledby="trilha-h">
+    <div className="flex flex-wrap items-end justify-between gap-4"><div><h2 id="trilha-h" className="text-2xl font-bold">Trilha</h2><p className="mt-2 max-w-[70ch] text-muted">Cada mês é um nó central; os assuntos saem dele. Clique num assunto para ver subtópicos, leituras e prática. Clique no mês para ver o laboratório.</p></div>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-muted"><li className="flex items-center gap-1.5"><span className="inline-block size-3 border border-line bg-surface" />não iniciado</li><li className="flex items-center gap-1.5"><span className="inline-block size-3 border-2 border-accent bg-surface" />em andamento</li><li className="flex items-center gap-1.5"><span className="inline-block size-3 border border-ok bg-ok/20" />concluído</li></ul></div>
+    {ANOS.map(ano => <div key={ano.n} className="mt-10">
+      <div className="sticky top-0 z-20 -mx-6 border-b border-line bg-bg/95 px-6 py-3 backdrop-blur"><p className="label">Ano {ano.n} · {ano.meses}</p><h3 className="text-xl font-bold">{ano.nome}</h3></div>
+      <div className="relative mt-6">
+        <span aria-hidden className="absolute bottom-0 left-1/2 top-0 hidden w-0.5 -translate-x-1/2 bg-line md:block" />
+        {trimestres.filter(t => Math.ceil(t.meses[0] / 12) === ano.n).map(t => <div key={t.id} className="relative">
+          <QuarterPill t={t} onClick={() => onSelect({ kind: "tri", id: t.id })} />
+          {t.meses.map(m => <MonthRow key={m} mes={m} onSelect={onSelect} />)}
+        </div>)}
+      </div>
+    </div>)}
+  </section>;
+}
+
+function QuarterPill({ t, onClick }: { t: Trimestre; onClick: () => void }) {
+  const a = useApp(); const n = countDone(t.marcos.map(m => m.id), a.done);
+  return <div className="relative z-10 my-6 flex justify-start md:justify-center"><button type="button" onClick={onClick} className="rounded-full border border-text bg-bg px-4 py-1.5 font-mono text-[12px] hover:bg-surface2">
+    <span className="font-bold">{t.rotulo}</span> · {t.tema}{t.marco && <span className="text-measure"> · {t.marco}</span>} <span className="text-muted">· marcos {n}/{t.marcos.length}</span>
+  </button></div>;
+}
+
+function MonthRow({ mes, onSelect }: { mes: number; onSelect: (s: Sel) => void }) {
+  const lab = laboratorios[mes - 1]; const topics = assuntosDoMes(mes);
+  const left = topics.filter((_, i) => i % 2 === 0), right = topics.filter((_, i) => i % 2 === 1);
+  return <div className="relative grid grid-cols-1 gap-y-2 py-3 md:grid-cols-[1fr_16rem_1fr] md:items-center">
+    <div className="order-2 flex flex-col gap-2 border-l border-dashed border-line pl-5 md:order-none md:items-end md:border-0 md:pl-0">{left.map(x => <TopicNode key={x.id} x={x} side="left" onClick={() => onSelect({ kind: "assunto", id: x.id })} />)}</div>
+    <MonthNode lab={lab} onClick={() => onSelect({ kind: "mes", mes })} />
+    <div className="order-3 flex flex-col gap-2 border-l border-dashed border-line pl-5 md:order-none md:items-start md:border-0 md:pl-0">{right.map(x => <TopicNode key={x.id} x={x} side="right" onClick={() => onSelect({ kind: "assunto", id: x.id })} />)}</div>
+  </div>;
+}
+
+function MonthNode({ lab, onClick }: { lab: Laboratorio; onClick: () => void }) {
+  const a = useApp(); const complete = labComplete(lab, a.done, a.valores);
+  const dim = (a.filters.pillars.length > 0 && !lab.pilares.some(p => a.filters.pillars.includes(p))) || (a.filters.onlyPending && complete);
+  return <button type="button" onClick={onClick} className={`order-1 relative z-10 w-full border-2 px-4 py-3 text-left transition md:order-none ${complete ? "border-ok bg-ok/15" : "border-text bg-surface2 hover:bg-surface"} ${dim ? "opacity-35" : ""}`}>
+    <span className="flex items-baseline justify-between gap-2 font-mono text-[11px] text-muted"><span>M{String(lab.mes).padStart(2, "0")} · {lab.tipo === "projeto-integrador" ? "integrador" : "laboratório"}</span>{complete && <span className="text-ok">✓</span>}</span>
+    <span className="mt-1 block font-display text-[15.5px] font-bold leading-snug">{lab.titulo}</span>
+  </button>;
+}
+
+function TopicNode({ x, side, onClick }: { x: Assunto; side: "left" | "right"; onClick: () => void }) {
+  const a = useApp(); const ids = assuntoIds(x); const n = assuntoDone(x, a.done); const complete = n === ids.length;
+  const dim = (a.filters.pillars.length > 0 && !a.filters.pillars.includes(x.pilar)) || (a.filters.onlyPending && complete);
+  const state = complete ? "border-ok bg-ok/15" : n > 0 ? "border-accent border-2 bg-surface" : "border-line bg-surface";
+  return <div className={`flex items-center ${side === "left" ? "md:flex-row" : "md:flex-row-reverse"} ${dim ? "opacity-35" : ""}`}>
+    <button type="button" onClick={onClick} className={`w-full max-w-[19rem] border px-3 py-2 text-left transition hover:-translate-y-px hover:shadow-sm ${state}`}>
+      <span className="flex items-center gap-2"><span className={`inline-block size-2 shrink-0 rounded-full ${DOT[x.pilar]}`} /><span className="font-display text-[14px] font-semibold leading-snug">{x.titulo}</span></span>
+      <span className="mt-1 flex justify-between font-mono text-[10.5px] text-muted"><span>{x.leituras.length} leituras</span><span>{complete ? "✓ feito" : `${n}/${ids.length}`}</span></span>
+    </button>
+    <span aria-hidden className="hidden h-0 w-8 shrink-0 border-t border-dashed border-muted md:block" />
+  </div>;
+}
+
+/* ───────── Painel lateral ───────── */
+function Drawer({ sel, onClose, onSelect }: { sel: Sel; onClose: () => void; onSelect: (s: Sel) => void }) {
+  const panel = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (!sel) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); panel.current?.focus(); panel.current?.scrollTo(0, 0); return () => window.removeEventListener("keydown", k); }, [sel, onClose]);
+  if (!sel) return null;
+  return <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true">
+    <button type="button" aria-label="Fechar" className="flex-1 bg-black/40" onClick={onClose} />
+    <div ref={panel} tabIndex={-1} className="h-full w-full max-w-[36rem] overflow-y-auto border-l border-line bg-bg px-6 pb-16 pt-5 outline-none">
+      <div className="mb-4 flex justify-end"><button type="button" onClick={onClose} className="border border-line px-2.5 py-1 font-mono text-[11px] text-muted hover:border-accent hover:text-accent">fechar · esc</button></div>
+      {sel.kind === "assunto" && <AssuntoPanel id={sel.id} onSelect={onSelect} />}
+      {sel.kind === "mes" && <MesPanel mes={sel.mes} onSelect={onSelect} />}
+      {sel.kind === "tri" && <TriPanel id={sel.id} />}
+    </div>
+  </div>;
+}
+
+function AssuntoPanel({ id, onSelect }: { id: string; onSelect: (s: Sel) => void }) {
+  const a = useApp(); const i = assuntos.findIndex(x => x.id === id); const x = assuntos[i]; if (!x) return null;
+  const ids = assuntoIds(x); const n = assuntoDone(x, a.done); const prev = assuntos[i - 1], next = assuntos[i + 1];
+  return <article>
+    <p className="label flex items-center gap-2"><span className={`inline-block size-2 rounded-full ${DOT[x.pilar]}`} />M{String(x.mes).padStart(2, "0")} · {title(x.pilar)}</p>
+    <h2 className="mt-2 text-2xl font-bold">{x.titulo}</h2>
+    <p className="mt-2 text-[16px] leading-relaxed text-muted">{x.resumo}</p>
+    <Bar n={n} total={ids.length} /><p className="mt-1 font-mono text-[11px] text-muted">{n}/{ids.length} itens</p>
+    <h3 className="label mt-7 mb-1">O que estudar</h3>{x.subtopicos.map(s => <Check key={s.id} id={s.id} text={s.texto} />)}
+    <h3 className="label mt-7 mb-1">Leituras</h3>
+    <ul>{x.leituras.map(l => <li key={l.id} className="flex items-start gap-3 border-t border-line-soft py-3 first:border-t-0">
+      <input aria-label={`Marcar como lida: ${l.titulo}`} className="mt-1.5 size-4 shrink-0" type="checkbox" checked={a.done.has(l.id)} onChange={() => a.toggle(l.id)} />
+      <div className="min-w-0"><a href={l.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${a.done.has(l.id) ? "text-muted line-through" : ""}`}>{l.titulo} ↗</a><p className="font-mono text-[11px] text-muted">{l.fonte} · {l.tipo}</p></div>
+    </li>)}</ul>
+    <h3 className="label mt-7 mb-1">Prática</h3><Check id={x.pratica.id} text={x.pratica.texto} />
+    <div className="mt-8 flex flex-wrap justify-between gap-2 border-t border-line pt-4">
+      {prev ? <Btn onClick={() => onSelect({ kind: "assunto", id: prev.id })}>← {prev.titulo}</Btn> : <span />}
+      <Btn onClick={() => onSelect({ kind: "mes", mes: x.mes })}>laboratório do mês</Btn>
+      {next ? <Btn onClick={() => onSelect({ kind: "assunto", id: next.id })}>{next.titulo} →</Btn> : <span />}
+    </div>
+  </article>;
+}
+
+function MesPanel({ mes, onSelect }: { mes: number; onSelect: (s: Sel) => void }) {
+  const a = useApp(); const l = laboratorios[mes - 1]; if (!l) return null;
+  const ids = l.atividades.map(x => x.id);
+  return <article>
+    <p className="label">M{String(l.mes).padStart(2, "0")} · {l.fase} · {l.tipo === "projeto-integrador" ? "projeto integrador" : "laboratório"}</p>
+    <h2 className="mt-2 text-2xl font-bold">{l.titulo}</h2>
+    <div className="mt-3 flex flex-wrap gap-2">{l.pilares.map(p => <span key={p} className={`border border-line px-2 py-0.5 font-mono text-[10px] ${PILARES[p].cor}`}>{title(p)}</span>)}</div>
+    <p className="mt-4"><strong>Problema real: </strong>{l.problema}</p>
+    <p className="mt-2 text-muted"><strong className="text-text">Objetivo: </strong>{l.objetivo}</p>
+    <h3 className="label mt-7 mb-2">Assuntos deste mês</h3>
+    <div className="flex flex-col gap-2">{assuntosDoMes(mes).map(x => <button key={x.id} type="button" onClick={() => onSelect({ kind: "assunto", id: x.id })} className="flex items-center justify-between gap-3 border border-line bg-surface px-3 py-2 text-left hover:border-accent"><span className="flex items-center gap-2"><span className={`inline-block size-2 rounded-full ${DOT[x.pilar]}`} />{x.titulo}</span><span className="font-mono text-[11px] text-muted">{assuntoDone(x, a.done)}/{assuntoIds(x).length}</span></button>)}</div>
+    <div className="mt-7 flex items-center gap-3"><h3 className="label">Atividades do laboratório</h3><button type="button" className="ml-auto border border-line px-2 py-1 font-mono text-[10px] text-muted" onClick={() => a.setMany(ids, countDone(ids, a.done) !== ids.length)}>{countDone(ids, a.done) === ids.length ? "desmarcar" : "marcar todas"}</button></div>
+    {l.atividades.map(x => <Check key={x.id} id={x.id} text={x.texto} />)}
+    <h3 className="label mt-7 mb-2">Evidências</h3>
+    {l.evidencias.map(x => <label key={x.id} className="grid gap-2 border-t border-line-soft py-3 first:border-t-0"><span><span className="block font-medium">{x.label}</span><span className="text-[13px] text-muted">{x.prova}</span></span><input className="medicao w-full" value={a.valorDe(x.id)} placeholder="registrar evidência real" onChange={e => a.setValor(x.id, e.target.value)} /></label>)}
+    <details className="mt-7 border border-line bg-surface"><summary className="px-4 py-3 font-medium">Plano completo e critérios</summary><div className="grid gap-5 border-t border-line p-4"><Info h="Contexto" x={[l.contexto]} /><Info h="Pré-requisitos" x={l.preRequisitos} /><Info h="Requisitos funcionais" x={l.requisitosFuncionais} /><Info h="Requisitos não funcionais" x={l.requisitosNaoFuncionais} /><Info h="Tecnologias sugeridas" x={l.tecnologias} /><Info h="Alternativas" x={l.alternativas} /><Info h="Como usar IA" x={[l.usoIa]} /><Info h="Como validar a IA" x={[l.validacaoIa]} /><Info h="Critérios de conclusão" x={l.criterios} /><Info h="Entregáveis" x={l.entregaveis} /></div></details>
+  </article>;
+}
+
+function TriPanel({ id }: { id: string }) {
+  const t = trimestres.find(x => x.id === id); if (!t) return null;
+  return <article>
+    <p className="label">{t.rotulo} · {t.periodo}{t.marco ? ` · ${t.marco}` : ""}</p>
+    <h2 className="mt-2 text-2xl font-bold">{t.tema}</h2>
+    <p className="mt-3 text-muted"><strong className="text-text">Dependências: </strong>{t.dependencias}</p>
+    <h3 className="label mt-7 mb-1">Marcos do trimestre</h3>{t.marcos.map(m => <Check key={m.id} id={m.id} text={m.texto} />)}
+  </article>;
+}
+
+function Info({ h, x }: { h: string; x: string[] }) { return <div><p className="label mb-2">{h}</p><ul className="space-y-1.5 text-[14.5px] leading-relaxed text-muted">{x.map(y => <li key={y}>{y}</li>)}</ul></div>; }
+function Check({ id, text }: { id: string; text: string }) { const a = useApp(); const c = a.isDone(id); return <label className="flex cursor-pointer items-start gap-2 border-t border-line-soft py-2 first:border-t-0"><input className="mt-1 size-4 shrink-0" type="checkbox" checked={c} onChange={() => a.toggle(id)} /><span className={c ? "text-[15px] text-muted line-through" : "text-[15px]"}>{text}</span></label>; }
+function Bar({ n, total }: { n: number; total: number }) { return <div className="mt-4 h-1 bg-line"><div className="h-full bg-accent" style={{ width: `${pct(n, total)}%` }} /></div>; }
+function Stat({ l, v }: { l: string; v: string }) { return <div className="flex gap-1.5"><dt className="uppercase tracking-wider">{l}</dt><dd className="font-semibold text-text">{v}</dd></div>; }
+function Btn({ children, onClick, active, danger }: { children: React.ReactNode; onClick: () => void; active?: boolean; danger?: boolean }) { return <button type="button" onClick={onClick} aria-pressed={active} className={`inline-flex items-center border px-2.5 py-1 font-mono text-[11px] ${danger ? "border-warn text-warn" : active ? "border-accent bg-accent/10 text-accent" : "border-line text-muted hover:border-accent hover:text-accent"}`}>{children}</button>; }

@@ -30,3 +30,6 @@ export type Material = { id: string; tipo: "curso" | "livro" | "hábito" | "test
 export type Marco = { id: string; texto: string; pilar: Pilar | "geral" };
 export type Trimestre = { id: string; rotulo: string; periodo: string; tema: string; meses: number[]; marco?: string; dependencias: string; marcos: Marco[] };
 export type Destino = { pais: string; via: string; minimo: string; pros: string; contras: string };
+export type TipoLeitura = "artigo" | "doc" | "curso" | "livro" | "ferramenta" | "vídeo";
+export type Leitura = { id: string; titulo: string; fonte: string; url: string; tipo: TipoLeitura };
+export type Assunto = { id: string; mes: number; pilar: Pilar; titulo: string; resumo: string; subtopicos: Activity[]; leituras: Leitura[]; pratica: Activity };

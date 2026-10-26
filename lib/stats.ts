@@ -14,3 +14,9 @@ export const quarterLabs = (t: Trimestre) => laboratorios.filter((l) => t.meses.
 export const quarterIds = (t: Trimestre) => [...quarterLabs(t).flatMap((l) => [...l.atividades.map((a) => a.id), ...l.evidencias.map((e) => e.id)]), ...t.marcos.map((m) => m.id)];
 export const quarterDone = (t: Trimestre, done: Set<string>, valores: Valores) => countDone([...quarterLabs(t).flatMap((l) => l.atividades.map((a) => a.id)), ...t.marcos.map((m) => m.id)], done) + countValues(quarterLabs(t).flatMap((l) => l.evidencias.map((e) => e.id)), valores);
 export const pct = (part: number, total: number) => total === 0 ? 0 : Math.round((part / total) * 100);
+import { assuntos } from "./data/trilha";
+import type { Assunto } from "./types";
+export const assuntoIds = (x: Assunto) => [...x.subtopicos.map((s) => s.id), ...x.leituras.map((l) => l.id), x.pratica.id];
+export const ALL_ASSUNTO_IDS = assuntos.flatMap(assuntoIds);
+export const ALL_LEITURA_IDS = assuntos.flatMap((x) => x.leituras.map((l) => l.id));
+export const assuntoDone = (x: Assunto, done: Set<string>) => countDone(assuntoIds(x), done);
