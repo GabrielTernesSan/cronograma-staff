@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
-import { DESTINOS, DESTINOS_NOTA, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, PILARES, RITMO, RITMO_NOTA, ROTA, trimestres } from "@/lib/data/cronograma";
+import { DESTINOS, DESTINOS_NOTA, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
 import { assuntos, assuntosDoMes, horasPratica, horasTeoria, MIN_LEITURA } from "@/lib/data/trilha";
 import { ALL_ACTIVITY_IDS, ALL_ASSUNTO_IDS, ALL_EVIDENCE_IDS, ALL_LEITURA_IDS, ALL_MARCO_IDS, assuntoDone, assuntoIds, countDone, countValues, labComplete, labsComplete, pct } from "@/lib/stats";
 import type { Assunto, Laboratorio, Pilar, Trimestre } from "@/lib/types";
@@ -47,8 +47,8 @@ export function Roadmap() {
       {app.legacy && <p className="mt-4 border-l-2 border-warn bg-warn/10 px-4 py-2 text-[14px] text-muted">O progresso do cronograma anterior está preservado no exportável como histórico ({app.legacy.done.length} marcações). Ele não conta como avanço novo, para não inventar histórico.</p>}
     </header>
     <main className="mt-10">
+      <Semana />
       <Trilha onSelect={setSel} />
-      <section className="mt-16 border-t border-line pt-10"><p className="label mb-3">Semana-padrão · 8h</p><div className="grid gap-5 md:grid-cols-[24rem_1fr]"><div className="border border-line bg-surface px-5 py-4"><table className="w-full"><tbody>{RITMO.map(([x, h]) => <tr key={x} className="border-b border-line-soft last:border-0"><td className="py-1.5 text-[15px]">{x}</td><td className="py-1.5 text-right font-mono font-bold text-accent">{h}</td></tr>)}</tbody></table></div><p className="m-0 max-w-[65ch] text-[15.5px] leading-relaxed text-muted">{RITMO_NOTA}</p></div></section>
       <section className="mt-12 border-t border-line pt-10"><h2 className="text-2xl font-bold">Mercado, futuro e destino</h2>
         <div className="mt-5 grid gap-8 md:grid-cols-2"><div className="min-w-0"><p className="label mb-3">O que o mercado pede em 2026</p><ul className="list-disc space-y-2 pl-5 text-[15.5px] leading-relaxed">{MERCADO_DADOS.map(x => <li key={x}>{x}</li>)}</ul></div><div className="min-w-0"><p className="label mb-3">Leitura do futuro (2027–2029)</p><ul className="list-disc space-y-2 pl-5 text-[15.5px] leading-relaxed">{MERCADO_LEITURA.map(x => <li key={x}>{x}</li>)}</ul></div></div>
         <p className="label mb-3 mt-8">Destinos e régua de salário para visto</p><p className="mb-3 max-w-[70ch] text-[14.5px] text-muted">{DESTINOS_NOTA}</p>
@@ -59,6 +59,64 @@ export function Roadmap() {
     </main>
     <Drawer sel={sel} onClose={() => setSel(null)} onSelect={setSel} />
   </div>;
+}
+
+/* ───────── Semana (grade fixa, checkbox por dia e ofensiva) ───────── */
+const DIA = 86400000;
+const addDias = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const segunda = (d: Date) => addDias(d, -((d.getDay() + 6) % 7));
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const diaId = (seg: Date, dow: number) => `sem-${iso(seg)}-d${dow}`;
+const dataDoDia = (seg: Date, dow: number) => addDias(seg, (dow + 6) % 7);
+const horasSemana = (seg: Date, done: Set<string>) => SEMANA.reduce((t, d) => t + (done.has(diaId(seg, d.dow)) ? d.horas : 0), 0);
+const fmtH = (h: number) => { const m = Math.round((h % 1) * 60); return `${Math.floor(h)}h${m ? String(m).padStart(2, "0") : ""}`; };
+const ddmm = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+// Semanas fechadas contam para trás; a atual só soma quando já bateu a meta, nunca quebra a sequência.
+function ofensiva(hoje: Date, done: Set<string>) {
+  const atual = segunda(hoje); let n = horasSemana(atual, done) >= META_SEMANA ? 1 : 0;
+  for (let s = addDias(atual, -7); horasSemana(s, done) >= META_SEMANA; s = addDias(s, -7)) n++;
+  return n;
+}
+function recorde(done: Set<string>) {
+  const semanas = [...new Set([...done].filter(id => id.startsWith("sem-")).map(id => id.slice(4, 14)))]
+    .map(x => { const [y, m, d] = x.split("-").map(Number); return new Date(y, m - 1, d); })
+    .filter(s => horasSemana(s, done) >= META_SEMANA).sort((a, b) => a.getTime() - b.getTime());
+  let best = 0, run = 0; semanas.forEach((s, i) => { run = i > 0 && Math.round((s.getTime() - semanas[i - 1].getTime()) / DIA) === 7 ? run + 1 : 1; best = Math.max(best, run); });
+  return best;
+}
+// Cada dia conta para o mês da própria data, mesmo quando a semana cruza meses.
+function horasMes(ano: number, mes: number, done: Set<string>) {
+  let feitas = 0, planejadas = 0;
+  for (let d = new Date(ano, mes, 1); d.getMonth() === mes; d = addDias(d, 1)) { const x = SEMANA.find(s => s.dow === d.getDay()); if (!x) continue; planejadas += x.horas; if (done.has(diaId(segunda(d), x.dow))) feitas += x.horas; }
+  return { feitas, planejadas };
+}
+
+function Semana() {
+  const a = useApp(); const [hoje, setHoje] = useState<Date | null>(null); const [desloc, setDesloc] = useState(0);
+  useEffect(() => setHoje(new Date()), []);
+  const total = SEMANA.reduce((t, d) => t + d.horas, 0);
+  if (!hoje) return <section className="mb-14"><p className="label">Semana · {fmtH(total)} (qua a dom)</p></section>;
+  const seg = addDias(segunda(hoje), desloc * 7), ref = dataDoDia(seg, 4), mes = horasMes(ref.getFullYear(), ref.getMonth(), a.done);
+  const feitas = horasSemana(seg, a.done), atual = desloc === 0, n = ofensiva(hoje, a.done), rec = Math.max(recorde(a.done), n);
+  return <section aria-labelledby="semana-h" className="mb-14">
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div><p className="label">Semana · {fmtH(total)} (qua a dom)</p><h2 id="semana-h" className="mt-1 text-2xl font-bold">Ofensiva: {n} {n === 1 ? "semana" : "semanas"} <span className="font-mono text-[13px] font-normal text-muted">· recorde {rec}</span></h2></div>
+      <div className="flex items-center gap-2"><Btn onClick={() => setDesloc(x => x - 1)}>← semana</Btn>{!atual && <Btn onClick={() => setDesloc(0)}>hoje</Btn>}<Btn onClick={() => setDesloc(x => x + 1)}>semana →</Btn></div>
+    </div>
+    <div className="mt-4 border border-line bg-surface">
+      <p className="flex justify-between gap-3 border-b border-line px-4 py-2 font-mono text-[11px] text-muted"><span>{ddmm(dataDoDia(seg, 3))} → {ddmm(dataDoDia(seg, 0))}{atual && " · esta semana"}</span><span className={feitas >= META_SEMANA ? "text-ok" : ""}>{fmtH(feitas)}/{fmtH(total)} · meta {fmtH(META_SEMANA)}</span></p>
+      {SEMANA.map(d => { const id = diaId(seg, d.dow), c = a.done.has(id); return <label key={d.dow} className="flex cursor-pointer items-start gap-3 border-b border-line-soft px-4 py-3 last:border-0">
+        <input className="mt-1 size-4 shrink-0" type="checkbox" checked={c} onChange={() => a.toggle(id)} />
+        <span className="w-12 shrink-0 font-mono text-[12px]"><span className="block font-bold">{d.dia}</span><span className="text-muted">{ddmm(dataDoDia(seg, d.dow))}</span></span>
+        <span className="min-w-0 flex-1"><span className={`flex flex-wrap items-center gap-x-3 font-semibold ${c ? "text-muted line-through" : ""}`}>{d.pilares.map(p => <span key={p} className="flex items-center gap-1.5"><span className={`inline-block size-2 rounded-full ${DOT[p]}`} />{title(p)}</span>)}</span><span className="mt-0.5 block text-[13.5px] leading-snug text-muted">{d.foco}</span></span>
+        <span className="shrink-0 font-mono font-bold text-accent">{fmtH(d.horas)}</span>
+      </label>; })}
+    </div>
+    <div className="mt-4 max-w-[36rem]"><p className="font-mono text-[12px]">Horas em {MESES[ref.getMonth()]}: <strong>{fmtH(mes.feitas)}</strong> de {fmtH(mes.planejadas)}</p><Bar n={mes.feitas} total={mes.planejadas} /></div>
+    <p className="mt-4 max-w-[70ch] text-[14.5px] leading-relaxed text-muted">{RITMO_NOTA}</p>
+  </section>;
 }
 
 /* ───────── Trilha (mapa de nós) ───────── */
