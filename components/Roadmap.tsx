@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
-import { DESTINOS, DESTINOS_NOTA, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
+import { DESTINOS, DESTINOS_NOTA, DURACAO_MESES, INICIO_PLANO, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
 import { assuntos, assuntosDoMes, horasPratica, horasTeoria, MIN_LEITURA } from "@/lib/data/trilha";
 import { ALL_ACTIVITY_IDS, ALL_ASSUNTO_IDS, ALL_EVIDENCE_IDS, ALL_LEITURA_IDS, ALL_MARCO_IDS, assuntoDone, assuntoIds, countDone, countValues, labComplete, labsComplete, pct } from "@/lib/stats";
 import type { Assunto, Laboratorio, Pilar, Trimestre } from "@/lib/types";
@@ -47,7 +47,7 @@ export function Roadmap() {
       {app.legacy && <p className="mt-4 border-l-2 border-warn bg-warn/10 px-4 py-2 text-[14px] text-muted">O progresso do cronograma anterior está preservado no exportável como histórico ({app.legacy.done.length} marcações). Ele não conta como avanço novo, para não inventar histórico.</p>}
     </header>
     <main className="mt-10">
-      <Semana />
+      <Semana onSelect={setSel} />
       <Trilha onSelect={setSel} />
       <section className="mt-12 border-t border-line pt-10"><h2 className="text-2xl font-bold">Mercado, futuro e destino</h2>
         <div className="mt-5 grid gap-8 md:grid-cols-2"><div className="min-w-0"><p className="label mb-3">O que o mercado pede em 2026</p><ul className="list-disc space-y-2 pl-5 text-[15.5px] leading-relaxed">{MERCADO_DADOS.map(x => <li key={x}>{x}</li>)}</ul></div><div className="min-w-0"><p className="label mb-3">Leitura do futuro (2027–2029)</p><ul className="list-disc space-y-2 pl-5 text-[15.5px] leading-relaxed">{MERCADO_LEITURA.map(x => <li key={x}>{x}</li>)}</ul></div></div>
@@ -92,8 +92,23 @@ function horasMes(ano: number, mes: number, done: Set<string>) {
   for (let d = new Date(ano, mes, 1); d.getMonth() === mes; d = addDias(d, 1)) { const x = SEMANA.find(s => s.dow === d.getDay()); if (!x) continue; planejadas += x.horas; if (done.has(diaId(segunda(d), x.dow))) feitas += x.horas; }
   return { feitas, planejadas };
 }
+// Mês do plano pela data do dia (M01 = INICIO_PLANO); fora do plano devolve null. Dias 1–14 são teoria, 15 em diante prática.
+const mesDoPlano = (d: Date) => { const m = (d.getFullYear() - INICIO_PLANO.ano) * 12 + d.getMonth() - INICIO_PLANO.mes + 1; return m >= 1 && m <= DURACAO_MESES ? m : null; };
+const fase = (d: Date) => d.getDate() <= 14 ? "teoria" : "prática";
 
-function Semana() {
+function Plano({ data, pilares, onSelect }: { data: Date; pilares: Pilar[]; onSelect: (s: Sel) => void }) {
+  const a = useApp(); const m = mesDoPlano(data);
+  if (!m) return <span className="mt-1 block font-mono text-[11px] text-muted">{data < new Date(INICIO_PLANO.ano, INICIO_PLANO.mes, 1) ? `o plano começa em 01/${String(INICIO_PLANO.mes + 1).padStart(2, "0")}/${INICIO_PLANO.ano}` : "fora do plano"}</span>;
+  const xs = assuntosDoMes(m).filter(x => pilares.includes(x.pilar)), prox = xs.find(x => assuntoDone(x, a.done) < assuntoIds(x).length);
+  return <span className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono text-[11px]">
+    <span className="text-muted">M{String(m).padStart(2, "0")} · {fase(data)}:</span>
+    {xs.length ? xs.map(x => { const ok = assuntoDone(x, a.done) === assuntoIds(x).length; return <button key={x.id} type="button" onClick={e => { e.preventDefault(); onSelect({ kind: "assunto", id: x.id }); }} className={`hover:underline ${ok ? "text-muted line-through" : x === prox ? "font-bold text-accent" : "text-text"}`}>{x.titulo}</button>; })
+      : <span className="text-muted">sem assunto deste pilar no mês; revisar ou adiantar o</span>}
+    {(pilares.includes("arquitetura") || !xs.length) && <button type="button" onClick={e => { e.preventDefault(); onSelect({ kind: "mes", mes: m }); }} className="text-measure hover:underline">laboratório M{String(m).padStart(2, "0")}</button>}
+  </span>;
+}
+
+function Semana({ onSelect }: { onSelect: (s: Sel) => void }) {
   const a = useApp(); const [hoje, setHoje] = useState<Date | null>(null); const [desloc, setDesloc] = useState(0);
   useEffect(() => setHoje(new Date()), []);
   const total = SEMANA.reduce((t, d) => t + d.horas, 0);
@@ -110,7 +125,7 @@ function Semana() {
       {SEMANA.map(d => { const id = diaId(seg, d.dow), c = a.done.has(id); return <label key={d.dow} className="flex cursor-pointer items-start gap-3 border-b border-line-soft px-4 py-3 last:border-0">
         <input className="mt-1 size-4 shrink-0" type="checkbox" checked={c} onChange={() => a.toggle(id)} />
         <span className="w-12 shrink-0 font-mono text-[12px]"><span className="block font-bold">{d.dia}</span><span className="text-muted">{ddmm(dataDoDia(seg, d.dow))}</span></span>
-        <span className="min-w-0 flex-1"><span className={`flex flex-wrap items-center gap-x-3 font-semibold ${c ? "text-muted line-through" : ""}`}>{d.pilares.map(p => <span key={p} className="flex items-center gap-1.5"><span className={`inline-block size-2 rounded-full ${DOT[p]}`} />{title(p)}</span>)}</span><span className="mt-0.5 block text-[13.5px] leading-snug text-muted">{d.foco}</span></span>
+        <span className="min-w-0 flex-1"><span className={`flex flex-wrap items-center gap-x-3 font-semibold ${c ? "text-muted line-through" : ""}`}>{d.pilares.map(p => <span key={p} className="flex items-center gap-1.5"><span className={`inline-block size-2 rounded-full ${DOT[p]}`} />{title(p)}</span>)}</span><span className="mt-0.5 block text-[13.5px] leading-snug text-muted">{d.foco}</span><Plano data={dataDoDia(seg, d.dow)} pilares={d.pilares} onSelect={onSelect} /></span>
         <span className="shrink-0 font-mono font-bold text-accent">{fmtH(d.horas)}</span>
       </label>; })}
     </div>
