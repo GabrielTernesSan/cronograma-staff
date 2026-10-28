@@ -15,17 +15,20 @@ export const ROTA = [
 ] as const;
 
 // dow: dia da semana do JS (0 = domingo). A semana começa na quarta e fecha no domingo.
-export const SEMANA: { dia: string; dow: number; horas: number; pilares: Pilar[]; foco: string }[] = [
-  { dia: "qua", dow: 3, horas: 1.5, pilares: ["ia"], foco: "Formação IA (Rodrigo Branas) + laboratório" },
-  { dia: "qui", dow: 4, horas: 1.5, pilares: ["ingles", "carreira"], foco: "30 min de listening (podcast ou palestra técnica em inglês) + 1h de portfólio, LinkedIn, entrevistas e documentos" },
-  { dia: "sex", dow: 5, horas: 1.5, pilares: ["cloud"], foco: "Azure, IaC e observabilidade; prática do assunto de cloud do mês" },
-  { dia: "sáb", dow: 6, horas: 2, pilares: ["arquitetura"], foco: "Formação Arquitetura (Branas) + System Design (Fidelis) + laboratório do mês" },
-  { dia: "dom", dow: 0, horas: 1.5, pilares: ["ingles"], foco: "1h de leitura e escrita técnica em inglês (ler um artigo da trilha e resumir em inglês) + 30 min para fechar a semana e planejar a próxima" },
+// Cada dia é dividido em partes com horas próprias, para marcar o dia pela metade.
+type Parte = { horas: number; texto: string };
+const dia = (dia: string, dow: number, pilares: Pilar[], partes: Parte[]) => ({ dia, dow, pilares, partes, horas: partes.reduce((t, p) => t + p.horas, 0) });
+export const SEMANA = [
+  dia("qua", 3, ["ia"], [{ horas: 1, texto: "Formação IA (Rodrigo Branas)" }]),
+  dia("qui", 4, ["ingles", "carreira"], [{ horas: 0.5, texto: "Listening: podcast ou palestra técnica em inglês" }, { horas: 1, texto: "Carreira: portfólio, LinkedIn, entrevistas e documentos" }]),
+  dia("sex", 5, ["cloud"], [{ horas: 1, texto: "Azure, IaC e observabilidade: teoria do assunto de cloud do mês" }, { horas: 0.5, texto: "Prática do assunto de cloud do mês" }]),
+  dia("sáb", 6, ["arquitetura"], [{ horas: 1, texto: "Formação Arquitetura (Branas) + System Design (Fidelis)" }, { horas: 1, texto: "Laboratório do mês" }]),
+  dia("dom", 0, ["ingles", "ia"], [{ horas: 1, texto: "Leitura e escrita técnica em inglês: ler um artigo da trilha e resumir em inglês" }, { horas: 0.5, texto: "Laboratório: prática do assunto de IA do mês" }, { horas: 0.5, texto: "Fechar a semana e planejar a próxima" }]),
 ];
 export const META_SEMANA = 6; // horas marcadas para a semana contar na ofensiva
 export const INICIO_PLANO = { ano: 2026, mes: 10 }; // M01 = novembro/2026 (mês do JS, 0 = janeiro)
 export const DURACAO_MESES = 36;
-export const RITMO_NOTA = "8h por semana, de quarta a domingo, com 2h no sábado; segunda e terça ficam livres. O inglês começa sem conversação (listening, leitura e escrita, que dá para fazer sozinho); quando houver aula ou parceiro, os 30 min de listening da quinta viram conversação. Um dia perdido é reposto no domingo, sem acumular. A semana conta na ofensiva com 6h ou mais marcadas. No ano 2, durante a busca de vaga (meses 19–24), a sexta de cloud pode virar treino de entrevista.";
+export const RITMO_NOTA = "8h por semana, de quarta a domingo: 1h na quarta (dia de academia), 1h30 na quinta e na sexta e 2h no sábado e no domingo; segunda e terça ficam livres. O inglês começa sem conversação (listening, leitura e escrita, que dá para fazer sozinho); quando houver aula ou parceiro, os 30 min de listening da quinta viram conversação. Um dia perdido é reposto no domingo, sem acumular. A semana conta na ofensiva com 6h ou mais marcadas. No ano 2, durante a busca de vaga (meses 19–24), a sexta de cloud pode virar treino de entrevista.";
 
 export const MERCADO_DADOS = [
   "IA virou requisito básico: aparece em 42% das descrições de vaga de software em 2026, contra 8% em 2022.",

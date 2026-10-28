@@ -67,8 +67,13 @@ const addDias = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), 
 const segunda = (d: Date) => addDias(d, -((d.getDay() + 6) % 7));
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const diaId = (seg: Date, dow: number) => `sem-${iso(seg)}-d${dow}`;
+const parteId = (seg: Date, dow: number, i: number) => `${diaId(seg, dow)}-p${i}`;
 const dataDoDia = (seg: Date, dow: number) => addDias(seg, (dow + 6) % 7);
-const horasSemana = (seg: Date, done: Set<string>) => SEMANA.reduce((t, d) => t + (done.has(diaId(seg, d.dow)) ? d.horas : 0), 0);
+type Dia = (typeof SEMANA)[number];
+// O id do dia inteiro vem de antes das partes e continua valendo como todas marcadas.
+const parteFeita = (seg: Date, d: Dia, i: number, done: Set<string>) => done.has(diaId(seg, d.dow)) || done.has(parteId(seg, d.dow, i));
+const horasDia = (seg: Date, d: Dia, done: Set<string>) => d.partes.reduce((t, p, i) => t + (parteFeita(seg, d, i, done) ? p.horas : 0), 0);
+const horasSemana = (seg: Date, done: Set<string>) => SEMANA.reduce((t, d) => t + horasDia(seg, d, done), 0);
 const fmtH = (h: number) => { const m = Math.round((h % 1) * 60); return `${Math.floor(h)}h${m ? String(m).padStart(2, "0") : ""}`; };
 const ddmm = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -89,7 +94,7 @@ function recorde(done: Set<string>) {
 // Cada dia conta para o mês da própria data, mesmo quando a semana cruza meses.
 function horasMes(ano: number, mes: number, done: Set<string>) {
   let feitas = 0, planejadas = 0;
-  for (let d = new Date(ano, mes, 1); d.getMonth() === mes; d = addDias(d, 1)) { const x = SEMANA.find(s => s.dow === d.getDay()); if (!x) continue; planejadas += x.horas; if (done.has(diaId(segunda(d), x.dow))) feitas += x.horas; }
+  for (let d = new Date(ano, mes, 1); d.getMonth() === mes; d = addDias(d, 1)) { const x = SEMANA.find(s => s.dow === d.getDay()); if (!x) continue; planejadas += x.horas; feitas += horasDia(segunda(d), x, done); }
   return { feitas, planejadas };
 }
 // Mês do plano pela data do dia (M01 = INICIO_PLANO); fora do plano devolve null. Dias 1–14 são teoria, 15 em diante prática.
@@ -99,10 +104,18 @@ const fase = (d: Date) => d.getDate() <= 14 ? "teoria" : "prática";
 function Plano({ data, pilares, onSelect }: { data: Date; pilares: Pilar[]; onSelect: (s: Sel) => void }) {
   const a = useApp(); const m = mesDoPlano(data);
   if (!m) return <span className="mt-1 block font-mono text-[11px] text-muted">{data < new Date(INICIO_PLANO.ano, INICIO_PLANO.mes, 1) ? `o plano começa em 01/${String(INICIO_PLANO.mes + 1).padStart(2, "0")}/${INICIO_PLANO.ano}` : "fora do plano"}</span>;
-  const xs = assuntosDoMes(m).filter(x => pilares.includes(x.pilar)), prox = xs.find(x => assuntoDone(x, a.done) < assuntoIds(x).length);
+  const completo = (x: Assunto) => assuntoDone(x, a.done) === assuntoIds(x).length;
+  // Pilar sem assunto no mês: continua o mais antigo pendente ou adianta o próximo, para o horário do dia nunca ficar vazio.
+  const xs = pilares.flatMap(p => {
+    const doMes = assuntosDoMes(m).filter(x => x.pilar === p); if (doMes.length) return doMes.map(x => ({ x, tag: "" }));
+    const doPilar = assuntos.filter(x => x.pilar === p).sort((u, v) => u.mes - v.mes);
+    const antes = doPilar.find(x => x.mes < m && !completo(x)); if (antes) return [{ x: antes, tag: `continuar M${String(antes.mes).padStart(2, "0")}` }];
+    const depois = doPilar.find(x => x.mes > m); return depois ? [{ x: depois, tag: `adiantar M${String(depois.mes).padStart(2, "0")}` }] : [];
+  });
+  const prox = xs.find(({ x }) => !completo(x))?.x;
   return <span className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono text-[11px]">
     <span className="text-muted">M{String(m).padStart(2, "0")} · {fase(data)}:</span>
-    {xs.length ? xs.map(x => { const ok = assuntoDone(x, a.done) === assuntoIds(x).length; return <button key={x.id} type="button" onClick={e => { e.preventDefault(); onSelect({ kind: "assunto", id: x.id }); }} className={`hover:underline ${ok ? "text-muted line-through" : x === prox ? "font-bold text-accent" : "text-text"}`}>{x.titulo}</button>; })
+    {xs.length ? xs.map(({ x, tag }) => { const ok = completo(x); return <button key={x.id} type="button" onClick={e => { e.preventDefault(); onSelect({ kind: "assunto", id: x.id }); }} className={`hover:underline ${ok ? "text-muted line-through" : x === prox ? "font-bold text-accent" : "text-text"}`}>{tag && <span className="font-normal text-muted">{tag}: </span>}{x.titulo}</button>; })
       : <span className="text-muted">sem assunto deste pilar no mês; revisar ou adiantar o</span>}
     {(pilares.includes("arquitetura") || !xs.length) && <button type="button" onClick={e => { e.preventDefault(); onSelect({ kind: "mes", mes: m }); }} className="text-measure hover:underline">laboratório M{String(m).padStart(2, "0")}</button>}
   </span>;
@@ -122,12 +135,21 @@ function Semana({ onSelect }: { onSelect: (s: Sel) => void }) {
     </div>
     <div className="mt-4 border border-line bg-surface">
       <p className="flex justify-between gap-3 border-b border-line px-4 py-2 font-mono text-[11px] text-muted"><span>{ddmm(dataDoDia(seg, 3))} → {ddmm(dataDoDia(seg, 0))}{atual && " · esta semana"}</span><span className={feitas >= META_SEMANA ? "text-ok" : ""}>{fmtH(feitas)}/{fmtH(total)} · meta {fmtH(META_SEMANA)}</span></p>
-      {SEMANA.map(d => { const id = diaId(seg, d.dow), c = a.done.has(id); return <label key={d.dow} className="flex cursor-pointer items-start gap-3 border-b border-line-soft px-4 py-3 last:border-0">
-        <input className="mt-1 size-4 shrink-0" type="checkbox" checked={c} onChange={() => a.toggle(id)} />
-        <span className="w-12 shrink-0 font-mono text-[12px]"><span className="block font-bold">{d.dia}</span><span className="text-muted">{ddmm(dataDoDia(seg, d.dow))}</span></span>
-        <span className="min-w-0 flex-1"><span className={`flex flex-wrap items-center gap-x-3 font-semibold ${c ? "text-muted line-through" : ""}`}>{d.pilares.map(p => <span key={p} className="flex items-center gap-1.5"><span className={`inline-block size-2 rounded-full ${DOT[p]}`} />{title(p)}</span>)}</span><span className="mt-0.5 block text-[13.5px] leading-snug text-muted">{d.foco}</span><Plano data={dataDoDia(seg, d.dow)} pilares={d.pilares} onSelect={onSelect} /></span>
-        <span className="shrink-0 font-mono font-bold text-accent">{fmtH(d.horas)}</span>
-      </label>; })}
+      {SEMANA.map(d => {
+        const id = diaId(seg, d.dow), partes = d.partes.map((_, i) => parteId(seg, d.dow, i)), h = horasDia(seg, d, a.done), c = h === d.horas, parcial = h > 0 && !c;
+        const marcarDia = () => c ? a.setMany([id, ...partes], false) : a.setMany(partes, true);
+        const marcarParte = (i: number) => { if (!a.done.has(id)) return a.toggle(partes[i]); a.setMany([id, partes[i]], false); a.setMany(partes.filter((_, j) => j !== i), true); };
+        return <div key={d.dow} className="flex items-start gap-3 border-b border-line-soft px-4 py-3 last:border-0">
+          <input aria-label={`Marcar ${d.dia} inteiro`} className="mt-1 size-4 shrink-0 cursor-pointer" type="checkbox" checked={c} ref={el => { if (el) el.indeterminate = parcial; }} onChange={marcarDia} />
+          <span className="w-12 shrink-0 font-mono text-[12px]"><span className="block font-bold">{d.dia}</span><span className="text-muted">{ddmm(dataDoDia(seg, d.dow))}</span></span>
+          <span className="min-w-0 flex-1"><span className={`flex flex-wrap items-center gap-x-3 font-semibold ${c ? "text-muted line-through" : ""}`}>{d.pilares.map(p => <span key={p} className="flex items-center gap-1.5"><span className={`inline-block size-2 rounded-full ${DOT[p]}`} />{title(p)}</span>)}</span>
+            {d.partes.map((p, i) => { const f = parteFeita(seg, d, i, a.done); return <label key={i} className="mt-1 flex cursor-pointer items-start gap-2 text-[13.5px] leading-snug">
+              <input className="mt-0.5 size-3.5 shrink-0" type="checkbox" checked={f} onChange={() => marcarParte(i)} />
+              <span className={`flex-1 ${f ? "text-muted line-through" : "text-muted"}`}>{p.texto}</span><span className="shrink-0 font-mono text-[11px] text-muted">{fmtH(p.horas)}</span>
+            </label>; })}
+            <Plano data={dataDoDia(seg, d.dow)} pilares={d.pilares} onSelect={onSelect} /></span>
+          <span className="shrink-0 font-mono font-bold text-accent">{parcial ? `${fmtH(h)}/` : ""}{fmtH(d.horas)}</span>
+        </div>; })}
     </div>
     <div className="mt-4 max-w-[36rem]"><p className="font-mono text-[12px]">Horas em {MESES[ref.getMonth()]}: <strong>{fmtH(mes.feitas)}</strong> de {fmtH(mes.planejadas)}</p><Bar n={mes.feitas} total={mes.planejadas} /></div>
     <p className="mt-4 max-w-[70ch] text-[14.5px] leading-relaxed text-muted">{RITMO_NOTA}</p>

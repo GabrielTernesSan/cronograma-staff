@@ -8,7 +8,7 @@ Roadmap de 36 meses (nov/2026 → out/2029), com oito horas semanais como refer�
 - Os laboratórios técnicos da versão anterior (especificação, Clean Architecture, RAG, agentes, evals, segurança, plataforma, eventos, SRE, governança) continuam; produto, receita e SaaS saíram do caminho principal.
 - Novas trilhas de Inglês e Carreira & mudança: portfólio público, entrevistas de system design, busca de vaga, contrato, documentos, visto, saída fiscal e chegada.
 - Seção de mercado (o que as vagas pedem em 2026 e leitura de futuro) e tabela de destinos com o salário mínimo de visto de 2026.
-- Ritmo de 8h/semana, de quarta a domingo (2h no sábado e 1h30 nos outros dias), com uma grade fixa por pilar no topo da página: checkbox por dia, horas do mês e ofensiva de semanas focadas (6h ou mais).
+- Ritmo de 8h/semana, de quarta a domingo (1h na quarta, 1h30 na quinta e na sexta, 2h no sábado e no domingo), com uma grade fixa por pilar no topo da página: checkbox por dia, horas do mês e ofensiva de semanas focadas (6h ou mais).
 
 ## Dados e progresso
 
