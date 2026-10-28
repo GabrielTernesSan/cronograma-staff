@@ -18,7 +18,7 @@ type Sel = { kind: "assunto"; id: string } | { kind: "mes"; mes: number } | { ki
 
 export function Roadmap() {
   const app = useApp(); const file = useRef<HTMLInputElement>(null);
-  const [msg, setMsg] = useState(""); const [confirm, setConfirm] = useState(false); const [sel, setSel] = useState<Sel>(null);
+  const [msg, setMsg] = useState(""); const [tok, setTok] = useState(""); const [pedirToken, setPedirToken] = useState(false); const [confirm, setConfirm] = useState(false); const [sel, setSel] = useState<Sel>(null);
   const { done, valores, filters } = app;
   const flip = (p: Pilar) => app.setFilters(f => ({ ...f, pillars: f.pillars.includes(p) ? f.pillars.filter(x => x !== p) : [...f.pillars, p] }));
   const activities = countDone(ALL_ACTIVITY_IDS, done), evidence = countValues(ALL_EVIDENCE_IDS, valores), topicItems = countDone(ALL_ASSUNTO_IDS, done);
@@ -40,6 +40,8 @@ export function Roadmap() {
         <Btn onClick={app.exportJson}>exportar</Btn><Btn onClick={() => file.current?.click()}>importar</Btn>
         <input ref={file} className="hidden" type="file" accept="application/json,.json" onChange={async e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setMsg((await app.importJson(f)).message); }} />
         {confirm ? <><Btn danger onClick={() => { app.reset(); setConfirm(false); }}>confirmar zerar</Btn><Btn onClick={() => setConfirm(false)}>cancelar</Btn></> : <Btn onClick={() => setConfirm(true)}>zerar</Btn>}
+        <span className={`font-mono text-[11px] ${app.sync === "erro" ? "text-warn" : app.sync === "salvo" ? "text-ok" : "text-muted"}`}>{app.sync === "sem-token" ? "só local" : app.sync === "salvando" ? "salvando…" : app.sync === "salvo" ? "salvo na nuvem" : "erro ao salvar"}</span>
+        {pedirToken ? <form className="flex gap-2" onSubmit={e => { e.preventDefault(); app.setToken(tok); setTok(""); setPedirToken(false); }}><input className="border border-line bg-surface px-2 py-1 font-mono text-[11px]" type="password" autoComplete="off" placeholder="token" value={tok} onChange={e => setTok(e.target.value)} /><Btn onClick={() => { app.setToken(tok); setTok(""); setPedirToken(false); }}>salvar token</Btn></form> : <Btn onClick={() => setPedirToken(true)}>token</Btn>}
         {msg && <span className="font-mono text-[11px] text-accent">{msg}</span>}
       </div>
       {app.legacy && <p className="mt-4 border-l-2 border-warn bg-warn/10 px-4 py-2 text-[14px] text-muted">O progresso do cronograma anterior está preservado no exportável como histórico ({app.legacy.done.length} marcações). Ele não conta como avanço novo, para não inventar histórico.</p>}
