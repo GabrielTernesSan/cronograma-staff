@@ -15,12 +15,21 @@ const a = (mes: number, slug: string, pilar: Pilar, titulo: string, resumo: stri
 
 export const assuntos: Assunto[] = [
   // ───────── Ano 1 · base sênior com IA ─────────
+  a(1, "fundamentos", "arquitetura", "Fundamentos de arquitetura", "Entender o que é arquitetura, quais características ela protege e que toda escolha é um trade-off, antes de registrar qualquer decisão.",
+    ["O que é arquitetura: as decisões caras de mudar", "Características arquiteturais (atributos de qualidade): disponibilidade, escalabilidade, manutenibilidade, segurança", "Estilos: camadas, monólito modular, microsserviços, orientado a eventos", "Modularidade: acoplamento e coesão", "Trade-offs: não existe melhor solução, só a menos pior para o contexto"],
+    [["Software Architecture Guide", "Martin Fowler", "https://martinfowler.com/architecture/", "artigo"],
+     ["Who Needs an Architect?", "Martin Fowler", "https://martinfowler.com/ieeeSoftware/whoNeedsArchitect.pdf", "artigo"],
+     ["Architecture styles", "Microsoft Learn", "https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/", "doc"],
+     ["ISO/IEC 25010: modelo de qualidade de produto", "iso25000.com", "https://iso25000.com/index.php/en/iso-25000-standards/iso-25010", "doc"],
+     ["Monolith First", "Martin Fowler", "https://martinfowler.com/bliki/MonolithFirst.html", "artigo"],
+     ["Fundamentals of Software Architecture", "Mark Richards e Neal Ford", "https://fundamentalsofsoftwarearchitecture.com/", "livro"]],
+    "Listar as 5 características arquiteturais prioritárias da PoC, comparar dois estilos candidatos e escrever em 1 página o trade-off. Essa nota é a entrada dos ADRs do próximo assunto."),
   a(1, "adr", "arquitetura", "Requisitos e ADRs", "Registrar decisões com contexto, alternativas e consequências antes de codificar.",
     ["Requisitos funcionais x não funcionais", "Formato de ADR: contexto, decisão, consequências", "Quando uma decisão merece ADR", "ADR como histórico, não como burocracia"],
     [["Documenting Architecture Decisions", "Michael Nygard", "https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions", "artigo"],
      ["Architectural Decision Records", "adr.github.io", "https://adr.github.io/", "doc"],
      ["Design Docs at Google", "Malte Ubl", "https://www.industrialempathy.com/posts/design-docs-at-google/", "artigo"]],
-    "Escrever o PRD curto da PoC e dois ADRs (estilo de arquitetura e hospedagem)."),
+    "Escrever o PRD curto da PoC e dois ADRs (estilo de arquitetura e hospedagem), partindo da nota de características e trade-offs do assunto anterior."),
   a(1, "c4", "arquitetura", "Modelo C4", "Desenhar contexto, containers e componentes no nível certo para cada público.",
     ["C1 contexto e C2 containers", "C3 componentes: quando vale", "Diagrama como código", "Notação e legenda"],
     [["The C4 model", "Simon Brown", "https://c4model.com/", "doc"],
