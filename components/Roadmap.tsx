@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
 import { assuntoById, feita, idsParaMarcar, metaMes, previsaoMes, type TipoTarefa } from "@/lib/data/agenda";
-import { DESTINOS, DESTINOS_NOTA, INICIO, inicioMes, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, MIN_POR_DIA, periodo, PILARES, RITMO, RITMO_NOTA, ROTA, trimestres } from "@/lib/data/cronograma";
+import { DESTINOS, DESTINOS_NOTA, DURACAO_MESES, INICIO, inicioMes, INICIO_PLANO, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, MIN_POR_DIA, periodo, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
 import { assuntos, assuntosDoMes, horasPratica, horasTeoria, MIN_LEITURA } from "@/lib/data/trilha";
 import { diasEntre, fmtDia, fmtDiaSemana, fmtMesAno, hojeIso } from "@/lib/datas";
 import { useHoje } from "@/lib/useHoje";
@@ -21,7 +21,7 @@ type Sel = { kind: "assunto"; id: string } | { kind: "mes"; mes: number } | { ki
 
 export function Roadmap() {
   const app = useApp(); const file = useRef<HTMLInputElement>(null);
-  const [msg, setMsg] = useState(""); const [confirm, setConfirm] = useState(false); const [sel, setSel] = useState<Sel>(null);
+  const [msg, setMsg] = useState(""); const [tok, setTok] = useState(""); const [pedirToken, setPedirToken] = useState(false); const [confirm, setConfirm] = useState(false); const [sel, setSel] = useState<Sel>(null);
   const { done, valores, filters } = app;
   const flip = (p: Pilar) => app.setFilters(f => ({ ...f, pillars: f.pillars.includes(p) ? f.pillars.filter(x => x !== p) : [...f.pillars, p] }));
   const activities = countDone(ALL_ACTIVITY_IDS, done), evidence = countValues(ALL_EVIDENCE_IDS, valores), topicItems = countDone(ALL_ASSUNTO_IDS, done);
@@ -43,14 +43,16 @@ export function Roadmap() {
         <Btn onClick={app.exportJson}>exportar</Btn><Btn onClick={() => file.current?.click()}>importar</Btn>
         <input ref={file} className="hidden" type="file" accept="application/json,.json" onChange={async e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setMsg((await app.importJson(f)).message); }} />
         {confirm ? <><Btn danger onClick={() => { app.reset(); setConfirm(false); }}>confirmar zerar</Btn><Btn onClick={() => setConfirm(false)}>cancelar</Btn></> : <Btn onClick={() => setConfirm(true)}>zerar</Btn>}
+        <span className={`font-mono text-[11px] ${app.sync === "erro" ? "text-warn" : app.sync === "salvo" ? "text-ok" : "text-muted"}`}>{app.sync === "sem-token" ? "só local" : app.sync === "salvando" ? "salvando…" : app.sync === "salvo" ? "salvo na nuvem" : "erro ao salvar"}</span>
+        {pedirToken ? <form className="flex gap-2" onSubmit={e => { e.preventDefault(); app.setToken(tok); setTok(""); setPedirToken(false); }}><input className="border border-line bg-surface px-2 py-1 font-mono text-[11px]" type="password" autoComplete="off" placeholder="token" value={tok} onChange={e => setTok(e.target.value)} /><Btn onClick={() => { app.setToken(tok); setTok(""); setPedirToken(false); }}>salvar token</Btn></form> : <Btn onClick={() => setPedirToken(true)}>token</Btn>}
         {msg && <span className="font-mono text-[11px] text-accent">{msg}</span>}
       </div>
       {app.legacy && <p className="mt-4 border-l-2 border-warn bg-warn/10 px-4 py-2 text-[14px] text-muted">O progresso do cronograma anterior está preservado no exportável como histórico ({app.legacy.done.length} marcações). Ele não conta como avanço novo, para não inventar histórico.</p>}
     </header>
     <main className="mt-10">
       <Hoje onSelect={setSel} />
+      <Semana onSelect={setSel} />
       <Trilha onSelect={setSel} />
-      <section className="mt-16 border-t border-line pt-10"><p className="label mb-3">Semana-padrão · 8h</p><div className="grid gap-5 md:grid-cols-[24rem_1fr]"><div className="border border-line bg-surface px-5 py-4"><table className="w-full"><tbody>{RITMO.map(([x, h]) => <tr key={x} className="border-b border-line-soft last:border-0"><td className="py-1.5 text-[15px]">{x}</td><td className="py-1.5 text-right font-mono font-bold text-accent">{h}</td></tr>)}</tbody></table></div><p className="m-0 max-w-[65ch] text-[15.5px] leading-relaxed text-muted">{RITMO_NOTA}</p></div></section>
       <section className="mt-12 border-t border-line pt-10"><h2 className="text-2xl font-bold">Mercado, futuro e destino</h2>
         <div className="mt-5 grid gap-8 md:grid-cols-2"><div className="min-w-0"><p className="label mb-3">O que o mercado pede em 2026</p><ul className="list-disc space-y-2 pl-5 text-[15.5px] leading-relaxed">{MERCADO_DADOS.map(x => <li key={x}>{x}</li>)}</ul></div><div className="min-w-0"><p className="label mb-3">Leitura do futuro (2027–2029)</p><ul className="list-disc space-y-2 pl-5 text-[15.5px] leading-relaxed">{MERCADO_LEITURA.map(x => <li key={x}>{x}</li>)}</ul></div></div>
         <p className="label mb-3 mt-8">Destinos e régua de salário para visto</p><p className="mb-3 max-w-[70ch] text-[14.5px] text-muted">{DESTINOS_NOTA}</p>
@@ -98,6 +100,101 @@ function Hoje({ onSelect }: { onSelect: (s: Sel) => void }) {
       <fieldset className="mt-5 border-t border-line pt-3"><legend className="label">Inglês da semana {semana} · {countDone(ingles, a.done)}/4</legend><div className="flex flex-wrap gap-x-5 gap-y-2">{ingles.map((id, i) => <label key={id} className="flex cursor-pointer items-center gap-2 text-[14px]"><input type="checkbox" className="size-4" checked={a.done.has(id)} onChange={() => a.toggle(id)} />Conversa {i + 1} · 30 min</label>)}</div></fieldset>
       <p className="mt-4 text-[14px] text-muted">Dia perdido não vira atraso: amanhã a lista começa da próxima tarefa ainda não feita.</p>
     </>}
+  </section>;
+}
+
+/* ───────── Semana (grade fixa, checkbox por dia e ofensiva) ───────── */
+const DIA = 86400000;
+const addDias = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const segunda = (d: Date) => addDias(d, -((d.getDay() + 6) % 7));
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const diaId = (seg: Date, dow: number) => `sem-${iso(seg)}-d${dow}`;
+const parteId = (seg: Date, dow: number, i: number) => `${diaId(seg, dow)}-p${i}`;
+const dataDoDia = (seg: Date, dow: number) => addDias(seg, (dow + 6) % 7);
+type Dia = (typeof SEMANA)[number];
+// O id do dia inteiro vem de antes das partes e continua valendo como todas marcadas.
+const parteFeita = (seg: Date, d: Dia, i: number, done: Set<string>) => done.has(diaId(seg, d.dow)) || done.has(parteId(seg, d.dow, i));
+const horasDia = (seg: Date, d: Dia, done: Set<string>) => d.partes.reduce((t, p, i) => t + (parteFeita(seg, d, i, done) ? p.horas : 0), 0);
+const horasSemana = (seg: Date, done: Set<string>) => SEMANA.reduce((t, d) => t + horasDia(seg, d, done), 0);
+const fmtH = (h: number) => { const m = Math.round((h % 1) * 60); return `${Math.floor(h)}h${m ? String(m).padStart(2, "0") : ""}`; };
+const ddmm = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+// Semanas fechadas contam para trás; a atual só soma quando já bateu a meta, nunca quebra a sequência.
+function ofensiva(hoje: Date, done: Set<string>) {
+  const atual = segunda(hoje); let n = horasSemana(atual, done) >= META_SEMANA ? 1 : 0;
+  for (let s = addDias(atual, -7); horasSemana(s, done) >= META_SEMANA; s = addDias(s, -7)) n++;
+  return n;
+}
+function recorde(done: Set<string>) {
+  const semanas = [...new Set([...done].filter(id => id.startsWith("sem-")).map(id => id.slice(4, 14)))]
+    .map(x => { const [y, m, d] = x.split("-").map(Number); return new Date(y, m - 1, d); })
+    .filter(s => horasSemana(s, done) >= META_SEMANA).sort((a, b) => a.getTime() - b.getTime());
+  let best = 0, run = 0; semanas.forEach((s, i) => { run = i > 0 && Math.round((s.getTime() - semanas[i - 1].getTime()) / DIA) === 7 ? run + 1 : 1; best = Math.max(best, run); });
+  return best;
+}
+// Cada dia conta para o mês da própria data, mesmo quando a semana cruza meses.
+function horasMes(ano: number, mes: number, done: Set<string>) {
+  let feitas = 0, planejadas = 0;
+  for (let d = new Date(ano, mes, 1); d.getMonth() === mes; d = addDias(d, 1)) { const x = SEMANA.find(s => s.dow === d.getDay()); if (!x) continue; planejadas += x.horas; feitas += horasDia(segunda(d), x, done); }
+  return { feitas, planejadas };
+}
+// Mês do plano pela data do dia (M01 = INICIO_PLANO); fora do plano devolve null. Dias 1–14 são teoria, 15 em diante prática.
+const mesDoPlano = (d: Date) => { const m = (d.getFullYear() - INICIO_PLANO.ano) * 12 + d.getMonth() - INICIO_PLANO.mes + 1; return m >= 1 && m <= DURACAO_MESES ? m : null; };
+const fase = (d: Date) => d.getDate() <= 14 ? "teoria" : "prática";
+
+function Plano({ data, pilares, onSelect }: { data: Date; pilares: Pilar[]; onSelect: (s: Sel) => void }) {
+  const a = useApp(); const m = mesDoPlano(data);
+  if (!m) return <span className="mt-1 block font-mono text-[11px] text-muted">{data < new Date(INICIO_PLANO.ano, INICIO_PLANO.mes, 1) ? `o plano começa em 01/${String(INICIO_PLANO.mes + 1).padStart(2, "0")}/${INICIO_PLANO.ano}` : "fora do plano"}</span>;
+  const completo = (x: Assunto) => assuntoDone(x, a.done) === assuntoIds(x).length;
+  // Pilar sem assunto no mês: continua o mais antigo pendente ou adianta o próximo, para o horário do dia nunca ficar vazio.
+  const xs = pilares.flatMap(p => {
+    const doMes = assuntosDoMes(m).filter(x => x.pilar === p); if (doMes.length) return doMes.map(x => ({ x, tag: "" }));
+    const doPilar = assuntos.filter(x => x.pilar === p).sort((u, v) => u.mes - v.mes);
+    const antes = doPilar.find(x => x.mes < m && !completo(x)); if (antes) return [{ x: antes, tag: `continuar M${String(antes.mes).padStart(2, "0")}` }];
+    const depois = doPilar.find(x => x.mes > m); return depois ? [{ x: depois, tag: `adiantar M${String(depois.mes).padStart(2, "0")}` }] : [];
+  });
+  const prox = xs.find(({ x }) => !completo(x))?.x;
+  return <span className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono text-[11px]">
+    <span className="text-muted">M{String(m).padStart(2, "0")} · {fase(data)}:</span>
+    {xs.length ? xs.map(({ x, tag }) => { const ok = completo(x); return <button key={x.id} type="button" onClick={e => { e.preventDefault(); onSelect({ kind: "assunto", id: x.id }); }} className={`hover:underline ${ok ? "text-muted line-through" : x === prox ? "font-bold text-accent" : "text-text"}`}>{tag && <span className="font-normal text-muted">{tag}: </span>}{x.titulo}</button>; })
+      : <span className="text-muted">sem assunto deste pilar no mês; revisar ou adiantar o</span>}
+    {(pilares.includes("arquitetura") || !xs.length) && <button type="button" onClick={e => { e.preventDefault(); onSelect({ kind: "mes", mes: m }); }} className="text-measure hover:underline">laboratório M{String(m).padStart(2, "0")}</button>}
+  </span>;
+}
+
+function Semana({ onSelect }: { onSelect: (s: Sel) => void }) {
+  const a = useApp(); const [hoje, setHoje] = useState<Date | null>(null); const [desloc, setDesloc] = useState(0);
+  useEffect(() => setHoje(new Date()), []);
+  const total = SEMANA.reduce((t, d) => t + d.horas, 0);
+  if (!hoje) return <section className="mb-14"><p className="label">Semana · {fmtH(total)} (qua a dom)</p></section>;
+  const seg = addDias(segunda(hoje), desloc * 7), ref = dataDoDia(seg, 4), mes = horasMes(ref.getFullYear(), ref.getMonth(), a.done);
+  const feitas = horasSemana(seg, a.done), atual = desloc === 0, n = ofensiva(hoje, a.done), rec = Math.max(recorde(a.done), n);
+  return <section aria-labelledby="semana-h" className="mb-14">
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div><p className="label">Semana · {fmtH(total)} (qua a dom)</p><h2 id="semana-h" className="mt-1 text-2xl font-bold">Ofensiva: {n} {n === 1 ? "semana" : "semanas"} <span className="font-mono text-[13px] font-normal text-muted">· recorde {rec}</span></h2></div>
+      <div className="flex items-center gap-2"><Btn onClick={() => setDesloc(x => x - 1)}>← semana</Btn>{!atual && <Btn onClick={() => setDesloc(0)}>hoje</Btn>}<Btn onClick={() => setDesloc(x => x + 1)}>semana →</Btn></div>
+    </div>
+    <div className="mt-4 border border-line bg-surface">
+      <p className="flex justify-between gap-3 border-b border-line px-4 py-2 font-mono text-[11px] text-muted"><span>{ddmm(dataDoDia(seg, 3))} → {ddmm(dataDoDia(seg, 0))}{atual && " · esta semana"}</span><span className={feitas >= META_SEMANA ? "text-ok" : ""}>{fmtH(feitas)}/{fmtH(total)} · meta {fmtH(META_SEMANA)}</span></p>
+      {SEMANA.map(d => {
+        const id = diaId(seg, d.dow), partes = d.partes.map((_, i) => parteId(seg, d.dow, i)), h = horasDia(seg, d, a.done), c = h === d.horas, parcial = h > 0 && !c;
+        const marcarDia = () => c ? a.setMany([id, ...partes], false) : a.setMany(partes, true);
+        const marcarParte = (i: number) => { if (!a.done.has(id)) return a.toggle(partes[i]); a.setMany([id, partes[i]], false); a.setMany(partes.filter((_, j) => j !== i), true); };
+        return <div key={d.dow} className="flex items-start gap-3 border-b border-line-soft px-4 py-3 last:border-0">
+          <input aria-label={`Marcar ${d.dia} inteiro`} className="mt-1 size-4 shrink-0 cursor-pointer" type="checkbox" checked={c} ref={el => { if (el) el.indeterminate = parcial; }} onChange={marcarDia} />
+          <span className="w-12 shrink-0 font-mono text-[12px]"><span className="block font-bold">{d.dia}</span><span className="text-muted">{ddmm(dataDoDia(seg, d.dow))}</span></span>
+          <span className="min-w-0 flex-1"><span className={`flex flex-wrap items-center gap-x-3 font-semibold ${c ? "text-muted line-through" : ""}`}>{d.pilares.map(p => <span key={p} className="flex items-center gap-1.5"><span className={`inline-block size-2 rounded-full ${DOT[p]}`} />{title(p)}</span>)}</span>
+            {d.partes.map((p, i) => { const f = parteFeita(seg, d, i, a.done); return <label key={i} className="mt-1 flex cursor-pointer items-start gap-2 text-[13.5px] leading-snug">
+              <input className="mt-0.5 size-3.5 shrink-0" type="checkbox" checked={f} onChange={() => marcarParte(i)} />
+              <span className={`flex-1 ${f ? "text-muted line-through" : "text-muted"}`}>{p.texto}</span><span className="shrink-0 font-mono text-[11px] text-muted">{fmtH(p.horas)}</span>
+            </label>; })}
+            <Plano data={dataDoDia(seg, d.dow)} pilares={d.pilares} onSelect={onSelect} /></span>
+          <span className="shrink-0 font-mono font-bold text-accent">{parcial ? `${fmtH(h)}/` : ""}{fmtH(d.horas)}</span>
+        </div>; })}
+    </div>
+    <div className="mt-4 max-w-[36rem]"><p className="font-mono text-[12px]">Horas em {MESES[ref.getMonth()]}: <strong>{fmtH(mes.feitas)}</strong> de {fmtH(mes.planejadas)}</p><Bar n={mes.feitas} total={mes.planejadas} /></div>
+    <p className="mt-4 max-w-[70ch] text-[14.5px] leading-relaxed text-muted">{RITMO_NOTA}</p>
   </section>;
 }
 

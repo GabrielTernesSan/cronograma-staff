@@ -24,14 +24,21 @@ export const ROTA = [
   { codigo: "EU", quando: "mês 36", texto: "Blue Card ou Tech Visa" },
 ] as const;
 
-export const RITMO = [
-  ["Formação Arquitetura — Rodrigo Branas + System Design (Fidelis)", "2h"],
-  ["Formação IA — Rodrigo Branas + laboratório", "2h"],
-  ["Cloud e plataforma (Azure, IaC, observabilidade)", "1h"],
-  ["Inglês: 4×30 min de conversação + escrita técnica", "2h"],
-  ["Carreira: portfólio, LinkedIn, entrevistas, documentos", "1h"],
-] as const;
-export const RITMO_NOTA = "Referência de 8h/semana. O plano anterior tinha 6h e deixava o inglês dentro das outras horas; para sair do país isso não fecha, porque inglês falado e preparação de entrevista precisam de horas próprias. No ano 2, durante a busca de vaga (meses 19–24), a hora de cloud pode virar hora de entrevista.";
+// dow: dia da semana do JS (0 = domingo). A semana começa na quarta e fecha no domingo.
+// Cada dia é dividido em partes com horas próprias, para marcar o dia pela metade.
+type Parte = { horas: number; texto: string };
+const dia = (dia: string, dow: number, pilares: Pilar[], partes: Parte[]) => ({ dia, dow, pilares, partes, horas: partes.reduce((t, p) => t + p.horas, 0) });
+export const SEMANA = [
+  dia("qua", 3, ["ia"], [{ horas: 1, texto: "Formação IA (Rodrigo Branas)" }]),
+  dia("qui", 4, ["ingles", "carreira"], [{ horas: 0.5, texto: "Listening: podcast ou palestra técnica em inglês" }, { horas: 1, texto: "Carreira: portfólio, LinkedIn, entrevistas e documentos" }]),
+  dia("sex", 5, ["cloud"], [{ horas: 1, texto: "Azure, IaC e observabilidade: teoria do assunto de cloud do mês" }, { horas: 0.5, texto: "Prática do assunto de cloud do mês" }]),
+  dia("sáb", 6, ["arquitetura"], [{ horas: 1, texto: "Formação Arquitetura (Branas) + System Design (Fidelis)" }, { horas: 1, texto: "Laboratório do mês" }]),
+  dia("dom", 0, ["ingles", "ia"], [{ horas: 1, texto: "Leitura e escrita técnica em inglês: ler um artigo da trilha e resumir em inglês" }, { horas: 0.5, texto: "Laboratório: prática do assunto de IA do mês" }, { horas: 0.5, texto: "Fechar a semana e planejar a próxima" }]),
+];
+export const META_SEMANA = 6; // horas marcadas para a semana contar na ofensiva
+export const INICIO_PLANO = { ano: 2026, mes: 10 }; // M01 = novembro/2026 (mês do JS, 0 = janeiro)
+export const DURACAO_MESES = 36;
+export const RITMO_NOTA = "8h por semana, de quarta a domingo: 1h na quarta (dia de academia), 1h30 na quinta e na sexta e 2h no sábado e no domingo; segunda e terça ficam livres. O inglês começa sem conversação (listening, leitura e escrita, que dá para fazer sozinho); quando houver aula ou parceiro, os 30 min de listening da quinta viram conversação. Um dia perdido é reposto no domingo, sem acumular. A semana conta na ofensiva com 6h ou mais marcadas. No ano 2, durante a busca de vaga (meses 19–24), a sexta de cloud pode virar treino de entrevista.";
 
 export const MERCADO_DADOS = [
   "IA virou requisito básico: aparece em 42% das descrições de vaga de software em 2026, contra 8% em 2022.",
@@ -67,6 +74,7 @@ export const materiais: Material[] = [
   { id: "material-arq", tipo: "curso", titulo: "Formação em Arquitetura de Software — Rodrigo Branas", descricao: "Início no mês 1, em paralelo com IA. A página pública lista automação de testes, refactoring, hexagonal, Clean Architecture, DDD, microservices, eventos, CQRS, APIs e infraestrutura. O roadmap não inventa uma sequência de aulas.", url: "https://www.branas.io/formacoes/arquitetura-de-software" },
   { id: "material-ia", tipo: "curso", titulo: "Formação em Inteligência Artificial — Rodrigo Branas", descricao: "Início no mês 1, em paralelo. Conteúdo público confirmado: LLMs, harness, context engineering, rules, skills, MCP, spec-driven development, agentes, RAG e memória. Fundamentos de Python e matemática complementam, sem bloquear, os laboratórios.", url: "https://www.branas.io/formacoes/inteligencia-artificial" },
   { id: "material-fidelis", tipo: "livro", titulo: "System Design — Matheus Fidelis", descricao: "Leitura contínua desde o mês 1 e base para as entrevistas de system design do ano 2. Cobre rede, storage, CAP/PACELC, dados, cache, mensageria, escala, resiliência, observabilidade e capacidade.", url: "https://fidelissauro.dev/system-design-sumario/" },
+  { id: "material-richards-ford", tipo: "livro", titulo: "Fundamentals of Software Architecture — Mark Richards e Neal Ford", descricao: "Leitura contínua a partir do mês 1, junto com o assunto Fundamentos de arquitetura. Base de características arquiteturais, estilos, modularidade e trade-offs; volte aos capítulos de cada estilo quando ele aparecer na trilha.", url: "https://fundamentalsofsoftwarearchitecture.com/" },
   { id: "material-akita", tipo: "livro", titulo: "Competente o Suficiente — Fabio Akita", descricao: "Livro gratuito (EPUB e PDF, em português e inglês) de 2026 sobre IA na prática, montado a partir dos posts do blog: o que é, se funciona, como ler benchmarks, riscos de dar acesso a agentes e o impacto no emprego. Ler em paralelo nos meses 1–6; a Parte V entra no M12. Os posts do blog aparecem como leituras nos assuntos de agentes, benchmarks e segurança.", url: "https://ailair.akitaonrails.com/book/" },
   { id: "material-ingles", tipo: "hábito", titulo: "Inglês falado e escrito", descricao: "2h por semana com horário próprio: 4 sessões de 30 minutos de conversação com professor ou parceiro, mais READMEs, ADRs e posts em inglês. Meta B2+ no mês 10, C1 em entrevista no ano 3." },
   { id: "material-nivel", tipo: "teste", titulo: "Teste de nível de inglês", descricao: "EF SET ou equivalente no mês 1, no mês 11 e no ano 3. A nota entra como evidência; não depende de impressão." },
