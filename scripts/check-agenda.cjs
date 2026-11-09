@@ -93,3 +93,13 @@ assert.deepEqual(montarDia("2026-11-11", completo, {}), [[]]);
 
 console.log(`Agenda OK. Mês 1 previsto para ${p1} (meta ${metaMes(1)}).`);
 for (const d of semana) console.log(fmtDiaSemana(d), JSON.stringify(montarDia(d, new Set(), {}).map(ids => ids.map(id => `${T(id).texto.slice(0, 60)}${T(id).sessao ? ` s${T(id).sessao.join("/")}` : ""} (${T(id).minutos})`))));
+
+// Projeção: cada tarefa aparece em um único dia, sem repetir, e o primeiro dia bate com o montarDia
+const { projetarDias } = require("../lib/data/agenda.ts");
+const proj = projetarDias("2026-11-09", "2026-12-31", new Set(), {});
+const todas = [...proj.values()].flat(2);
+assert.equal(new Set(todas).size, todas.length, "projeção repete tarefa");
+assert.deepEqual(proj.get("2026-11-11"), montarDia("2026-11-11", new Set(), {}));
+assert.ok(!proj.has("2026-11-10") && !proj.has("2026-11-16"), "segunda e terça livres");
+console.log("Projeção OK:", proj.size, "dias de estudo até 31/12.");
+for (const d of ["2026-11-18", "2026-11-19", "2026-11-20"]) console.log(fmtDiaSemana(d), JSON.stringify(proj.get(d).map(ids => ids.map(id => T(id).texto.slice(0, 50)))));

@@ -107,6 +107,20 @@ export const montarDia = (iso: string, done: Set<string>, valores: Valores): str
   });
 };
 
+/**
+ * Distribui a fila pelos dias de estudo de `de` até `ate`, supondo que cada dia é cumprido.
+ * É só previsão: se um dia não for feito, tudo anda um dia de estudo para a frente.
+ */
+export const projetarDias = (de: string, ate: string, done: Set<string>, valores: Valores) => {
+  const sim = new Set(done); const out = new Map<string, string[][]>();
+  for (let d = de < INICIO ? INICIO : de; d <= ate; d = addDias(d, 1)) {
+    const partes = montarDia(d, sim, valores); if (!partes) continue;
+    out.set(d, partes);
+    partes.flat().forEach(id => { const t = tarefaById.get(id); if (t) idsParaMarcar(t, true).forEach(x => sim.add(x)); });
+  }
+  return out;
+};
+
 /** Próxima pendente fora da lista de hoje, para o botão "adiantar". */
 export const proximaTarefa = (done: Set<string>, valores: Valores, excluir: Set<string>) =>
   pendentes(done, valores).find(t => !excluir.has(t.id) && pronta(t, done, valores));
