@@ -2,11 +2,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
-import { assuntoById, feita, idsParaMarcar, metaMes, previsaoMes, type TipoTarefa } from "@/lib/data/agenda";
-import { DESTINOS, DESTINOS_NOTA, DURACAO_MESES, INICIO, inicioMes, INICIO_PLANO, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, MIN_POR_DIA, periodo, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
+import { assuntoById, feita, idsParaMarcar, metaMes, previsaoMes, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
+import { DESTINOS, DESTINOS_NOTA, DURACAO_MESES, INICIO, inicioMes, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, periodo, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
 import { assuntos, assuntosDoMes, horasPratica, horasTeoria, MIN_LEITURA } from "@/lib/data/trilha";
-import { diasEntre, fmtDia, fmtDiaSemana, fmtMesAno, hojeIso } from "@/lib/datas";
-import { useHoje } from "@/lib/useHoje";
+import { diasEntre, fmtDia, fmtDiaSemana, fmtMesAno, hojeIso, paraData, paraIso } from "@/lib/datas";
+import { useHoje, type DiaHoje } from "@/lib/useHoje";
 import { ALL_ACTIVITY_IDS, ALL_ASSUNTO_IDS, ALL_EVIDENCE_IDS, ALL_LEITURA_IDS, ALL_MARCO_IDS, assuntoDone, assuntoIds, countDone, countValues, labComplete, labsComplete, pct } from "@/lib/stats";
 import type { Assunto, Laboratorio, Pilar, Trimestre } from "@/lib/types";
 
@@ -68,39 +68,62 @@ export function Roadmap() {
 const TIPOS: Record<TipoTarefa, string> = { leitura: "leitura", estudo: "estudo", pratica: "prática", lab: "laboratório", evidencia: "evidência" };
 
 function Hoje({ onSelect }: { onSelect: (s: Sel) => void }) {
-  const a = useApp(); const { data, tarefas, antesDoInicio, adiantar } = useHoje();
+  const a = useApp(); const { data, hoje, extra, proximo, antesDoInicio, adiantar } = useHoje();
+  if (!data) return <section className="mb-12 border-2 border-text bg-surface px-5 py-5"><h2 className="text-2xl font-bold">Hoje</h2><p className="mt-3 text-muted">Carregando as tarefas…</p></section>;
+  const dia = hoje ?? proximo; const seg = dia ? segunda(paraData(dia.data)) : null;
+  const tarefas = dia ? [...dia.partes.flatMap(p => p.tarefas), ...(hoje ? extra : [])] : [];
   const mes = tarefas[0]?.mes;
-  const concluidas = tarefas.filter(t => feita(t, a.done, a.valores)).length;
-  const minutos = tarefas.reduce((s, t) => s + t.minutos, 0);
-  const previsao = mes && data ? previsaoMes(mes, a.done, a.valores, data) : null;
-  const diferenca = mes && previsao ? diasEntre(metaMes(mes), previsao) : 0;
-  const semana = data ? Math.max(1, Math.floor(diasEntre(INICIO, data) / 7) + 1) : 1;
-  const ingles = [1, 2, 3, 4].map(n => `ingles-s${semana}-${n}`);
+  const previsao = mes ? previsaoMes(mes, a.done, a.valores, data) : null;
+  const atraso = mes && previsao ? diasEntre(metaMes(mes), previsao) : 0;
+  const concluido = !!hoje && !!seg && hoje.partes.every(p => parteFeita(seg, hoje.dia, p.indice, a.done));
+  const titulo = hoje ? `Hoje · ${fmtDiaSemana(data)}` : antesDoInicio && proximo ? `Começa ${fmtDiaSemana(proximo.data)}` : `Hoje · ${fmtDiaSemana(data)} · dia livre`;
   return <section aria-labelledby="hoje-h" className="mb-12 border-2 border-text bg-surface px-5 py-5">
-    <h2 id="hoje-h" className="text-2xl font-bold">{antesDoInicio ? `Começa ${fmtDiaSemana(INICIO)}` : `Hoje${data ? ` · ${fmtDiaSemana(data)}` : ""}`}</h2>
-    {antesDoInicio && <p className="label mt-2">Prévia do dia 1</p>}
-    {!data ? <p className="mt-3 text-muted">Carregando as tarefas…</p> : <>
-      {mes && <button type="button" className="mt-3 text-left font-semibold hover:text-accent hover:underline" onClick={() => onSelect({ kind: "mes", mes })}>Mês {mes} · {laboratorios[mes - 1].titulo}</button>}
-      <p className="mt-2 font-mono text-[11px] text-muted" aria-live="polite">{concluidas}/{tarefas.length} feitas · ~{minutos} min</p>
-      <ul className="mt-3">{tarefas.map(t => {
-        const c = feita(t, a.done, a.valores); const assunto = t.assuntoId ? assuntoById.get(t.assuntoId) : undefined;
-        const texto = `${t.texto}${t.sessao ? ` — sessão ${t.sessao[0]} de ${t.sessao[1]}` : ""}`;
-        return <li key={t.id} className="flex items-start gap-3 border-t border-line-soft py-3">
-          <input aria-label={texto} type="checkbox" className="mt-1 size-4 shrink-0" checked={c} onChange={() => a.setMany(idsParaMarcar(t, !c), !c)} />
-          <div className="min-w-0"><p className={c ? "text-muted line-through" : "font-medium"}>{t.url ? <a href={t.url} target="_blank" rel="noreferrer" className="hover:text-accent hover:underline">{texto} ↗</a> : texto}</p>
-            <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[11px] text-muted"><span>{TIPOS[t.tipo]} · ~{t.minutos} min</span>
-              {assunto && <Btn onClick={() => onSelect({ kind: "assunto", id: assunto.id })}>{assunto.titulo}</Btn>}
-              {t.tipo === "evidencia" && <Btn onClick={() => onSelect({ kind: "mes", mes: t.mes })}>abrir o mês</Btn>}
-            </div>
-          </div>
-        </li>;
-      })}</ul>
-      {tarefas.length === 0 ? <p className="mt-3 text-ok">✓ Todas as tarefas da trilha concluídas.</p> : concluidas === tarefas.length && <div className="mt-3 flex flex-wrap items-center gap-3"><p className="text-ok" role="status">✓ Dia concluído.</p><Btn onClick={adiantar}>adiantar próxima tarefa</Btn></div>}
-      {mes && <p className="mt-4 font-mono text-[11px] leading-relaxed text-muted">{previsao ? `No ritmo de ~${MIN_POR_DIA} min/dia, o mês ${mes} fecha em ${fmtDia(previsao)} · meta do calendário ${fmtDia(metaMes(mes))} (${diferenca > 0 ? `${diferenca} dias depois` : "dentro da meta"}).` : `Mês ${mes} concluído.`}</p>}
-      <fieldset className="mt-5 border-t border-line pt-3"><legend className="label">Inglês da semana {semana} · {countDone(ingles, a.done)}/4</legend><div className="flex flex-wrap gap-x-5 gap-y-2">{ingles.map((id, i) => <label key={id} className="flex cursor-pointer items-center gap-2 text-[14px]"><input type="checkbox" className="size-4" checked={a.done.has(id)} onChange={() => a.toggle(id)} />Conversa {i + 1} · 30 min</label>)}</div></fieldset>
-      <p className="mt-4 text-[14px] text-muted">Dia perdido não vira atraso: amanhã a lista começa da próxima tarefa ainda não feita.</p>
+    <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 id="hoje-h" className="text-2xl font-bold">{titulo}</h2>{dia && <span className="font-mono text-[12px] text-muted">{fmtH(dia.dia.horas)} · {dia.dia.pilares.map(title).join(" + ")}</span>}</div>
+    {antesDoInicio && <p className="mt-2 text-[15px] text-muted">O plano começa em {fmtDiaSemana(INICIO)}; segunda e terça são livres, então o primeiro estudo é {proximo ? fmtDiaSemana(proximo.data) : "o próximo dia da grade"}.</p>}
+    {!hoje && !antesDoInicio && proximo && <p className="mt-2 text-[15px] text-muted">Segunda e terça são livres. Próximo estudo: {fmtDiaSemana(proximo.data)}.</p>}
+    {mes && <button type="button" className="mt-3 text-left font-semibold hover:text-accent hover:underline" onClick={() => onSelect({ kind: "mes", mes })}>Mês {mes} · {laboratorios[mes - 1].titulo}</button>}
+    {dia && seg && <>
+      {!hoje && <p className="label mt-4">Prévia · {fmtDiaSemana(dia.data)}</p>}
+      <PartesDoDia dia={dia} seg={seg} ativo={!!hoje} onSelect={onSelect} />
     </>}
+    {hoje && extra.length > 0 && <div className="mt-4"><p className="label">Adiantadas</p><ul>{extra.map(t => <TarefaItem key={t.id} t={t} onSelect={onSelect} />)}</ul></div>}
+    {concluido && <div className="mt-4 flex flex-wrap items-center gap-3"><p className="text-ok" role="status">✓ Dia concluído.</p><Btn onClick={adiantar}>adiantar próxima tarefa</Btn></div>}
+    {mes && <p className="mt-4 border-t border-line pt-3 font-mono text-[11px] leading-relaxed text-muted">{previsao ? `Seguindo a grade, o mês ${mes} fecha por volta de ${fmtDia(previsao)} · meta do calendário ${fmtDia(metaMes(mes))} (${atraso > 0 ? `${atraso} dias depois` : "dentro da meta"}).` : `Mês ${mes} concluído.`}</p>}
+    <p className="mt-2 text-[14px] text-muted">Dia perdido não vira atraso: o próximo dia de estudo começa da tarefa que ainda não foi feita.</p>
   </section>;
+}
+
+// Cada parte da grade com as tarefas da trilha que cabem nela. A caixa da parte é a mesma da grade semanal.
+function PartesDoDia({ dia, seg, ativo, onSelect }: { dia: DiaHoje; seg: Date; ativo: boolean; onSelect: (s: Sel) => void }) {
+  const a = useApp();
+  return <ol className="mt-3">{dia.partes.map(p => {
+    const id = parteId(seg, dia.dia.dow, p.indice), f = parteFeita(seg, dia.dia, p.indice, a.done);
+    // Marcar a última tarefa da parte marca a parte; desmarcar uma tarefa desmarca a parte.
+    const aoMarcar = (t: Tarefa, valor: boolean) => { const resto = p.tarefas.filter(x => x.id !== t.id).every(x => feita(x, a.done, a.valores)); a.setMany([...idsParaMarcar(t, valor), ...(valor ? (resto ? [id] : []) : [id])], valor); };
+    return <li key={p.indice} className="border-t border-line py-3 first:border-t-0">
+      <label className={`flex items-start gap-3 ${ativo ? "cursor-pointer" : ""}`}>
+        {ativo && <input aria-label={`Marcar parte: ${p.texto}`} type="checkbox" className="mt-1 size-4 shrink-0" checked={f} onChange={() => a.setMany([id], !f)} />}
+        <span className={`flex-1 font-semibold ${ativo && f ? "text-muted line-through" : ""}`}>{p.texto}</span>
+        <span className="shrink-0 font-mono text-[12px] font-bold text-accent">{fmtH(p.horas)}</span>
+      </label>
+      {p.tarefas.length > 0 && <ul className={ativo ? "ml-7" : "ml-1"}>{p.tarefas.map(t => <TarefaItem key={t.id} t={t} onSelect={onSelect} aoMarcar={ativo ? aoMarcar : undefined} />)}</ul>}
+    </li>;
+  })}</ol>;
+}
+
+function TarefaItem({ t, onSelect, aoMarcar }: { t: Tarefa; onSelect: (s: Sel) => void; aoMarcar?: (t: Tarefa, valor: boolean) => void }) {
+  const a = useApp(); const c = feita(t, a.done, a.valores); const assunto = t.assuntoId ? assuntoById.get(t.assuntoId) : undefined;
+  const texto = `${t.texto}${t.sessao ? ` — sessão ${t.sessao[0]} de ${t.sessao[1]}` : ""}`;
+  const marcar = aoMarcar ?? ((x: Tarefa, v: boolean) => a.setMany(idsParaMarcar(x, v), v));
+  return <li className="flex items-start gap-3 border-t border-line-soft py-2 first:border-t-0">
+    <input aria-label={texto} type="checkbox" className="mt-1 size-4 shrink-0" checked={c} onChange={() => marcar(t, !c)} />
+    <div className="min-w-0"><p className={`text-[15px] ${c ? "text-muted line-through" : ""}`}>{t.url ? <a href={t.url} target="_blank" rel="noreferrer" className="hover:text-accent hover:underline">{texto} ↗</a> : texto}</p>
+      <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[11px] text-muted"><span>{TIPOS[t.tipo]} · ~{t.minutos} min</span>
+        {assunto && <Btn onClick={() => onSelect({ kind: "assunto", id: assunto.id })}>{assunto.titulo}</Btn>}
+        {t.tipo === "evidencia" && <Btn onClick={() => onSelect({ kind: "mes", mes: t.mes })}>abrir o mês</Btn>}
+      </div>
+    </div>
+  </li>;
 }
 
 /* ───────── Semana (grade fixa, checkbox por dia e ofensiva) ───────── */
@@ -139,13 +162,13 @@ function horasMes(ano: number, mes: number, done: Set<string>) {
   for (let d = new Date(ano, mes, 1); d.getMonth() === mes; d = addDias(d, 1)) { const x = SEMANA.find(s => s.dow === d.getDay()); if (!x) continue; planejadas += x.horas; feitas += horasDia(segunda(d), x, done); }
   return { feitas, planejadas };
 }
-// Mês do plano pela data do dia (M01 = INICIO_PLANO); fora do plano devolve null. Dias 1–14 são teoria, 15 em diante prática.
-const mesDoPlano = (d: Date) => { const m = (d.getFullYear() - INICIO_PLANO.ano) * 12 + d.getMonth() - INICIO_PLANO.mes + 1; return m >= 1 && m <= DURACAO_MESES ? m : null; };
-const fase = (d: Date) => d.getDate() <= 14 ? "teoria" : "prática";
+// Mês do plano pela data do dia (M01 começa em INICIO); fora do plano devolve null. Primeiros 14 dias do mês são teoria, depois prática.
+const mesDoPlano = (d: Date) => { const x = paraIso(d); if (x < INICIO) return null; let m = 1; while (m < DURACAO_MESES && inicioMes(m + 1) <= x) m++; return x <= metaMes(DURACAO_MESES) ? m : null; };
+const fase = (d: Date) => { const m = mesDoPlano(d); return m && diasEntre(inicioMes(m), paraIso(d)) < 14 ? "teoria" : "prática"; };
 
 function Plano({ data, pilares, onSelect }: { data: Date; pilares: Pilar[]; onSelect: (s: Sel) => void }) {
   const a = useApp(); const m = mesDoPlano(data);
-  if (!m) return <span className="mt-1 block font-mono text-[11px] text-muted">{data < new Date(INICIO_PLANO.ano, INICIO_PLANO.mes, 1) ? `o plano começa em 01/${String(INICIO_PLANO.mes + 1).padStart(2, "0")}/${INICIO_PLANO.ano}` : "fora do plano"}</span>;
+  if (!m) return <span className="mt-1 block font-mono text-[11px] text-muted">{paraIso(data) < INICIO ? `o plano começa em ${fmtDiaSemana(INICIO)}` : "fora do plano"}</span>;
   const completo = (x: Assunto) => assuntoDone(x, a.done) === assuntoIds(x).length;
   // Pilar sem assunto no mês: continua o mais antigo pendente ou adianta o próximo, para o horário do dia nunca ficar vazio.
   const xs = pilares.flatMap(p => {

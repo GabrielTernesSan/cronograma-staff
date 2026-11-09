@@ -12,9 +12,9 @@ Roadmap de 36 meses (início em 10/11/2026, até nov/2029), com oito horas seman
 
 ## Hoje
 
-No topo da página, o painel **Hoje** mostra as tarefas do dia (~70 min: leituras, estudo, prática, laboratório), montadas a partir da próxima tarefa ainda não feita. Dia perdido não vira atraso: tudo empurra pra frente. A data de início (`INICIO`) e o tempo por dia (`MIN_POR_DIA`) ficam em `lib/data/cronograma.ts`; a fila de tarefas em `lib/data/agenda.ts`.
+No topo da página, o painel **Hoje** abre o dia da grade semanal (quarta a domingo; segunda e terça livres) e coloca, em cada parte do dia, as tarefas da trilha que cabem nela: teoria do pilar do dia, prática (só depois da teoria do mesmo assunto), laboratório, inglês e carreira. Dia perdido não vira atraso: o próximo dia de estudo começa da tarefa pendente seguinte. A data de início (`INICIO`), a grade (`SEMANA`, com a `fonte` de cada parte) e o tamanho das sessões (`SESSAO_MIN`) ficam em `lib/data/cronograma.ts`; a fila de tarefas e a montagem do dia, em `lib/data/agenda.ts`.
 
-A lista fica fixa durante o dia, salva em `cronograma-staff:hoje`; ao concluí-la, é possível adiantar a próxima tarefa. Práticas longas são divididas em sessões, e a última conclui o item da trilha. O painel também acompanha as quatro conversas semanais de inglês. Antes do início, mostra uma prévia; em desenvolvimento, `?hoje=2026-11-10` permite simular a data.
+A lista fica fixa durante o dia, salva em `cronograma-staff:hoje:v2`; ao concluí-la, é possível adiantar a próxima tarefa. Tarefas de mais de 1h são divididas em sessões de 30 min, e a última conclui o item da trilha. Marcar a última tarefa de uma parte marca a parte na grade da semana (horas e ofensiva). Em dia livre ou antes do início, o painel mostra a prévia do próximo dia de estudo; em desenvolvimento, `?hoje=2026-11-11` simula a data. `npm run check:agenda` testa as regras.
 
 ## Dados e progresso
 
