@@ -77,12 +77,14 @@ const filtros = (p: Parte): ((t: Tarefa) => boolean)[] => {
   }
 };
 
+// Enche a parte na ordem da fila; se a próxima não cabe, procura adiante uma que caiba no que sobrou
+// (ex.: 1h = leitura de 40 min + estudo de 20 min), em vez de deixar o resto do horário vazio.
 const encher = (xs: Tarefa[], minutos: number) => {
   const out: Tarefa[] = []; let soma = 0;
   for (const t of xs) {
-    if (out.length && soma + t.minutos > minutos + 10) break;
-    out.push(t); soma += t.minutos;
     if (soma >= minutos - 10) break;
+    if (out.length && soma + t.minutos > minutos + 10) continue;
+    out.push(t); soma += t.minutos;
   }
   return out;
 };
