@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
 import { assuntoById, feita, idsParaMarcar, metaMes, previsaoMes, projetarDias, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
-import { DESTINOS, DESTINOS_NOTA, DURACAO_MESES, INICIO, inicioMes, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, periodo, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
+import { diaDeEstudo, diasDaSemana, DESTINOS, DESTINOS_NOTA, DURACAO_MESES, INICIO, inicioMes, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, periodo, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
 import { assuntos, assuntosDoMes, horasPratica, horasTeoria, MIN_LEITURA } from "@/lib/data/trilha";
 import { diasEntre, fmtDia, fmtDiaSemana, fmtMesAno, hojeIso, paraData, paraIso } from "@/lib/datas";
 import { useHoje, type DiaHoje } from "@/lib/useHoje";
@@ -139,7 +139,7 @@ type Dia = (typeof SEMANA)[number];
 // O id do dia inteiro vem de antes das partes e continua valendo como todas marcadas.
 const parteFeita = (seg: Date, d: Dia, i: number, done: Set<string>) => done.has(diaId(seg, d.dow)) || done.has(parteId(seg, d.dow, i));
 const horasDia = (seg: Date, d: Dia, done: Set<string>) => d.partes.reduce((t, p, i) => t + (parteFeita(seg, d, i, done) ? p.horas : 0), 0);
-const horasSemana = (seg: Date, done: Set<string>) => SEMANA.reduce((t, d) => t + horasDia(seg, d, done), 0);
+const horasSemana = (seg: Date, done: Set<string>) => diasDaSemana(iso(seg)).reduce((t, d) => t + horasDia(seg, d, done), 0);
 const fmtH = (h: number) => { const m = Math.round((h % 1) * 60); return `${Math.floor(h)}h${m ? String(m).padStart(2, "0") : ""}`; };
 const ddmm = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -160,7 +160,7 @@ function recorde(done: Set<string>) {
 // Cada dia conta para o mês da própria data, mesmo quando a semana cruza meses.
 function horasMes(ano: number, mes: number, done: Set<string>) {
   let feitas = 0, planejadas = 0;
-  for (let d = new Date(ano, mes, 1); d.getMonth() === mes; d = addDias(d, 1)) { const x = SEMANA.find(s => s.dow === d.getDay()); if (!x) continue; planejadas += x.horas; feitas += horasDia(segunda(d), x, done); }
+  for (let d = new Date(ano, mes, 1); d.getMonth() === mes; d = addDias(d, 1)) { const x = diaDeEstudo(iso(d)); if (!x) continue; planejadas += x.horas; feitas += horasDia(segunda(d), x, done); }
   return { feitas, planejadas };
 }
 // Mês do plano pela data do dia (M01 começa em INICIO); fora do plano devolve null. Primeiros 14 dias do mês são teoria, depois prática.
@@ -208,14 +208,15 @@ function Semana({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void }) {
   if (!hoje) return <section className="mb-14"><p className="label">Semana · {fmtH(total)} (qua a dom)</p></section>;
   const seg = addDias(segunda(hoje), desloc * 7), ref = dataDoDia(seg, 4), mes = horasMes(ref.getFullYear(), ref.getMonth(), a.done);
   const feitas = horasSemana(seg, a.done), atual = desloc === 0, n = ofensiva(hoje, a.done), rec = Math.max(recorde(a.done), n);
+  const dias = diasDaSemana(iso(seg)), totalSem = dias.reduce((t, d) => t + d.horas, 0); // inclui dias extras da semana
   return <section aria-labelledby="semana-h" className="mb-14">
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div><p className="label">Semana · {fmtH(total)} (qua a dom)</p><h2 id="semana-h" className="mt-1 text-2xl font-bold">Ofensiva: {n} {n === 1 ? "semana" : "semanas"} <span className="font-mono text-[13px] font-normal text-muted">· recorde {rec}</span></h2></div>
       <div className="flex items-center gap-2"><Btn onClick={() => setDesloc(x => x - 1)}>← semana</Btn>{!atual && <Btn onClick={() => setDesloc(0)}>hoje</Btn>}<Btn onClick={() => setDesloc(x => x + 1)}>semana →</Btn></div>
     </div>
     <div className="mt-4 border border-line bg-surface">
-      <p className="flex justify-between gap-3 border-b border-line px-4 py-2 font-mono text-[11px] text-muted"><span>{ddmm(dataDoDia(seg, 3))} → {ddmm(dataDoDia(seg, 0))}{atual && " · esta semana"}</span><span className={feitas >= META_SEMANA ? "text-ok" : ""}>{fmtH(feitas)}/{fmtH(total)} · meta {fmtH(META_SEMANA)}</span></p>
-      {SEMANA.map(d => {
+      <p className="flex justify-between gap-3 border-b border-line px-4 py-2 font-mono text-[11px] text-muted"><span>{ddmm(dataDoDia(seg, dias[0]?.dow ?? 3))} → {ddmm(dataDoDia(seg, 0))}{atual && " · esta semana"}{totalSem > total && ` · ${fmtH(totalSem - total)} extras`}</span><span className={feitas >= META_SEMANA ? "text-ok" : ""}>{fmtH(feitas)}/{fmtH(totalSem)} · meta {fmtH(META_SEMANA)}</span></p>
+      {dias.map(d => {
         const id = diaId(seg, d.dow), partes = d.partes.map((_, i) => parteId(seg, d.dow, i)), h = horasDia(seg, d, a.done), c = h === d.horas, parcial = h > 0 && !c;
         const marcarDia = () => c ? a.setMany([id, ...partes], false) : a.setMany(partes, true);
         const marcarParte = (i: number) => { if (!a.done.has(id)) return a.toggle(partes[i]); a.setMany([id, partes[i]], false); a.setMany(partes.filter((_, j) => j !== i), true); };

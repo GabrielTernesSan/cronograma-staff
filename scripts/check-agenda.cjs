@@ -16,10 +16,10 @@ const T = id => tarefaById.get(id);
 const marcar = (done, ids) => ids.forEach(id => idsParaMarcar(T(id), true).forEach(x => done.add(x)));
 
 // Datas
-assert.equal(inicioMes(1), "2026-11-10");
-assert.equal(metaMes(1), "2026-12-09");
-assert.equal(metaMes(36), "2029-11-09");
-assert.equal(fmtDiaSemana(INICIO), "ter 10/11");
+assert.equal(inicioMes(1), "2026-11-09");
+assert.equal(metaMes(1), "2026-12-08");
+assert.equal(metaMes(36), "2029-11-08");
+assert.equal(fmtDiaSemana(INICIO), "seg 09/11");
 
 // Fila
 assert.equal(new Set(TAREFAS.map(t => t.id)).size, TAREFAS.length);
@@ -28,13 +28,15 @@ assert.ok(TAREFAS.every(t => t.minutos > 0 && t.minutos <= 60));
 assert.ok(TAREFAS.filter(t => t.sessao).every(t => t.minutos <= SESSAO_MIN));
 for (const a of assuntos) assert.equal(TAREFAS.filter(t => t.baseId === a.pratica.id).reduce((s, t) => s + t.minutos, 0), horasPratica(a) * 60);
 
-// Grade: segunda e terça livres; o primeiro estudo depois do início é a quarta 11/11
-assert.equal(diaDaSemana("2026-11-10"), undefined);
-assert.equal(montarDia("2026-11-10", new Set(), {}), null);
-assert.equal(proximoDiaDeEstudo("2026-11-09"), "2026-11-11");
+// Grade: 09/11 e 10/11 são dias extras; nas outras semanas segunda e terça são livres
+assert.equal(diaDaSemana("2026-11-09").horas, 2);
+assert.equal(diaDaSemana("2026-11-10").horas, 2);
+assert.equal(proximoDiaDeEstudo("2026-11-08"), "2026-11-09");
+assert.equal(diaDaSemana("2026-11-17"), undefined);
+assert.equal(montarDia("2026-11-17", new Set(), {}), null);
 assert.equal(proximoDiaDeEstudo("2026-11-16"), "2026-11-18");
 
-const semana = ["2026-11-11", "2026-11-12", "2026-11-13", "2026-11-14", "2026-11-15"]; // qua..dom
+const semana = ["2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-14", "2026-11-15"]; // seg..dom
 for (const d of semana) {
   const dia = diaDaSemana(d), partes = montarDia(d, new Set(), {});
   assert.equal(partes.length, dia.partes.length);
@@ -84,7 +86,7 @@ const prox = proximaTarefa(new Set(), {}, new Set(hoje)); assert.ok(prox && !hoj
 
 // Previsão: antes do início conta a partir do início; um dia depois não adianta; tudo feito = null
 const p1 = previsaoMes(1, new Set(), {}, INICIO);
-assert.equal(previsaoMes(1, new Set(), {}, "2026-11-09"), p1);
+assert.equal(previsaoMes(1, new Set(), {}, "2026-11-08"), p1);
 assert.ok(previsaoMes(1, new Set(), {}, addDias(INICIO, 7)) >= p1);
 const completo = new Set(TAREFAS.map(t => t.baseId));
 assert.equal(previsaoMes(1, completo, {}, INICIO), null);
@@ -99,7 +101,8 @@ const { projetarDias } = require("../lib/data/agenda.ts");
 const proj = projetarDias("2026-11-09", "2026-12-31", new Set(), {});
 const todas = [...proj.values()].flat(2);
 assert.equal(new Set(todas).size, todas.length, "projeção repete tarefa");
-assert.deepEqual(proj.get("2026-11-11"), montarDia("2026-11-11", new Set(), {}));
-assert.ok(!proj.has("2026-11-10") && !proj.has("2026-11-16"), "segunda e terça livres");
+assert.deepEqual(proj.get("2026-11-09"), montarDia("2026-11-09", new Set(), {}));
+assert.ok(proj.has("2026-11-09") && proj.has("2026-11-10"), "dias extras entram na projeção");
+assert.ok(!proj.has("2026-11-16") && !proj.has("2026-11-17"), "segunda e terça seguintes livres");
 console.log("Projeção OK:", proj.size, "dias de estudo até 31/12.");
 for (const d of ["2026-11-18", "2026-11-19", "2026-11-20"]) console.log(fmtDiaSemana(d), JSON.stringify(proj.get(d).map(ids => ids.map(id => T(id).texto.slice(0, 50)))));

@@ -2,7 +2,7 @@ import type { Valores } from "../useProgress";
 import { addDias, paraData } from "../datas";
 import type { Pilar } from "../types";
 import { laboratorios } from "./blocos";
-import { fimMes, INICIO, SEMANA, SESSAO_MIN, type DiaSemana, type Parte } from "./cronograma";
+import { diaDeEstudo, fimMes, INICIO, SESSAO_MIN, type DiaSemana, type Parte } from "./cronograma";
 import { assuntos, assuntosDoMes, horasPratica, MIN_LEITURA } from "./trilha";
 
 // Fila única com todas as tarefas dos 36 meses, na ordem em que devem ser feitas.
@@ -55,7 +55,7 @@ export const pendentes = (done: Set<string>, valores: Valores) => TAREFAS.filter
 
 /* ───────── Dia de estudo: a grade de qua a dom define quanto tempo e de qual pilar ───────── */
 
-export const diaDaSemana = (iso: string): DiaSemana | undefined => SEMANA.find(d => d.dow === paraData(iso).getDay());
+export const diaDaSemana = (iso: string): DiaSemana | undefined => diaDeEstudo(iso);
 /** Primeiro dia com estudo a partir de iso (nunca antes do início do plano). */
 export const proximoDiaDeEstudo = (iso: string) => { let d = iso < INICIO ? INICIO : iso; while (!diaDaSemana(d)) d = addDias(d, 1); return d; };
 
