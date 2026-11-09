@@ -2,17 +2,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
-import { DESTINOS, DESTINOS_NOTA, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, PILARES, RITMO, RITMO_NOTA, ROTA, trimestres } from "@/lib/data/cronograma";
+import { assuntoById, feita, idsParaMarcar, metaMes, previsaoMes, type TipoTarefa } from "@/lib/data/agenda";
+import { DESTINOS, DESTINOS_NOTA, INICIO, inicioMes, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, MIN_POR_DIA, periodo, PILARES, RITMO, RITMO_NOTA, ROTA, trimestres } from "@/lib/data/cronograma";
 import { assuntos, assuntosDoMes, horasPratica, horasTeoria, MIN_LEITURA } from "@/lib/data/trilha";
+import { diasEntre, fmtDia, fmtDiaSemana, fmtMesAno, hojeIso } from "@/lib/datas";
+import { useHoje } from "@/lib/useHoje";
 import { ALL_ACTIVITY_IDS, ALL_ASSUNTO_IDS, ALL_EVIDENCE_IDS, ALL_LEITURA_IDS, ALL_MARCO_IDS, assuntoDone, assuntoIds, countDone, countValues, labComplete, labsComplete, pct } from "@/lib/stats";
 import type { Assunto, Laboratorio, Pilar, Trimestre } from "@/lib/types";
 
 const title = (p: Pilar) => PILARES[p].titulo;
 const DOT: Record<Pilar, string> = { arquitetura: "bg-accent", ia: "bg-measure", cloud: "bg-ok", ingles: "bg-decisao", carreira: "bg-warn" };
 const ANOS = [
-  { n: 1, nome: "Base sênior com IA", meses: "nov/2026 – out/2027" },
-  { n: 2, nome: "Contrato remoto internacional", meses: "nov/2027 – out/2028" },
-  { n: 3, nome: "Mudança com visto", meses: "nov/2028 – out/2029" },
+  { n: 1, nome: "Base sênior com IA", meses: periodo(1, 12) },
+  { n: 2, nome: "Contrato remoto internacional", meses: periodo(13, 24) },
+  { n: 3, nome: "Mudança com visto", meses: periodo(25, 36) },
 ];
 type Sel = { kind: "assunto"; id: string } | { kind: "mes"; mes: number } | { kind: "tri"; id: string } | null;
 
@@ -26,7 +29,7 @@ export function Roadmap() {
   const total = ALL_ACTIVITY_IDS.length + ALL_EVIDENCE_IDS.length + ALL_ASSUNTO_IDS.length;
   return <div className="mx-auto max-w-[1180px] px-6 pb-24">
     <header className="border-b-2 border-text pb-6 pt-12">
-      <p className="label mb-4">36 meses · nov/2026 → out/2029 · 8h/semana · decisões com evidência</p>
+      <p className="label mb-4">36 meses · início {fmtDia(INICIO)}/{INICIO.slice(0, 4)} · {fmtMesAno(INICIO)} → {fmtMesAno(metaMes(36))} · 8h/semana · decisões com evidência</p>
       <h1 className="max-w-[19ch] text-[clamp(2.1rem,6vw,3.7rem)] font-bold leading-[1.08] tracking-tight">Senior Abroad: Architecture, AI Engineering &amp; Cloud</h1>
       <p className="mt-4 max-w-[70ch] text-[18px] leading-relaxed">Engenheiro sênior de .NET e Azure que constrói e opera sistemas com IA em produção: agentes com limites, RAG com avaliação, plataforma e custo. A saída do Brasil acontece em dois passos: primeiro um contrato remoto internacional, que prova o nível e forma reserva; depois a mudança com visto patrocinado.</p>
       <ol className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 font-mono">{ROTA.map((r, i) => <li key={r.codigo} className="flex items-center gap-3">{i > 0 && <span aria-hidden className="h-px w-8 border-t border-dashed border-muted sm:w-14" />}<span className="flex flex-col"><span className="font-display text-xl font-bold">{r.codigo}</span><span className="text-[11px] text-muted">{r.quando} · {r.texto}</span></span></li>)}</ol>
@@ -45,6 +48,7 @@ export function Roadmap() {
       {app.legacy && <p className="mt-4 border-l-2 border-warn bg-warn/10 px-4 py-2 text-[14px] text-muted">O progresso do cronograma anterior está preservado no exportável como histórico ({app.legacy.done.length} marcações). Ele não conta como avanço novo, para não inventar histórico.</p>}
     </header>
     <main className="mt-10">
+      <Hoje onSelect={setSel} />
       <Trilha onSelect={setSel} />
       <section className="mt-16 border-t border-line pt-10"><p className="label mb-3">Semana-padrão · 8h</p><div className="grid gap-5 md:grid-cols-[24rem_1fr]"><div className="border border-line bg-surface px-5 py-4"><table className="w-full"><tbody>{RITMO.map(([x, h]) => <tr key={x} className="border-b border-line-soft last:border-0"><td className="py-1.5 text-[15px]">{x}</td><td className="py-1.5 text-right font-mono font-bold text-accent">{h}</td></tr>)}</tbody></table></div><p className="m-0 max-w-[65ch] text-[15.5px] leading-relaxed text-muted">{RITMO_NOTA}</p></div></section>
       <section className="mt-12 border-t border-line pt-10"><h2 className="text-2xl font-bold">Mercado, futuro e destino</h2>
@@ -57,6 +61,44 @@ export function Roadmap() {
     </main>
     <Drawer sel={sel} onClose={() => setSel(null)} onSelect={setSel} />
   </div>;
+}
+
+const TIPOS: Record<TipoTarefa, string> = { leitura: "leitura", estudo: "estudo", pratica: "prática", lab: "laboratório", evidencia: "evidência" };
+
+function Hoje({ onSelect }: { onSelect: (s: Sel) => void }) {
+  const a = useApp(); const { data, tarefas, antesDoInicio, adiantar } = useHoje();
+  const mes = tarefas[0]?.mes;
+  const concluidas = tarefas.filter(t => feita(t, a.done, a.valores)).length;
+  const minutos = tarefas.reduce((s, t) => s + t.minutos, 0);
+  const previsao = mes && data ? previsaoMes(mes, a.done, a.valores, data) : null;
+  const diferenca = mes && previsao ? diasEntre(metaMes(mes), previsao) : 0;
+  const semana = data ? Math.max(1, Math.floor(diasEntre(INICIO, data) / 7) + 1) : 1;
+  const ingles = [1, 2, 3, 4].map(n => `ingles-s${semana}-${n}`);
+  return <section aria-labelledby="hoje-h" className="mb-12 border-2 border-text bg-surface px-5 py-5">
+    <h2 id="hoje-h" className="text-2xl font-bold">{antesDoInicio ? `Começa ${fmtDiaSemana(INICIO)}` : `Hoje${data ? ` · ${fmtDiaSemana(data)}` : ""}`}</h2>
+    {antesDoInicio && <p className="label mt-2">Prévia do dia 1</p>}
+    {!data ? <p className="mt-3 text-muted">Carregando as tarefas…</p> : <>
+      {mes && <button type="button" className="mt-3 text-left font-semibold hover:text-accent hover:underline" onClick={() => onSelect({ kind: "mes", mes })}>Mês {mes} · {laboratorios[mes - 1].titulo}</button>}
+      <p className="mt-2 font-mono text-[11px] text-muted" aria-live="polite">{concluidas}/{tarefas.length} feitas · ~{minutos} min</p>
+      <ul className="mt-3">{tarefas.map(t => {
+        const c = feita(t, a.done, a.valores); const assunto = t.assuntoId ? assuntoById.get(t.assuntoId) : undefined;
+        const texto = `${t.texto}${t.sessao ? ` — sessão ${t.sessao[0]} de ${t.sessao[1]}` : ""}`;
+        return <li key={t.id} className="flex items-start gap-3 border-t border-line-soft py-3">
+          <input aria-label={texto} type="checkbox" className="mt-1 size-4 shrink-0" checked={c} onChange={() => a.setMany(idsParaMarcar(t, !c), !c)} />
+          <div className="min-w-0"><p className={c ? "text-muted line-through" : "font-medium"}>{t.url ? <a href={t.url} target="_blank" rel="noreferrer" className="hover:text-accent hover:underline">{texto} ↗</a> : texto}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[11px] text-muted"><span>{TIPOS[t.tipo]} · ~{t.minutos} min</span>
+              {assunto && <Btn onClick={() => onSelect({ kind: "assunto", id: assunto.id })}>{assunto.titulo}</Btn>}
+              {t.tipo === "evidencia" && <Btn onClick={() => onSelect({ kind: "mes", mes: t.mes })}>abrir o mês</Btn>}
+            </div>
+          </div>
+        </li>;
+      })}</ul>
+      {tarefas.length === 0 ? <p className="mt-3 text-ok">✓ Todas as tarefas da trilha concluídas.</p> : concluidas === tarefas.length && <div className="mt-3 flex flex-wrap items-center gap-3"><p className="text-ok" role="status">✓ Dia concluído.</p><Btn onClick={adiantar}>adiantar próxima tarefa</Btn></div>}
+      {mes && <p className="mt-4 font-mono text-[11px] leading-relaxed text-muted">{previsao ? `No ritmo de ~${MIN_POR_DIA} min/dia, o mês ${mes} fecha em ${fmtDia(previsao)} · meta do calendário ${fmtDia(metaMes(mes))} (${diferenca > 0 ? `${diferenca} dias depois` : "dentro da meta"}).` : `Mês ${mes} concluído.`}</p>}
+      <fieldset className="mt-5 border-t border-line pt-3"><legend className="label">Inglês da semana {semana} · {countDone(ingles, a.done)}/4</legend><div className="flex flex-wrap gap-x-5 gap-y-2">{ingles.map((id, i) => <label key={id} className="flex cursor-pointer items-center gap-2 text-[14px]"><input type="checkbox" className="size-4" checked={a.done.has(id)} onChange={() => a.toggle(id)} />Conversa {i + 1} · 30 min</label>)}</div></fieldset>
+      <p className="mt-4 text-[14px] text-muted">Dia perdido não vira atraso: amanhã a lista começa da próxima tarefa ainda não feita.</p>
+    </>}
+  </section>;
 }
 
 /* ───────── Trilha (mapa de nós) ───────── */
@@ -158,12 +200,14 @@ function AssuntoPanel({ id, onSelect }: { id: string; onSelect: (s: Sel) => void
 function MesPanel({ mes, onSelect }: { mes: number; onSelect: (s: Sel) => void }) {
   const a = useApp(); const l = laboratorios[mes - 1]; if (!l) return null;
   const ids = l.atividades.map(x => x.id);
+  const previsao = previsaoMes(mes, a.done, a.valores, hojeIso());
   return <article>
     <p className="label">M{String(l.mes).padStart(2, "0")} · {l.fase} · {l.tipo === "projeto-integrador" ? "projeto integrador" : "laboratório"}</p>
     <h2 className="mt-2 text-2xl font-bold">{l.titulo}</h2>
     <div className="mt-3 flex flex-wrap gap-2">{l.pilares.map(p => <span key={p} className={`border border-line px-2 py-0.5 font-mono text-[10px] ${PILARES[p].cor}`}>{title(p)}</span>)}</div>
     <p className="mt-4"><strong>Problema real: </strong>{l.problema}</p>
     <p className="mt-2 text-muted"><strong className="text-text">Objetivo: </strong>{l.objetivo}</p>
+    <p className="mt-3 font-mono text-[11px] leading-relaxed text-muted">Meta do calendário: {fmtDia(inicioMes(mes))} → {fmtDia(metaMes(mes))} · previsão no ritmo atual: {previsao ? fmtDia(previsao) : "concluído"}</p>
     <div className="mt-6 border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Semanas 1–2 · teoria:</strong> o que estudar e as leituras dos assuntos abaixo (~{assuntosDoMes(mes).reduce((t, x) => t + horasTeoria(x), 0)}h).</p><p className="mt-1"><strong>Semanas 3–4 · prática:</strong> a prática de cada assunto e as atividades do laboratório (~{assuntosDoMes(mes).reduce((t, x) => t + horasPratica(x), 0)}h).</p></div><h3 className="label mt-7 mb-2">Assuntos deste mês</h3>
     <div className="flex flex-col gap-2">{assuntosDoMes(mes).map(x => <button key={x.id} type="button" onClick={() => onSelect({ kind: "assunto", id: x.id })} className="flex items-center justify-between gap-3 border border-line bg-surface px-3 py-2 text-left hover:border-accent"><span className="flex items-center gap-2"><span className={`inline-block size-2 rounded-full ${DOT[x.pilar]}`} />{x.titulo}</span><span className="font-mono text-[11px] text-muted">{assuntoDone(x, a.done)}/{assuntoIds(x).length}</span></button>)}</div>
     <div className="mt-7 flex items-center gap-3"><h3 className="label">Atividades do laboratório</h3><button type="button" className="ml-auto border border-line px-2 py-1 font-mono text-[10px] text-muted" onClick={() => a.setMany(ids, countDone(ids, a.done) !== ids.length)}>{countDone(ids, a.done) === ids.length ? "desmarcar" : "marcar todas"}</button></div>

@@ -1,6 +1,6 @@
 # Senior Abroad: Architecture, AI Engineering & Cloud
 
-Roadmap de 36 meses (nov/2026 → out/2029), com oito horas semanais como referência, para chegar a sênior em IA e plataforma, fechar um contrato remoto internacional e sair do Brasil com visto de trabalho.
+Roadmap de 36 meses (início em 10/11/2026, até nov/2029), com oito horas semanais como referência, para chegar a sênior em IA e plataforma, fechar um contrato remoto internacional e sair do Brasil com visto de trabalho.
 
 ## O que mudou
 
@@ -9,6 +9,12 @@ Roadmap de 36 meses (nov/2026 → out/2029), com oito horas semanais como refer�
 - Novas trilhas de Inglês e Carreira & mudança: portfólio público, entrevistas de system design, busca de vaga, contrato, documentos, visto, saída fiscal e chegada.
 - Seção de mercado (o que as vagas pedem em 2026 e leitura de futuro) e tabela de destinos com o salário mínimo de visto de 2026.
 - Ritmo de 8h/semana: inglês e carreira ganharam horas próprias.
+
+## Hoje
+
+No topo da página, o painel **Hoje** mostra as tarefas do dia (~70 min: leituras, estudo, prática, laboratório), montadas a partir da próxima tarefa ainda não feita. Dia perdido não vira atraso: tudo empurra pra frente. A data de início (`INICIO`) e o tempo por dia (`MIN_POR_DIA`) ficam em `lib/data/cronograma.ts`; a fila de tarefas em `lib/data/agenda.ts`.
+
+A lista fica fixa durante o dia, salva em `cronograma-staff:hoje`; ao concluí-la, é possível adiantar a próxima tarefa. Práticas longas são divididas em sessões, e a última conclui o item da trilha. O painel também acompanha as quatro conversas semanais de inglês. Antes do início, mostra uma prévia; em desenvolvimento, `?hoje=2026-11-10` permite simular a data.
 
 ## Dados e progresso
 
@@ -21,6 +27,7 @@ O progresso é salvo localmente em `cronograma-staff:v4`, com exportação/impor
 ```bash
 npm install
 npm run typecheck
+npm run check:agenda
 npm run build
 npm run dev
 ```

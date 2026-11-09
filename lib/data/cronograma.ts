@@ -1,4 +1,14 @@
+import { addDias, addMeses, fmtMesAno } from "../datas";
 import type { Destino, Marco, Material, Pilar, Trimestre } from "../types";
+
+// Início adiado de 01/11 para 10/11/2026 (viagem a trabalho). Mudar aqui recalcula todas as datas.
+export const INICIO = "2026-11-10";
+// 8h/semana espalhadas nos 7 dias ≈ 70 min por dia de tarefas da trilha.
+export const MIN_POR_DIA = 70;
+/** Primeiro e último dia do mês n do plano (mês 1 = 10/11 a 09/12). */
+export const inicioMes = (n: number) => addMeses(INICIO, n - 1);
+export const fimMes = (n: number) => addDias(addMeses(INICIO, n), -1);
+export const periodo = (deMes: number, ateMes: number) => `${fmtMesAno(inicioMes(deMes))} – ${fmtMesAno(fimMes(ateMes))}`;
 
 export const PILARES: Record<Pilar, { titulo: string; cor: string }> = {
   arquitetura: { titulo: "Arquitetura", cor: "text-accent" },
