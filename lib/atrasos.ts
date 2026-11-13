@@ -1,4 +1,5 @@
 // O que ficou para trás até ontem: dias da grade com parte sem marcar, itens de assunto vencidos e laboratórios de meses fechados.
+import { idsParaMarcar, montarDia, tarefaById } from "./data/agenda";
 import { laboratorios } from "./data/blocos";
 import { diaDeEstudo, DURACAO_MESES, INICIO, type DiaSemana } from "./data/cronograma";
 import { assuntos } from "./data/trilha";
@@ -34,3 +35,23 @@ export function atrasados(hoje: Date, done: Set<string>, valores: Valores): Atra
 }
 
 export const totalItens = (a: Atrasados) => a.assuntos.reduce((t, x) => t + x.ids.length, 0);
+
+/** Tarefas por parte de cada dia resgatado (ids), por data. */
+export type Resgate = Record<string, string[][]>;
+/**
+ * Material de cada dia perdido: as próximas tarefas pendentes da fila, como o painel Hoje faria.
+ * Dias já montados (salvos) ficam como estão; as tarefas de hoje (reservadas) e as de outros dias resgatados
+ * não se repetem. Parte já marcada não recebe tarefa.
+ */
+export function montarResgate(dias: DiaAtrasado[], salvos: Resgate, done: Set<string>, valores: Valores, reservadas: string[]): Resgate {
+  const sim = new Set(done), out: Resgate = {};
+  const usar = (id: string) => { const t = tarefaById.get(id); if (t) idsParaMarcar(t, true).forEach(x => sim.add(x)); };
+  reservadas.forEach(usar);
+  dias.forEach(d => { const s = salvos[d.iso]; if (Array.isArray(s) && s.length === d.dia.partes.length) { out[d.iso] = s; s.flat().forEach(usar); } });
+  dias.forEach(d => {
+    if (out[d.iso]) return;
+    const p = (montarDia(d.iso, sim, valores) ?? []).map((ids, i) => d.partes.includes(i) ? ids : []);
+    out[d.iso] = p; p.flat().forEach(usar);
+  });
+  return out;
+}

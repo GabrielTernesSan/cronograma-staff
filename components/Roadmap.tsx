@@ -8,7 +8,7 @@ import { assuntos, assuntosDoMes, horasPratica, horasTeoria, MIN_LEITURA } from 
 import { diasEntre, fmtDia, fmtDiaSemana, fmtMesAno, hojeIso, paraData, paraIso } from "@/lib/datas";
 import { addDias, DIA, dataDoDia, diaId, fase, horasDia, mesDoPlano, parteFeita, parteId, segunda } from "@/lib/grade";
 import { useHoje, type DiaHoje } from "@/lib/useHoje";
-import { atrasados, totalItens } from "@/lib/atrasos";
+import { atrasados, montarResgate, totalItens, type DiaAtrasado, type Resgate } from "@/lib/atrasos";
 import { doAssunto, fmtIntervalo, isoDia, NOTAS, novoCard, pendentes, previa, sequencia } from "@/lib/revisao";
 import { ALL_ACTIVITY_IDS, ALL_ASSUNTO_IDS, ALL_EVIDENCE_IDS, ALL_LEITURA_IDS, ALL_MARCO_IDS, assuntoDone, assuntoIds, countDone, countValues, labComplete, labsComplete, pct } from "@/lib/stats";
 import type { Assunto, Laboratorio, Pilar, Trimestre } from "@/lib/types";
@@ -64,7 +64,7 @@ export function Roadmap() {
       </section>
       <section className="mt-12 border-t border-line pt-10"><h2 className="text-2xl font-bold">Materiais e hábitos</h2><div className="mt-5 grid gap-4 md:grid-cols-2">{materiais.map(m => <label key={m.id} className="block cursor-pointer border border-line bg-surface p-5"><div className="flex gap-3"><input className="mt-1 size-4" type="checkbox" checked={done.has(m.id)} onChange={() => app.toggle(m.id)} /><div><p className="label mb-1">{m.tipo}</p><p className={done.has(m.id) ? "font-semibold text-muted line-through" : "font-semibold"}>{m.titulo}</p><p className="mt-2 text-[14.5px] leading-relaxed text-muted">{m.descricao}</p>{m.url && <a className="mt-2 inline-block font-mono text-[11px] text-accent hover:underline" href={m.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>fonte pública ↗</a>}</div></div></label>)}</div></section>
     </main>
-    <Drawer sel={sel} onClose={() => setSel(null)} onSelect={setSel} />
+    <Drawer sel={sel} h={hojeApi} onClose={() => setSel(null)} onSelect={setSel} />
   </div>;
 }
 
@@ -284,25 +284,33 @@ function AtrasosHoje({ hoje, onSelect }: { hoje: Date; onSelect: (s: Sel) => voi
   </div>;
 }
 
-function AtrasosPanel({ onSelect }: { onSelect: (s: Sel) => void }) {
+// O material de cada dia resgatado é montado uma vez e guardado, para não mudar enquanto você marca.
+const RESGATE_KEY = "cronograma-staff:resgate:v1";
+const lerResgate = (): Resgate => { try { const v = JSON.parse(localStorage.getItem(RESGATE_KEY) ?? "{}"); return v && typeof v === "object" && !Array.isArray(v) ? v : {}; } catch { return {}; } };
+function AtrasosPanel({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void }) {
   const a = useApp(); const [hoje] = useState(() => new Date()); const x = atrasados(hoje, a.done, a.valores);
+  const [material] = useState(() => {
+    const reservadas = h.hoje ? [...h.hoje.partes.flatMap(p => p.tarefas.map(t => t.id)), ...h.extra.map(t => t.id)] : [];
+    const r = montarResgate(x.dias, lerResgate(), a.done, a.valores, reservadas);
+    try { localStorage.setItem(RESGATE_KEY, JSON.stringify(r)); } catch {}
+    return r;
+  });
+  const doDia = (d: DiaAtrasado): DiaHoje => ({ data: d.iso, dia: d.dia, partes: d.partes.map(i => ({ indice: i, texto: d.dia.partes[i].texto, horas: d.dia.partes[i].horas, tarefas: (material[d.iso]?.[i] ?? []).map(id => tarefaById.get(id)).filter((t): t is Tarefa => !!t) })) });
   const texto = (s: Assunto, id: string) => s.subtopicos.find(t => t.id === id)?.texto ?? s.leituras.find(l => l.id === id)?.titulo ?? (s.pratica.id === id ? `Prática: ${s.pratica.texto}` : id);
   const vazio = !x.dias.length && !x.assuntos.length && !x.labs.length;
   return <article>
     <p className="label">Resgate</p>
     <h2 className="mt-2 text-2xl font-bold">{vazio ? "Nada ficou pra trás" : "O que ficou pra trás"}</h2>
-    {!vazio && <p className="mt-2 text-[14.5px] text-muted">Tudo o que não foi marcado até ontem. Marcar aqui conta no dia ou item original; a lista encolhe conforme você avança.</p>}
+    {!vazio && <p className="mt-2 text-[14.5px] text-muted">Tudo o que não foi marcado até ontem. Cada dia perdido traz as próximas tarefas da fila (sem repetir as de hoje); marcar a última tarefa de uma parte marca a parte no dia original.</p>}
     {x.dias.length > 0 && <><h3 className="label mt-7 mb-1">Dias não marcados · {x.dias.length}</h3>
-      {x.dias.map(({ iso: dIso, data, seg, dia, partes }) => { const ids = dia.partes.map((_, i) => parteId(seg, dia.dow, i)), falta = partes.reduce((t, i) => t + dia.partes[i].horas, 0); return <div key={dIso} className="flex items-start gap-3 border-t border-line-soft py-3 first:border-t-0">
-        <input aria-label={`Marcar ${dia.dia} ${ddmm(data)} inteiro`} className="mt-1 size-4 shrink-0 cursor-pointer" type="checkbox" checked={false} onChange={() => a.setMany(ids, true)} />
-        <span className="w-12 shrink-0 font-mono text-[12px]"><span className="block font-bold">{dia.dia}</span><span className="text-muted">{ddmm(data)}</span></span>
-        <span className="min-w-0 flex-1"><span className="flex flex-wrap items-center gap-x-3 font-semibold">{dia.pilares.map(p => <span key={p} className="flex items-center gap-1.5"><span className={`inline-block size-2 rounded-full ${DOT[p]}`} />{title(p)}</span>)}</span>
-          {partes.map(i => <label key={i} className="mt-1 flex cursor-pointer items-start gap-2 text-[13.5px] leading-snug">
-            <input className="mt-0.5 size-3.5 shrink-0" type="checkbox" checked={parteFeita(seg, dia, i, a.done)} onChange={() => a.toggle(ids[i])} />
-            <span className="flex-1 text-muted">{dia.partes[i].texto}</span><span className="shrink-0 font-mono text-[11px] text-muted">{fmtH(dia.partes[i].horas)}</span>
-          </label>)}
-          <Plano data={data} pilares={dia.pilares} onSelect={onSelect} /></span>
-        <span className="shrink-0 font-mono font-bold text-accent">{fmtH(falta)}</span>
+      {x.dias.map(d => { const { iso: dIso, data, seg, dia, partes } = d, ids = dia.partes.map((_, i) => parteId(seg, dia.dow, i)), falta = partes.reduce((t, i) => t + dia.partes[i].horas, 0); return <div key={dIso} className="mt-3 border border-line bg-surface px-4 py-3">
+        <div className="flex items-center gap-3">
+          <input aria-label={`Marcar ${dia.dia} ${ddmm(data)} inteiro`} className="size-4 shrink-0 cursor-pointer" type="checkbox" checked={false} onChange={() => a.setMany(ids, true)} />
+          <span className="font-mono text-[12px] font-bold">{dia.dia} {ddmm(data)}</span>
+          <span className="flex flex-1 flex-wrap items-center gap-x-3 text-[14px] font-semibold">{dia.pilares.map(p => <span key={p} className="flex items-center gap-1.5"><span className={`inline-block size-2 rounded-full ${DOT[p]}`} />{title(p)}</span>)}</span>
+          <span className="shrink-0 font-mono font-bold text-accent">{fmtH(falta)}</span>
+        </div>
+        <PartesDoDia dia={doDia(d)} seg={seg} ativo onSelect={onSelect} />
       </div>; })}</>}
     {x.assuntos.length > 0 && <><h3 className="label mt-7 mb-1">Itens de assunto vencidos · {totalItens(x)}</h3>
       {x.assuntos.map(({ x: s, ids }) => { const travada = !a.temValor(`nota-${s.id}`); return <div key={s.id} className="mt-3 border border-line bg-surface px-4 py-2">
@@ -377,7 +385,7 @@ function TopicNode({ x, side, onClick }: { x: Assunto; side: "left" | "right"; o
 }
 
 /* ───────── Painel lateral ───────── */
-function Drawer({ sel, onClose, onSelect }: { sel: Sel; onClose: () => void; onSelect: (s: Sel) => void }) {
+function Drawer({ sel, h, onClose, onSelect }: { sel: Sel; h: HojeApi; onClose: () => void; onSelect: (s: Sel) => void }) {
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => { if (!sel) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); panel.current?.focus(); panel.current?.scrollTo(0, 0); return () => window.removeEventListener("keydown", k); }, [sel, onClose]);
   if (!sel) return null;
@@ -389,7 +397,7 @@ function Drawer({ sel, onClose, onSelect }: { sel: Sel; onClose: () => void; onS
       {sel.kind === "mes" && <MesPanel mes={sel.mes} onSelect={onSelect} />}
       {sel.kind === "tri" && <TriPanel id={sel.id} />}
       {sel.kind === "revisao" && <RevisaoPanel />}
-      {sel.kind === "atrasos" && <AtrasosPanel onSelect={onSelect} />}
+      {sel.kind === "atrasos" && <AtrasosPanel h={h} onSelect={onSelect} />}
     </div>
   </div>;
 }
