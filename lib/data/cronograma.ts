@@ -25,7 +25,7 @@ export const SEMANA: { dia: string; dow: number; horas: number; pilares: Pilar[]
 export const META_SEMANA = 6; // horas marcadas para a semana contar na ofensiva
 export const INICIO_PLANO = { ano: 2026, mes: 10 }; // M01 = novembro/2026 (mês do JS, 0 = janeiro)
 export const DURACAO_MESES = 36;
-export const RITMO_NOTA = "8h por semana, de quarta a domingo, com 2h no sábado; segunda e terça ficam livres. O inglês começa sem conversação (listening, leitura e escrita, que dá para fazer sozinho); quando houver aula ou parceiro, os 30 min de listening da quinta viram conversação. Um dia perdido é reposto no domingo, sem acumular. A semana conta na ofensiva com 6h ou mais marcadas. No ano 2, durante a busca de vaga (meses 19–24), a sexta de cloud pode virar treino de entrevista.";
+export const RITMO_NOTA = "8h por semana, de quarta a domingo, com 2h no sábado; segunda e terça ficam livres. O inglês começa sem conversação (listening, leitura e escrita, que dá para fazer sozinho); quando houver aula ou parceiro, os 30 min de listening da quinta viram conversação. Um dia perdido fica em “ficou pra trás” até ser reposto; ao repor, marque o dia original pelo botão resgatar. A semana conta na ofensiva com 6h ou mais marcadas. No ano 2, durante a busca de vaga (meses 19–24), a sexta de cloud pode virar treino de entrevista.";
 
 export const MERCADO_DADOS = [
   "IA virou requisito básico: aparece em 42% das descrições de vaga de software em 2026, contra 8% em 2022.",

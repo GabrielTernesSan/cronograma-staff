@@ -2,8 +2,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
-import { DESTINOS, DESTINOS_NOTA, DURACAO_MESES, INICIO_PLANO, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
+import { DESTINOS, DESTINOS_NOTA, INICIO_PLANO, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
 import { assuntos, assuntosDoMes, horasPratica, horasTeoria, MIN_LEITURA } from "@/lib/data/trilha";
+import { addDias, DIA, dataDoDia, diaId, fase, inicioPlano, mesDoPlano, segunda } from "@/lib/agenda";
+import { atrasados, totalItens } from "@/lib/atrasos";
+import { doAssunto, fmtIntervalo, isoDia, NOTAS, novoCard, pendentes, previa, sequencia } from "@/lib/revisao";
 import { ALL_ACTIVITY_IDS, ALL_ASSUNTO_IDS, ALL_EVIDENCE_IDS, ALL_LEITURA_IDS, ALL_MARCO_IDS, assuntoDone, assuntoIds, countDone, countValues, labComplete, labsComplete, pct } from "@/lib/stats";
 import type { Assunto, Laboratorio, Pilar, Trimestre } from "@/lib/types";
 
@@ -14,7 +17,7 @@ const ANOS = [
   { n: 2, nome: "Contrato remoto internacional", meses: "nov/2027 – out/2028" },
   { n: 3, nome: "Mudança com visto", meses: "nov/2028 – out/2029" },
 ];
-type Sel = { kind: "assunto"; id: string } | { kind: "mes"; mes: number } | { kind: "tri"; id: string } | null;
+type Sel = { kind: "assunto"; id: string } | { kind: "mes"; mes: number } | { kind: "tri"; id: string } | { kind: "revisao" } | { kind: "atrasos" } | null;
 
 export function Roadmap() {
   const app = useApp(); const file = useRef<HTMLInputElement>(null);
@@ -62,12 +65,6 @@ export function Roadmap() {
 }
 
 /* ───────── Semana (grade fixa, checkbox por dia e ofensiva) ───────── */
-const DIA = 86400000;
-const addDias = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
-const segunda = (d: Date) => addDias(d, -((d.getDay() + 6) % 7));
-const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-const diaId = (seg: Date, dow: number) => `sem-${iso(seg)}-d${dow}`;
-const dataDoDia = (seg: Date, dow: number) => addDias(seg, (dow + 6) % 7);
 const horasSemana = (seg: Date, done: Set<string>) => SEMANA.reduce((t, d) => t + (done.has(diaId(seg, d.dow)) ? d.horas : 0), 0);
 const fmtH = (h: number) => { const m = Math.round((h % 1) * 60); return `${Math.floor(h)}h${m ? String(m).padStart(2, "0") : ""}`; };
 const ddmm = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -92,13 +89,10 @@ function horasMes(ano: number, mes: number, done: Set<string>) {
   for (let d = new Date(ano, mes, 1); d.getMonth() === mes; d = addDias(d, 1)) { const x = SEMANA.find(s => s.dow === d.getDay()); if (!x) continue; planejadas += x.horas; if (done.has(diaId(segunda(d), x.dow))) feitas += x.horas; }
   return { feitas, planejadas };
 }
-// Mês do plano pela data do dia (M01 = INICIO_PLANO); fora do plano devolve null. Dias 1–14 são teoria, 15 em diante prática.
-const mesDoPlano = (d: Date) => { const m = (d.getFullYear() - INICIO_PLANO.ano) * 12 + d.getMonth() - INICIO_PLANO.mes + 1; return m >= 1 && m <= DURACAO_MESES ? m : null; };
-const fase = (d: Date) => d.getDate() <= 14 ? "teoria" : "prática";
 
 function Plano({ data, pilares, onSelect }: { data: Date; pilares: Pilar[]; onSelect: (s: Sel) => void }) {
   const a = useApp(); const m = mesDoPlano(data);
-  if (!m) return <span className="mt-1 block font-mono text-[11px] text-muted">{data < new Date(INICIO_PLANO.ano, INICIO_PLANO.mes, 1) ? `o plano começa em 01/${String(INICIO_PLANO.mes + 1).padStart(2, "0")}/${INICIO_PLANO.ano}` : "fora do plano"}</span>;
+  if (!m) return <span className="mt-1 block font-mono text-[11px] text-muted">{data < inicioPlano() ? `o plano começa em 01/${String(INICIO_PLANO.mes + 1).padStart(2, "0")}/${INICIO_PLANO.ano}` : "fora do plano"}</span>;
   const xs = assuntosDoMes(m).filter(x => pilares.includes(x.pilar)), prox = xs.find(x => assuntoDone(x, a.done) < assuntoIds(x).length);
   return <span className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono text-[11px]">
     <span className="text-muted">M{String(m).padStart(2, "0")} · {fase(data)}:</span>
@@ -120,6 +114,8 @@ function Semana({ onSelect }: { onSelect: (s: Sel) => void }) {
       <div><p className="label">Semana · {fmtH(total)} (qua a dom)</p><h2 id="semana-h" className="mt-1 text-2xl font-bold">Ofensiva: {n} {n === 1 ? "semana" : "semanas"} <span className="font-mono text-[13px] font-normal text-muted">· recorde {rec}</span></h2></div>
       <div className="flex items-center gap-2"><Btn onClick={() => setDesloc(x => x - 1)}>← semana</Btn>{!atual && <Btn onClick={() => setDesloc(0)}>hoje</Btn>}<Btn onClick={() => setDesloc(x => x + 1)}>semana →</Btn></div>
     </div>
+    <RevisaoHoje hoje={hoje} onSelect={onSelect} />
+    <AtrasosHoje hoje={hoje} onSelect={onSelect} />
     <div className="mt-4 border border-line bg-surface">
       <p className="flex justify-between gap-3 border-b border-line px-4 py-2 font-mono text-[11px] text-muted"><span>{ddmm(dataDoDia(seg, 3))} → {ddmm(dataDoDia(seg, 0))}{atual && " · esta semana"}</span><span className={feitas >= META_SEMANA ? "text-ok" : ""}>{fmtH(feitas)}/{fmtH(total)} · meta {fmtH(META_SEMANA)}</span></p>
       {SEMANA.map(d => { const id = diaId(seg, d.dow), c = a.done.has(id); return <label key={d.dow} className="flex cursor-pointer items-start gap-3 border-b border-line-soft px-4 py-3 last:border-0">
@@ -132,6 +128,89 @@ function Semana({ onSelect }: { onSelect: (s: Sel) => void }) {
     <div className="mt-4 max-w-[36rem]"><p className="font-mono text-[12px]">Horas em {MESES[ref.getMonth()]}: <strong>{fmtH(mes.feitas)}</strong> de {fmtH(mes.planejadas)}</p><Bar n={mes.feitas} total={mes.planejadas} /></div>
     <p className="mt-4 max-w-[70ch] text-[14.5px] leading-relaxed text-muted">{RITMO_NOTA}</p>
   </section>;
+}
+
+/* ───────── Revisão espaçada (fora das horas da semana) ───────── */
+function RevisaoHoje({ hoje, onSelect }: { hoje: Date; onSelect: (s: Sel) => void }) {
+  const a = useApp(); const dia = isoDia(hoje), n = pendentes(a.cards, dia).length, total = Object.keys(a.cards).length, seq = sequencia(dia, a.done);
+  return <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border border-line bg-surface px-4 py-3">
+    <p className="text-[14.5px]"><strong>Revisão de hoje:</strong> {total === 0 ? <span className="text-muted">nenhum card ainda; crie perguntas no painel de um assunto</span> : n ? `${n} ${n === 1 ? "card" : "cards"}` : <span className="text-ok">em dia</span>} <span className="font-mono text-[12px] text-muted">· sequência {seq} {seq === 1 ? "dia" : "dias"} · {total} no total</span></p>
+    {n > 0 && <Btn onClick={() => onSelect({ kind: "revisao" })}>revisar</Btn>}
+  </div>;
+}
+
+function RevisaoPanel() {
+  const a = useApp(); const [fila] = useState(() => pendentes(a.cards, isoDia(new Date())).map(c => c.id)); const [i, setI] = useState(0); const [ver, setVer] = useState(false); const [erros, setErros] = useState(0);
+  const c = a.cards[fila[i]];
+  if (!c) return <article><p className="label">Revisão</p><h2 className="mt-2 text-2xl font-bold">{fila.length ? "Fila de hoje concluída" : "Nada para revisar hoje"}</h2>{fila.length > 0 && <p className="mt-3 text-[15px] text-muted">{fila.length} {fila.length === 1 ? "card revisado" : "cards revisados"} · {fila.length - erros} lembrados · {erros} para rever amanhã.</p>}</article>;
+  const x = assuntos.find(s => s.id === c.assunto);
+  return <article>
+    <p className="label">Revisão · {i + 1}/{fila.length}{x && ` · ${x.titulo}`}</p>
+    <Bar n={i} total={fila.length} />
+    <p className="mt-6 whitespace-pre-wrap text-xl font-semibold leading-snug">{c.pergunta}</p>
+    {ver ? <>
+      <p className="mt-5 whitespace-pre-wrap border-t border-line pt-4 text-[16px] leading-relaxed">{c.resposta}</p>
+      <p className="label mt-7 mb-2">Quão bem você lembrou?</p>
+      <div className="flex flex-wrap gap-2">{NOTAS.map(({ n, rotulo }) => <Btn key={n} danger={n === "errei"} onClick={() => { a.avaliarCard(c.id, n); if (n === "errei") setErros(e => e + 1); setVer(false); setI(j => j + 1); }}>{rotulo} · {previa(c, n)}</Btn>)}</div>
+    </> : <div className="mt-6"><p className="mb-3 text-[14px] text-muted">Tente responder de cabeça antes de revelar.</p><Btn onClick={() => setVer(true)}>mostrar resposta</Btn></div>}
+  </article>;
+}
+
+function CardsAssunto({ assunto }: { assunto: string }) {
+  const a = useApp(); const [p, setP] = useState(""); const [r, setR] = useState(""); const [edit, setEdit] = useState<string | null>(null); const [erro, setErro] = useState("");
+  const cs = doAssunto(a.cards, assunto), hoje = isoDia(new Date());
+  const limpar = () => { setP(""); setR(""); setEdit(null); setErro(""); };
+  const salvar = () => { if (!p.trim() || !r.trim()) return setErro("Preencha pergunta e resposta."); const atual = edit ? a.cards[edit] : null; a.salvarCard(atual ? { ...atual, pergunta: p.trim(), resposta: r.trim() } : novoCard(assunto, p, r, hoje)); limpar(); };
+  return <div>
+    <p className="mb-2 text-[13.5px] text-muted">Uma ideia por card, com a pergunta escrita por você. Os cards entram na revisão de hoje e voltam em intervalos cada vez maiores.</p>
+    <ul>{cs.map(c => <li key={c.id} className="flex items-start justify-between gap-3 border-t border-line-soft py-2 first:border-t-0"><span className="min-w-0"><span className="block text-[15px]">{c.pergunta}</span><span className="font-mono text-[11px] text-muted">{c.due <= hoje ? "revisar hoje" : `próxima ${c.due.split("-").reverse().slice(0, 2).join("/")}`}{c.repeticoes > 0 && ` · intervalo ${fmtIntervalo(c.intervalo)}`}</span></span><span className="flex shrink-0 gap-1"><Btn onClick={() => { setEdit(c.id); setP(c.pergunta); setR(c.resposta); setErro(""); }}>editar</Btn><Btn danger onClick={() => { a.removerCard(c.id); if (edit === c.id) limpar(); }}>remover</Btn></span></li>)}</ul>
+    <div className="mt-3 grid gap-2">
+      <textarea className="nota w-full" rows={2} value={p} placeholder="pergunta" onChange={e => { setP(e.target.value); setErro(""); }} />
+      <textarea className="nota w-full" rows={3} value={r} placeholder="resposta" onChange={e => { setR(e.target.value); setErro(""); }} />
+      <div className="flex items-center gap-2"><Btn onClick={salvar}>{edit ? "salvar card" : "adicionar card"}</Btn>{edit && <Btn onClick={limpar}>cancelar</Btn>}{erro && <span className="text-[13px] text-warn">{erro}</span>}</div>
+    </div>
+  </div>;
+}
+
+/* ───────── Atrasados (o que ficou para trás até ontem) ───────── */
+const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+function AtrasosHoje({ hoje, onSelect }: { hoje: Date; onSelect: (s: Sel) => void }) {
+  const a = useApp(); const x = atrasados(hoje, a.done, a.valores), itens = totalItens(x);
+  const partes = [x.dias.length && plural(x.dias.length, "dia", "dias"), itens && plural(itens, "item", "itens"), x.labs.length && plural(x.labs.length, "laboratório", "laboratórios")].filter(Boolean);
+  return <div className="mt-2 flex flex-wrap items-center justify-between gap-3 border border-line bg-surface px-4 py-3">
+    <p className="text-[14.5px]"><strong>Ficou pra trás:</strong> {partes.length ? <span className="text-warn">{partes.join(" · ")}</span> : <span className="text-ok">em dia</span>}</p>
+    {partes.length > 0 && <Btn onClick={() => onSelect({ kind: "atrasos" })}>resgatar</Btn>}
+  </div>;
+}
+
+function AtrasosPanel({ onSelect }: { onSelect: (s: Sel) => void }) {
+  const a = useApp(); const [hoje] = useState(() => new Date()); const x = atrasados(hoje, a.done, a.valores);
+  const texto = (s: Assunto, id: string) => s.subtopicos.find(t => t.id === id)?.texto ?? s.leituras.find(l => l.id === id)?.titulo ?? (s.pratica.id === id ? `Prática: ${s.pratica.texto}` : id);
+  const vazio = !x.dias.length && !x.assuntos.length && !x.labs.length;
+  return <article>
+    <p className="label">Resgate</p>
+    <h2 className="mt-2 text-2xl font-bold">{vazio ? "Nada ficou pra trás" : "O que ficou pra trás"}</h2>
+    {!vazio && <p className="mt-2 text-[14.5px] text-muted">Tudo o que não foi marcado até ontem. Marcar aqui conta no dia ou item original; a lista encolhe conforme você avança.</p>}
+    {x.dias.length > 0 && <><h3 className="label mt-7 mb-1">Dias não marcados · {x.dias.length}</h3>
+      {x.dias.map(({ id, data, dia }) => <label key={id} className="flex cursor-pointer items-start gap-3 border-t border-line-soft py-3 first:border-t-0">
+        <input className="mt-1 size-4 shrink-0" type="checkbox" checked={a.done.has(id)} onChange={() => a.toggle(id)} />
+        <span className="w-12 shrink-0 font-mono text-[12px]"><span className="block font-bold">{dia.dia}</span><span className="text-muted">{ddmm(data)}</span></span>
+        <span className="min-w-0 flex-1"><span className="flex flex-wrap items-center gap-x-3 font-semibold">{dia.pilares.map(p => <span key={p} className="flex items-center gap-1.5"><span className={`inline-block size-2 rounded-full ${DOT[p]}`} />{title(p)}</span>)}</span><span className="mt-0.5 block text-[13.5px] leading-snug text-muted">{dia.foco}</span><Plano data={data} pilares={dia.pilares} onSelect={onSelect} /></span>
+        <span className="shrink-0 font-mono font-bold text-accent">{fmtH(dia.horas)}</span>
+      </label>)}</>}
+    {x.assuntos.length > 0 && <><h3 className="label mt-7 mb-1">Itens de assunto vencidos · {totalItens(x)}</h3>
+      {x.assuntos.map(({ x: s, ids }) => { const travada = !a.temValor(`nota-${s.id}`); return <div key={s.id} className="mt-3 border border-line bg-surface px-4 py-2">
+        <button type="button" onClick={() => onSelect({ kind: "assunto", id: s.id })} className="flex items-center gap-2 py-1 text-left font-semibold hover:text-accent hover:underline"><span className={`inline-block size-2 rounded-full ${DOT[s.pilar]}`} />M{String(s.mes).padStart(2, "0")} · {s.titulo}</button>
+        {ids.map(id => <Check key={id} id={id} text={texto(s, id)} disabled={id === s.pratica.id && travada} />)}
+        {ids.includes(s.pratica.id) && travada && <p className="mt-1 text-[13px] text-muted">Escreva o resumo no painel do assunto para liberar a prática.</p>}
+      </div>; })}</>}
+    {x.labs.length > 0 && <><h3 className="label mt-7 mb-1">Laboratórios incompletos · {x.labs.length}</h3>
+      {x.labs.map(({ lab, atividades, evidencias }) => <div key={lab.id} className="mt-3 border border-line bg-surface px-4 py-2">
+        <button type="button" onClick={() => onSelect({ kind: "mes", mes: lab.mes })} className="py-1 text-left font-semibold hover:text-accent hover:underline">M{String(lab.mes).padStart(2, "0")} · {lab.titulo}</button>
+        {atividades.map(id => <Check key={id} id={id} text={lab.atividades.find(t => t.id === id)?.texto ?? id} />)}
+        {evidencias.length > 0 && <p className="mt-1 font-mono text-[11px] text-muted">{plural(evidencias.length, "evidência sem registro", "evidências sem registro")}; registre no painel do laboratório.</p>}
+      </div>)}</>}
+  </article>;
 }
 
 /* ───────── Trilha (mapa de nós) ───────── */
@@ -203,13 +282,15 @@ function Drawer({ sel, onClose, onSelect }: { sel: Sel; onClose: () => void; onS
       {sel.kind === "assunto" && <AssuntoPanel id={sel.id} onSelect={onSelect} />}
       {sel.kind === "mes" && <MesPanel mes={sel.mes} onSelect={onSelect} />}
       {sel.kind === "tri" && <TriPanel id={sel.id} />}
+      {sel.kind === "revisao" && <RevisaoPanel />}
+      {sel.kind === "atrasos" && <AtrasosPanel onSelect={onSelect} />}
     </div>
   </div>;
 }
 
 function AssuntoPanel({ id, onSelect }: { id: string; onSelect: (s: Sel) => void }) {
   const a = useApp(); const i = assuntos.findIndex(x => x.id === id); const x = assuntos[i]; if (!x) return null;
-  const ids = assuntoIds(x); const n = assuntoDone(x, a.done); const prev = assuntos[i - 1], next = assuntos[i + 1];
+  const ids = assuntoIds(x); const n = assuntoDone(x, a.done); const prev = assuntos[i - 1], next = assuntos[i + 1], nota = `nota-${x.id}`;
   return <article>
     <p className="label flex items-center gap-2"><span className={`inline-block size-2 rounded-full ${DOT[x.pilar]}`} />M{String(x.mes).padStart(2, "0")} · {title(x.pilar)}</p>
     <h2 className="mt-2 text-2xl font-bold">{x.titulo}</h2>
@@ -221,7 +302,12 @@ function AssuntoPanel({ id, onSelect }: { id: string; onSelect: (s: Sel) => void
       <input aria-label={`Marcar como lida: ${l.titulo}`} className="mt-1.5 size-4 shrink-0" type="checkbox" checked={a.done.has(l.id)} onChange={() => a.toggle(l.id)} />
       <div className="min-w-0"><a href={l.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${a.done.has(l.id) ? "text-muted line-through" : ""}`}>{l.titulo} ↗</a><p className="font-mono text-[11px] text-muted">{l.fonte} · {l.tipo} · ~{MIN_LEITURA[l.tipo]} min</p></div>
     </li>)}</ul>
-    <h3 className="mt-8 text-lg font-bold">Passo 2 · Prática <span className="font-mono text-[12px] font-normal text-muted">~{horasPratica(x)}h</span></h3><Check id={x.pratica.id} text={x.pratica.texto} />
+    <h3 className="label mt-7 mb-1">Explique com suas palavras</h3>
+    <p className="mb-2 text-[13.5px] text-muted">Sem consultar: o que é, por que importa e como se liga ao que você já sabe. Onde travar é o que precisa estudar de novo.</p>
+    <textarea className="nota w-full" rows={5} value={a.valorDe(nota)} placeholder="resumo de 3 a 5 linhas" onChange={e => a.setValor(nota, e.target.value)} />
+    <h3 className="label mt-7 mb-1">Perguntas de revisão</h3><CardsAssunto assunto={x.id} />
+    <h3 className="mt-8 text-lg font-bold">Passo 2 · Prática <span className="font-mono text-[12px] font-normal text-muted">~{horasPratica(x)}h</span></h3><Check id={x.pratica.id} text={x.pratica.texto} disabled={!a.temValor(nota) && !a.isDone(x.pratica.id)} />
+    {!a.temValor(nota) && !a.isDone(x.pratica.id) && <p className="mt-1 text-[13px] text-muted">Escreva o resumo acima para liberar a prática.</p>}
     <div className="mt-8 flex flex-wrap justify-between gap-2 border-t border-line pt-4">
       {prev ? <Btn onClick={() => onSelect({ kind: "assunto", id: prev.id })}>← {prev.titulo}</Btn> : <span />}
       <Btn onClick={() => onSelect({ kind: "mes", mes: x.mes })}>laboratório do mês</Btn>
@@ -260,7 +346,7 @@ function TriPanel({ id }: { id: string }) {
 }
 
 function Info({ h, x }: { h: string; x: string[] }) { return <div><p className="label mb-2">{h}</p><ul className="space-y-1.5 text-[14.5px] leading-relaxed text-muted">{x.map(y => <li key={y}>{y}</li>)}</ul></div>; }
-function Check({ id, text }: { id: string; text: string }) { const a = useApp(); const c = a.isDone(id); return <label className="flex cursor-pointer items-start gap-2 border-t border-line-soft py-2 first:border-t-0"><input className="mt-1 size-4 shrink-0" type="checkbox" checked={c} onChange={() => a.toggle(id)} /><span className={c ? "text-[15px] text-muted line-through" : "text-[15px]"}>{text}</span></label>; }
+function Check({ id, text, disabled }: { id: string; text: string; disabled?: boolean }) { const a = useApp(); const c = a.isDone(id); return <label className={`flex items-start gap-2 border-t border-line-soft py-2 first:border-t-0 ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}><input className="mt-1 size-4 shrink-0" type="checkbox" checked={c} disabled={disabled} onChange={() => a.toggle(id)} /><span className={c ? "text-[15px] text-muted line-through" : "text-[15px]"}>{text}</span></label>; }
 function Bar({ n, total }: { n: number; total: number }) { return <div className="mt-4 h-1 bg-line"><div className="h-full bg-accent" style={{ width: `${pct(n, total)}%` }} /></div>; }
 function Stat({ l, v }: { l: string; v: string }) { return <div className="flex gap-1.5"><dt className="uppercase tracking-wider">{l}</dt><dd className="font-semibold text-text">{v}</dd></div>; }
 function Btn({ children, onClick, active, danger }: { children: React.ReactNode; onClick: () => void; active?: boolean; danger?: boolean }) { return <button type="button" onClick={onClick} aria-pressed={active} className={`inline-flex items-center border px-2.5 py-1 font-mono text-[11px] ${danger ? "border-warn text-warn" : active ? "border-accent bg-accent/10 text-accent" : "border-line text-muted hover:border-accent hover:text-accent"}`}>{children}</button>; }

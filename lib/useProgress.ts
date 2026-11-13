@@ -1,10 +1,11 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parse, quando, saved, type State, type Valores } from "./progresso";
+import { avaliar, isoDia, pendentes, revId, type Card, type Nota } from "./revisao";
 export type { Valores };
 export type Sync = "sem-token" | "salvando" | "salvo" | "erro";
 const STORAGE_KEY = "cronograma-staff:v4", LEGACY_KEY = "cronograma-staff:v3", TOKEN_KEY = "cronograma-staff:token", API = "/api/progresso";
-const EMPTY: State = { done: new Set(), valores: {} };
+const EMPTY: State = { done: new Set(), valores: {}, cards: {} };
 const write = (s: State, at?: string) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(saved(s, at))); } catch {} return s; };
 const lerToken = () => { try { return localStorage.getItem(TOKEN_KEY) ?? ""; } catch { return ""; } };
 const gravarToken = (t: string) => { try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch {} };
@@ -21,10 +22,14 @@ export function useProgress() {
   const toggle = useCallback((id: string) => setState(p => { const done = new Set(p.done); done.has(id) ? done.delete(id) : done.add(id); return gravar({ ...p, done }); }), [gravar]);
   const setMany = useCallback((ids: string[], value: boolean) => setState(p => { const done = new Set(p.done); ids.forEach(id => value ? done.add(id) : done.delete(id)); return gravar({ ...p, done }); }), [gravar]);
   const setValor = useCallback((id: string, value: string) => setState(p => { const next = { ...p.valores }; value.trim() ? next[id] = value : delete next[id]; return gravar({ ...p, valores: next }); }), [gravar]);
+  const salvarCard = useCallback((c: Card) => setState(p => gravar({ ...p, cards: { ...p.cards, [c.id]: c } })), [gravar]);
+  const removerCard = useCallback((id: string) => setState(p => { const cards = { ...p.cards }; delete cards[id]; return gravar({ ...p, cards }); }), [gravar]);
+  // Zerar a fila de hoje marca rev-<dia> em done, que alimenta a sequência de revisão.
+  const avaliarCard = useCallback((id: string, nota: Nota) => setState(p => { const c = p.cards[id]; if (!c) return p; const hoje = isoDia(new Date()), cards = { ...p.cards, [id]: avaliar(c, nota, hoje) }; const done = pendentes(cards, hoje).length ? p.done : new Set(p.done).add(revId(hoje)); return gravar({ ...p, done, cards }); }), [gravar]);
   const setToken = useCallback((t: string) => { token.current = t.trim(); gravarToken(token.current); if (token.current) enviar(atual.current); else setSync("sem-token"); }, [enviar]);
   const exportJson = useCallback(() => { const url = URL.createObjectURL(new Blob([JSON.stringify(saved(state), null, 2)], { type: "application/json" })); const a = document.createElement("a"); a.href = url; a.download = `progresso-${new Date().toISOString().slice(0, 10)}.json`; a.click(); URL.revokeObjectURL(url); }, [state]);
-  const importJson = useCallback(async (file: File) => { try { const next = parse(JSON.parse(await file.text())); if (!next) return { ok: false, message: "Arquivo inválido: falta a lista done." }; commit(next); return { ok: true, message: `${next.done.size} itens e ${Object.keys(next.valores).length} evidências importados.` }; } catch { return { ok: false, message: "Não consegui ler esse arquivo como JSON." }; } }, [commit]);
+  const importJson = useCallback(async (file: File) => { try { const next = parse(JSON.parse(await file.text())); if (!next) return { ok: false, message: "Arquivo inválido: falta a lista done." }; commit(next); return { ok: true, message: `${next.done.size} itens, ${Object.keys(next.valores).length} evidências e ${Object.keys(next.cards).length} cards importados.` }; } catch { return { ok: false, message: "Não consegui ler esse arquivo como JSON." }; } }, [commit]);
   const reset = useCallback(() => commit({ ...EMPTY, legacy: state.legacy }), [commit, state.legacy]);
-  return useMemo(() => ({ ...state, loaded, sync, setToken, toggle, setMany, setValor, exportJson, importJson, reset, isDone: (id: string) => state.done.has(id), valorDe: (id: string) => state.valores[id] ?? "", temValor: (id: string) => id in state.valores }), [state, loaded, sync, setToken, toggle, setMany, setValor, exportJson, importJson, reset]);
+  return useMemo(() => ({ ...state, loaded, sync, setToken, toggle, setMany, setValor, salvarCard, removerCard, avaliarCard, exportJson, importJson, reset, isDone: (id: string) => state.done.has(id), valorDe: (id: string) => state.valores[id] ?? "", temValor: (id: string) => id in state.valores }), [state, loaded, sync, setToken, toggle, setMany, setValor, salvarCard, removerCard, avaliarCard, exportJson, importJson, reset]);
 }
 export type ProgressApi = ReturnType<typeof useProgress>;
