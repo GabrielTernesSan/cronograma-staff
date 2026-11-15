@@ -13,6 +13,22 @@ const a = (mes: number, slug: string, pilar: Pilar, titulo: string, resumo: stri
   };
 };
 
+// Reordenação de nov/2026: o primeiro semestre monta o harness de IA do time (Codex + Claude Code);
+// a PoC e a base de arquitetura/cloud vão para o segundo semestre e o que sobrou ocupa a folga dos anos 2 e 3.
+// O id continua sendo o do mês original (m15-contexto etc.), para não perder o progresso já marcado.
+const MES: Record<string, number> = {
+  // Semestre 1 · harness
+  "m15-contexto": 1, "m01-adr": 2, "m04-cicd-segredos": 2, "m05-agentes-base": 3, "m06-tools-mcp": 3, "m06-hitl": 3,
+  "m07-evals": 4, "m02-testes": 4, "m09-owasp-llm": 5, "m09-injection": 5, "m09-threat-model": 5, "m08-custo-latencia": 6, "m11-write-up": 6,
+  // Semestre 2 · PoC, cloud, RAG e escala
+  "m01-c4": 7, "m01-containers": 7, "m02-clean": 8, "m02-auditoria": 8, "m09-api-rest": 8,
+  "m03-iac": 9, "m05-observabilidade": 9, "m08-behavioral": 9, "m03-embeddings": 10, "m04-rag-base": 10, "m04-eval-inicial": 10,
+  "m07-idempotencia": 11, "m07-filas": 11, "m07-oauth": 11,
+  // Folga dos anos 2 e 3
+  "m10-dr": 15, "m10-redis": 15, "m08-judge": 16, "m06-carga": 19, "m04-async-di": 20, "m05-sql-efcore": 21,
+  "m06-waf": 22, "m08-functions": 22, "m03-ddd-cqrs": 23, "m02-ml-base": 30, "m03-metricas": 31, "m02-llm-schema": 31,
+};
+
 export const assuntos: Assunto[] = [
   // ───────── Ano 1 · base sênior com IA ─────────
   a(1, "fundamentos", "arquitetura", "Fundamentos de arquitetura", "Entender o que é arquitetura, quais características ela protege e que toda escolha é um trade-off, antes de registrar qualquer decisão.",
@@ -22,13 +38,13 @@ export const assuntos: Assunto[] = [
      ["Architecture styles", "Microsoft Learn", "https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/", "doc"],
      ["ISO/IEC 25010: modelo de qualidade de produto", "iso25000.com", "https://iso25000.com/index.php/en/iso-25000-standards/iso-25010", "doc"],
      ["Monolith First", "Martin Fowler", "https://martinfowler.com/bliki/MonolithFirst.html", "artigo"]],
-    "Listar as 5 características arquiteturais prioritárias da PoC, comparar dois estilos candidatos e escrever em 1 página o trade-off. Essa nota é a entrada dos ADRs do próximo assunto."),
+    "Listar as 5 características arquiteturais prioritárias de um sistema do seu time, comparar dois estilos candidatos e escrever em 1 página o trade-off."),
   a(1, "adr", "arquitetura", "Requisitos e ADRs", "Registrar decisões com contexto, alternativas e consequências antes de codificar.",
     ["Requisitos funcionais x não funcionais", "Formato de ADR: contexto, decisão, consequências", "Quando uma decisão merece ADR", "ADR como histórico, não como burocracia"],
     [["Documenting Architecture Decisions", "Michael Nygard", "https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions", "artigo"],
      ["Architectural Decision Records", "adr.github.io", "https://adr.github.io/", "doc"],
      ["Design Docs at Google", "Malte Ubl", "https://www.industrialempathy.com/posts/design-docs-at-google/", "artigo"]],
-    "Escrever o PRD curto da PoC e dois ADRs (estilo de arquitetura e hospedagem), partindo da nota de características e trade-offs do assunto anterior."),
+    "Escrever dois ADRs do harness: onde ficam instruções e skills, e o que o agente pode e não pode fazer no repositório."),
   a(1, "c4", "arquitetura", "Modelo C4", "Desenhar contexto, containers e componentes no nível certo para cada público.",
     ["C1 contexto e C2 containers", "C3 componentes: quando vale", "Diagrama como código", "Notação e legenda"],
     [["The C4 model", "Simon Brown", "https://c4model.com/", "doc"],
@@ -40,7 +56,15 @@ export const assuntos: Assunto[] = [
      ["Spec-driven development with AI", "GitHub Blog", "https://github.blog/ai-and-ml/generative-ai/spec-driven-development-with-ai-get-started-with-a-new-open-source-toolkit/", "artigo"],
      ["Spec Kit", "GitHub", "https://github.com/github/spec-kit", "ferramenta"],
      ["Do Zero à Pós-Produção em 1 Semana: como usar IA em projetos de verdade", "Fabio Akita", "https://akitaonrails.com/2026/02/20/do-zero-a-pos-producao-em-1-semana-como-usar-ia-em-projetos-de-verdade-bastidores-do-the-m-akita-chronicles/", "artigo"]],
-    "Configurar regras do repositório e implementar o esqueleto em 3 tarefas pequenas com o agente."),
+    "Configurar as regras do repositório do time (AGENTS.md e CLAUDE.md) e executar 3 tarefas pequenas com o agente."),
+
+  a(2, "harness", "ia", "Harness: skills, permissões e hooks", "Empacotar procedimentos repetidos em skills e limitar o que o agente pode fazer no repositório do time.",
+    ["Skill: pasta com SKILL.md, nome e descrição; a descrição decide quando ela dispara", "Onde ficam: .agents/skills (Codex) e .claude/skills (Claude Code), versionadas no repositório", "Permissões compartilhadas: allow, ask e deny", "Hook para o que tem de acontecer sempre; instrução o agente pode ignorar"],
+    [["Build skills", "OpenAI Codex", "https://developers.openai.com/codex/skills", "doc"],
+     ["Extend Claude with skills", "Claude Code Docs", "https://code.claude.com/docs/en/skills", "doc"],
+     ["Settings files and precedence", "Claude Code Docs", "https://code.claude.com/docs/en/settings", "doc"],
+     ["Automate actions with hooks", "Claude Code Docs", "https://code.claude.com/docs/en/hooks-guide", "doc"]],
+    "Escrever a primeira skill da tarefa mais repetida do time e negar a leitura de .env nas permissões compartilhadas."),
 
   a(2, "clean", "arquitetura", "Clean Architecture e hexagonal", "Separar domínio de infraestrutura para a API evoluir sem acoplamento.",
     ["Regra de dependência", "Ports e adapters", "Casos de uso como fronteira", "Quando é exagero"],
@@ -56,7 +80,7 @@ export const assuntos: Assunto[] = [
      ["Integration tests in ASP.NET Core", "Microsoft Learn", "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests", "doc"],
      ["Testcontainers for .NET", "Testcontainers", "https://dotnet.testcontainers.org/", "ferramenta"],
      ["Best Libraries for ASP.NET Core in 2026 (Testcontainers, Polly)", "Mukesh Murugan", "https://codewithmukesh.com/blog/best-libraries-for-aspnet-core/", "artigo"]],
-    "Cobrir o fluxo autenticado e auditado com testes de integração usando PostgreSQL em container."),
+    "Em um serviço do time, cobrir um fluxo real com testes de integração e usá-los como critério de aceite de uma tarefa feita pelo agente."),
   a(2, "auditoria", "cloud", "Autenticação e auditoria", "Login por e-mail e senha com hash correto e trilha de auditoria imutável.",
     ["Hash de senha e armazenamento", "Sessão x token", "Eventos de auditoria", "OWASP ASVS básico"],
     [["Password Storage Cheat Sheet", "OWASP", "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html", "doc"],
@@ -140,17 +164,17 @@ export const assuntos: Assunto[] = [
     ["Workflow x agente", "Padrões: roteamento, paralelização, orquestrador", "Loop do agente", "Quando não usar agente"],
     [["Building effective agents", "Anthropic", "https://www.anthropic.com/research/building-effective-agents", "artigo"],
      ["A practical guide to building agents", "OpenAI", "https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf", "artigo"]],
-    "Desenhar o fluxo do agente de deploy como workflow e justificar onde entra autonomia."),
+    "Desenhar uma tarefa repetida do time como workflow e justificar onde entra autonomia do agente."),
   a(6, "tools-mcp", "ia", "Tool use e MCP", "Dar ferramentas ao modelo com contrato claro e permissões mínimas.",
     ["Definição de tool e schema", "Descrição da tool como prompt", "Servidor MCP", "Tools só leitura primeiro"],
     [["Tool use with Claude", "Anthropic", "https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview", "doc"],
      ["Writing effective tools for agents", "Anthropic", "https://www.anthropic.com/research/writing-tools-for-agents", "artigo"],
      ["Model Context Protocol", "modelcontextprotocol.io", "https://modelcontextprotocol.io/", "doc"]],
-    "Criar um servidor MCP com 2 tools somente leitura sobre a documentação da PoC."),
+    "Criar um servidor MCP com 2 tools somente leitura sobre a documentação do time."),
   a(6, "hitl", "ia", "Aprovação humana", "Ação sensível só acontece depois de aprovação explícita e auditada.",
     ["Proposta em schema", "Ponto de aprovação", "Registro da decisão", "Negar por padrão"],
     [["Human-in-the-loop", "LangChain docs", "https://docs.langchain.com/oss/python/langchain/human-in-the-loop", "doc"]],
-    "Agente propõe configuração de deploy; nada publica sem aprovação registrada."),
+    "Agente propõe a mudança; nada é publicado nem enviado sem aprovação registrada."),
 
   a(7, "idempotencia", "arquitetura", "Idempotência e retries", "Evitar deploy duplicado quando a mesma requisição chega duas vezes.",
     ["Chave de idempotência", "Retry com backoff e jitter", "Timeout", "Dead-letter"],
@@ -206,13 +230,13 @@ export const assuntos: Assunto[] = [
      ["Azure Service Bus trigger for Azure Functions", "Microsoft Learn", "https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-service-bus-trigger", "doc"],
      ["Azure Functions scale and hosting", "Microsoft Learn", "https://learn.microsoft.com/en-us/azure/azure-functions/functions-scale", "doc"],
      ["Durable Functions overview", "Microsoft Learn", "https://learn.microsoft.com/en-us/azure/durable-task/durable-functions/durable-functions-overview", "doc"]],
-    "Trocar o consumidor da fila do mês 7 por uma Function com trigger de Service Bus, medir o cold start e escrever um ADR comparando com Container Apps."),
+    "Trocar o consumidor da fila do M11 por uma Function com trigger de Service Bus, medir o cold start e escrever um ADR comparando com Container Apps."),
 
   a(9, "owasp-llm", "ia", "OWASP Top 10 para LLM", "Conhecer as falhas mais comuns em aplicações com LLM.",
     ["Prompt injection", "Vazamento de dados sensíveis", "Excesso de autonomia", "Saída sem validação"],
     [["OWASP Top 10 for LLM Applications", "OWASP GenAI", "https://genai.owasp.org/llm-top-10/", "doc"],
      ["The lethal trifecta for AI agents", "Simon Willison", "https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/", "artigo"]],
-    "Mapear cada item do Top 10 para a PoC e marcar o que já está mitigado."),
+    "Mapear cada item do Top 10 para o harness do time e marcar o que já está mitigado."),
   a(9, "injection", "ia", "Prompt injection na prática", "Atacar o próprio agente para descobrir o que ele faz sem permissão.",
     ["Injeção direta e indireta", "Documento malicioso no RAG", "Tool chamada indevidamente", "Defesas por arquitetura"],
     [["Prompt injection (série)", "Simon Willison", "https://simonwillison.net/series/prompt-injection/", "artigo"],
@@ -223,7 +247,7 @@ export const assuntos: Assunto[] = [
     ["STRIDE", "Matriz de acesso", "RBAC no Azure", "Risco residual com dono"],
     [["Threat Modeling Tool", "Microsoft Learn", "https://learn.microsoft.com/en-us/azure/security/develop/threat-modeling-tool", "doc"],
      ["Threat Modeling Cheat Sheet", "OWASP", "https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html", "doc"]],
-    "Threat model da PoC e revisão de RBAC com permissões mínimas."),
+    "Threat model do harness (agente, conectores e segredos) e revisão de permissões mínimas."),
 
   a(6, "waf", "cloud", "Azure Well-Architected", "Avaliar a arquitetura pelos cinco pilares.",
     ["Confiabilidade", "Segurança", "Custo", "Excelência operacional e desempenho"],
@@ -301,7 +325,7 @@ export const assuntos: Assunto[] = [
      ["Behavioral interviews for senior candidates", "Tech Interview Handbook", "https://www.techinterviewhandbook.org/behavioral-interview-senior-candidates/", "doc"],
      ["The STAR Interview Method", "The Muse", "https://www.themuse.com/advice/star-interview-method", "artigo"]],
     "Escrever 6 histórias STAR a partir do brag document e gravar cada uma em até 2 minutos."),
-  a(11, "write-up", "ingles", "Publicar um write-up longo", "Um texto público em inglês sobre RAG com evals.",
+  a(11, "write-up", "ingles", "Publicar um write-up longo", "Um texto público em inglês sobre o harness do time, com antes e depois em números e sem dado da empresa.",
     ["Escolher um problema real", "Mostrar o antes e o depois", "Limitações honestas", "Onde publicar"],
     [["Some blogging myths", "Julia Evans", "https://jvns.ca/blog/2023/06/05/some-blogging-myths/", "artigo"]],
     "Publicar o write-up e compartilhar no LinkedIn."),
@@ -547,7 +571,7 @@ export const assuntos: Assunto[] = [
     ["Arquétipos de Staff", "Escopo e influência", "Documento de estratégia", "Portfólio de impacto"],
     [["Staff archetypes", "staffeng.com", "https://staffeng.com/guides/staff-archetypes/", "doc"]],
     "Retrospectiva dos 3 anos e plano dos próximos 12 meses."),
-].sort((x, y) => x.mes - y.mes); // sort estável: mantém a ordem de escrita dentro de cada mês
+].map((x) => ({ ...x, mes: MES[x.id] ?? x.mes })).sort((x, y) => x.mes - y.mes); // sort estável: mantém a ordem de escrita dentro de cada mês
 
 export const assuntosDoMes = (mes: number) => assuntos.filter((x) => x.mes === mes);
 

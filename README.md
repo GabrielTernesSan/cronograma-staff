@@ -10,6 +10,13 @@ Roadmap de 36 meses (início em 10/11/2026, até nov/2029), com oito horas seman
 - Seção de mercado (o que as vagas pedem em 2026 e leitura de futuro) e tabela de destinos com o salário mínimo de visto de 2026.
 - Ritmo de 8h/semana, de quarta a domingo (1h na quarta, 1h30 na quinta e na sexta, 2h no sábado e no domingo), com uma grade fixa por pilar no topo da página: checkbox por dia, horas do mês e ofensiva de semanas focadas (6h ou mais).
 
+## Reordenação de nov/2026
+
+- Meses 1–6 montam o harness de IA do time (Codex + Claude Code): instruções, skills e permissões, ferramentas e MCP, evals no CI, segurança, custo e write-up. Cada laboratório entrega uma peça em um repositório real.
+- Meses 7–12 ficam com a PoC: especificação, Clean Architecture, cloud, RAG, escala e Integrador I.
+- Saíram os laboratórios de classificador, agente de deploy, LLMOps, segurança, cloud avançada e portfólio; os assuntos deles foram para o harness ou para a folga dos anos 2 e 3.
+- A troca de mês de cada assunto está na tabela `MES` de `lib/data/trilha.ts`. O id continua o do mês original, então o progresso marcado não se perde.
+
 ## Hoje
 
 No topo da página, o painel **Hoje** abre o dia da grade semanal (quarta a domingo; segunda e terça livres) e coloca, em cada parte do dia, as tarefas da trilha que cabem nela: teoria do pilar do dia, prática (só depois da teoria do mesmo assunto), laboratório, inglês e carreira. Dia perdido não vira atraso: o próximo dia de estudo começa da tarefa pendente seguinte. A data de início (`INICIO`), a grade (`SEMANA`, com a `fonte` de cada parte) e o tamanho das sessões (`SESSAO_MIN`) ficam em `lib/data/cronograma.ts`; a fila de tarefas e a montagem do dia, em `lib/data/agenda.ts`.
