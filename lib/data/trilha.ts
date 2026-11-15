@@ -1,4 +1,5 @@
-import type { Assunto, Pilar, TipoLeitura } from "../types";
+import type { Assunto, Leitura, Pilar, TipoLeitura } from "../types";
+import { FORMACOES, MODULOS } from "./cursos";
 
 // Cada assunto é um nó da trilha. Subtópicos, leituras e prática são marcáveis.
 // Leituras: [título, fonte, url, tipo]. Só links verificados; nada de capítulo inventado.
@@ -28,6 +29,9 @@ const MES: Record<string, number> = {
   "m10-dr": 15, "m10-redis": 15, "m08-judge": 16, "m06-carga": 19, "m04-async-di": 20, "m05-sql-efcore": 21,
   "m06-waf": 22, "m08-functions": 22, "m03-ddd-cqrs": 23, "m02-ml-base": 30, "m03-metricas": 31, "m02-llm-schema": 31,
 };
+
+// Módulos das formações do Branas entram no fim das leituras do assunto, com id e duração próprios.
+const modulosDe = (assuntoId: string): Leitura[] => MODULOS.filter(m => m.assunto === assuntoId).map(m => ({ id: m.id, titulo: m.titulo, ...FORMACOES[m.formacao], tipo: "vídeo", minutos: m.minutos }));
 
 export const assuntos: Assunto[] = [
   // ───────── Ano 1 · base sênior com IA ─────────
@@ -571,11 +575,43 @@ export const assuntos: Assunto[] = [
     ["Arquétipos de Staff", "Escopo e influência", "Documento de estratégia", "Portfólio de impacto"],
     [["Staff archetypes", "staffeng.com", "https://staffeng.com/guides/staff-archetypes/", "doc"]],
     "Retrospectiva dos 3 anos e plano dos próximos 12 meses."),
-].map((x) => ({ ...x, mes: MES[x.id] ?? x.mes })).sort((x, y) => x.mes - y.mes); // sort estável: mantém a ordem de escrita dentro de cada mês
+
+  // ───────── Módulos do Branas sem assunto equivalente (o conteúdo vem de cursos.ts) ─────────
+  a(7, "solid", "arquitetura", "SOLID", "Os cinco princípios que a hexagonal e a Clean Architecture do mês seguinte assumem que você já domina.",
+    ["SRP: um motivo para mudar", "OCP: estender sem editar", "LSP: subtipo que não quebra quem usa", "ISP: interfaces pequenas por cliente", "DIP: depender de abstração, não de detalhe"],
+    [],
+    "Refatorar um módulo de um serviço do time aplicando SRP e DIP e registrar o antes e o depois em um ADR curto."),
+  a(24, "patterns-estrutura", "arquitetura", "Design patterns: criação e estrutura", "Reconhecer os padrões criacionais e estruturais no código que você já lê e saber quando cada um é exagero.",
+    ["Factory method x abstract factory x builder", "Singleton e por que DI costuma substituí-lo", "Adapter, facade e proxy: a mesma forma, intenções diferentes", "Decorator x herança", "Composite e flyweight"],
+    [["Design patterns catalog", "Refactoring.Guru", "https://refactoring.guru/design-patterns/catalog", "doc"]],
+    "Achar 3 padrões criacionais ou estruturais em um repositório real e registrar onde ajudam e onde só adicionam camada."),
+  a(25, "patterns-comportamento", "arquitetura", "Design patterns: comportamento", "Padrões que organizam quem decide o quê em tempo de execução.",
+    ["Strategy x state", "Chain of responsibility e mediator", "Command e observer", "Template method x composição", "Repository como padrão de acesso a dados"],
+    [],
+    "Trocar um switch grande de um serviço do time por strategy ou chain of responsibility, com testes antes e depois."),
+  a(25, "second-brain", "ia", "Second brain para agentes", "Uma base de conhecimento que você e os agentes consultam e mantêm.",
+    ["Captura e curadoria", "Busca textual x semântica", "Memória compartilhada entre agentes", "Ciclo de vida: revisar, consolidar e apagar"],
+    [],
+    "Montar a base de conhecimento do time ligada aos agentes e medir quantas respostas passam a citá-la."),
+  a(26, "frontend", "arquitetura", "Arquitetura de frontend", "Separar estado, regra e apresentação no frontend como no backend.",
+    ["Camadas no frontend", "Estado local x global x servidor", "Vue, React e Angular: o que muda e o que é igual", "Testes no frontend"],
+    [],
+    "Separar a regra de negócio de uma tela da camada de apresentação e cobrir com teste unitário."),
+  a(27, "openclaw", "ia", "OpenClaw: agentes 24/7", "Rodar um agente sempre ligado com canais, sessões e automações agendadas.",
+    ["Gateway, runtime e workspace", "Canais e sessões", "Automações agendadas", "Permissões e segurança no deploy"],
+    [],
+    "Publicar um agente 24/7 com uma automação agendada e permissões mínimas."),
+  a(29, "hermes", "ia", "Hermes Agent", "Um agente que aprende com o uso: memória persistente e criação de skills.",
+    ["Modelos e provedores", "Loop de aprendizado e criação de skills", "Memória persistente", "Subagentes, MCP e containers"],
+    [],
+    "Configurar o Hermes com memória persistente e um MCP do time e comparar com o harness montado no ano 1."),
+].map((x) => ({ ...x, mes: MES[x.id] ?? x.mes, leituras: [...x.leituras, ...modulosDe(x.id)] })).sort((x, y) => x.mes - y.mes); // sort estável: mantém a ordem de escrita dentro de cada mês
 
 export const assuntosDoMes = (mes: number) => assuntos.filter((x) => x.mes === mes);
 
 // Tempo estimado: leitura por tipo + 20 min de anotação por subtópico (teoria); prática por trilha.
 export const MIN_LEITURA: Record<TipoLeitura, number> = { artigo: 40, doc: 60, curso: 180, livro: 120, ferramenta: 30, "vídeo": 60 };
-export const horasTeoria = (x: Assunto) => Math.round((x.leituras.reduce((t, l) => t + MIN_LEITURA[l.tipo], 0) + x.subtopicos.length * 20) / 30) / 2;
+/** Duração própria (módulo de curso) ou a estimativa do tipo. */
+export const minLeitura = (l: Leitura) => l.minutos ?? MIN_LEITURA[l.tipo];
+export const horasTeoria = (x: Assunto) => Math.round((x.leituras.reduce((t, l) => t + minLeitura(l), 0) + x.subtopicos.length * 20) / 30) / 2;
 export const horasPratica = (x: Assunto) => (x.pilar === "ingles" || x.pilar === "carreira" ? 2 : 4);

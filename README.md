@@ -27,6 +27,8 @@ A lista fica fixa durante o dia, salva em `cronograma-staff:hoje:v2`; ao conclu�
 
 O conteúdo está em `lib/data/blocos.ts` e `lib/data/cronograma.ts`. A interface está em `components/Roadmap.tsx`.
 
+Os módulos das formações de IA e de Arquitetura do Branas estão em `lib/data/cursos.ts`. Cada módulo entra como vídeo no assunto da trilha que cobre o mesmo tema, com a duração das aulas, e vai para o painel Hoje no mês desse assunto. Módulos sem assunto equivalente ganharam assuntos novos: SOLID no mês 7, design patterns nos meses 24–25, Second Brain no 25, frontend no 26, OpenClaw no 27 e Hermes no 29.
+
 O progresso é salvo localmente em `cronograma-staff:v4`, com exportação/importação JSON. Ao abrir a nova versão, o estado anterior `cronograma-staff:v3` é preservado no exportável como histórico legado e **não** é contabilizado como avanço no novo roadmap.
 
 ## Rodar localmente

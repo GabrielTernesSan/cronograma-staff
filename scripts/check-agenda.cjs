@@ -106,3 +106,10 @@ assert.ok(proj.has("2026-11-09") && proj.has("2026-11-10"), "dias extras entram 
 assert.ok(!proj.has("2026-11-16") && !proj.has("2026-11-17"), "segunda e terça seguintes livres");
 console.log("Projeção OK:", proj.size, "dias de estudo até 31/12.");
 for (const d of ["2026-11-18", "2026-11-19", "2026-11-20"]) console.log(fmtDiaSemana(d), JSON.stringify(proj.get(d).map(ids => ids.map(id => T(id).texto.slice(0, 50)))));
+
+// Módulos do Branas: cada um cai em um assunto que existe, com id único, e vira tarefa da fila
+const { MODULOS } = require("../lib/data/cursos.ts");
+assert.equal(new Set(MODULOS.map(m => m.id)).size, MODULOS.length);
+for (const m of MODULOS) assert.ok(assuntos.some(a => a.id === m.assunto), `${m.id}: assunto ${m.assunto} não existe`);
+assert.ok(MODULOS.every(m => TAREFAS.some(t => t.baseId === m.id)), "módulo fora da fila");
+console.log("Módulos do Branas OK:", MODULOS.length);
