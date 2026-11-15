@@ -4,7 +4,7 @@ import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
 import { assuntoById, feita, idsParaMarcar, metaMes, previsaoMes, projetarDias, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
 import { diaDeEstudo, diasDaSemana, DESTINOS, DESTINOS_NOTA, INICIO, inicioMes, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, periodo, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
-import { assuntos, assuntosDoMes, horasPratica, horasTeoria, MIN_LEITURA } from "@/lib/data/trilha";
+import { assuntos, assuntosDoMes, horasPratica, horasTeoria, minLeitura } from "@/lib/data/trilha";
 import { diasEntre, fmtDia, fmtDiaSemana, fmtMesAno, hojeIso, paraData, paraIso } from "@/lib/datas";
 import { addDias, DIA, dataDoDia, diaId, fase, horasDia, mesDoPlano, parteFeita, parteId, segunda } from "@/lib/grade";
 import { useHoje, type DiaHoje } from "@/lib/useHoje";
@@ -414,7 +414,7 @@ function AssuntoPanel({ id, onSelect }: { id: string; onSelect: (s: Sel) => void
     <h3 className="label mt-7 mb-1">Leituras</h3>
     <ul>{x.leituras.map(l => <li key={l.id} className="flex items-start gap-3 border-t border-line-soft py-3 first:border-t-0">
       <input aria-label={`Marcar como lida: ${l.titulo}`} className="mt-1.5 size-4 shrink-0" type="checkbox" checked={a.done.has(l.id)} onChange={() => a.toggle(l.id)} />
-      <div className="min-w-0"><a href={l.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${a.done.has(l.id) ? "text-muted line-through" : ""}`}>{l.titulo} ↗</a><p className="font-mono text-[11px] text-muted">{l.fonte} · {l.tipo} · ~{MIN_LEITURA[l.tipo]} min</p></div>
+      <div className="min-w-0"><a href={l.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${a.done.has(l.id) ? "text-muted line-through" : ""}`}>{l.titulo} ↗</a><p className="font-mono text-[11px] text-muted">{l.fonte} · {l.tipo} · ~{minLeitura(l)} min</p></div>
     </li>)}</ul>
     <h3 className="label mt-7 mb-1">Explique com suas palavras</h3>
     <p className="mb-2 text-[13.5px] text-muted">Sem consultar: o que é, por que importa e como se liga ao que você já sabe. Onde travar é o que precisa estudar de novo.</p>

@@ -3,7 +3,7 @@ import { addDias, paraData } from "../datas";
 import type { Pilar } from "../types";
 import { laboratorios } from "./blocos";
 import { diaDeEstudo, fimMes, INICIO, SESSAO_MIN, type DiaSemana, type Parte } from "./cronograma";
-import { assuntos, assuntosDoMes, horasPratica, MIN_LEITURA } from "./trilha";
+import { assuntos, assuntosDoMes, horasPratica, minLeitura } from "./trilha";
 
 // Fila única com todas as tarefas dos 36 meses, na ordem em que devem ser feitas.
 // Reaproveita os IDs da trilha e dos laboratórios: marcar aqui marca no mapa e vice-versa.
@@ -26,7 +26,7 @@ const fatiar = (baseId: string, b: Base): Tarefa[] => {
 const doMes = (mes: number): Tarefa[] => {
   const xs = assuntosDoMes(mes), lab = laboratorios[mes - 1];
   const teoria = xs.flatMap(x => [
-    ...x.leituras.map(l => fatiar(l.id, { mes, assuntoId: x.id, tipo: "leitura", texto: `Ler: ${l.titulo} (${l.fonte})`, minutos: MIN_LEITURA[l.tipo], url: l.url })),
+    ...x.leituras.map(l => fatiar(l.id, { mes, assuntoId: x.id, tipo: "leitura", texto: `${l.tipo === "vídeo" ? "Assistir" : "Ler"}: ${l.titulo} (${l.fonte})`, minutos: minLeitura(l), url: l.url })),
     ...x.subtopicos.map(s => fatiar(s.id, { mes, assuntoId: x.id, tipo: "estudo", texto: `Estudar e explicar em voz alta, sem consultar: ${s.texto}`, minutos: 20 })),
   ]).flat();
   const pratica = xs.flatMap(x => fatiar(x.pratica.id, { mes, assuntoId: x.id, tipo: "pratica", texto: `Prática: ${x.pratica.texto}`, minutos: horasPratica(x) * 60 }));
