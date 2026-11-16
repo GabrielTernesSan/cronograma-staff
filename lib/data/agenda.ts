@@ -59,28 +59,22 @@ export const idsParaMarcar = (t: Tarefa, valor: boolean) => valor ? (t.ultima &&
 // Sessões de cada tarefa (baseId → tarefas), montado uma vez.
 const sessoesDe = new Map<string, Tarefa[]>();
 TAREFAS.forEach(t => { const ss = sessoesDe.get(t.baseId); if (ss) ss.push(t); else sessoesDe.set(t.baseId, [t]); });
+// Tarefas divididas em sessões (baseId → ids das sessões).
+const SESSOES = [...sessoesDe].filter(([, ss]) => ss.length > 1).map(([b, ss]) => [b, ss.map(s => s.id)] as const);
 /**
- * IDs a marcar quando o usuário marca `ts` (painel Hoje, semana, resgate). Além de idsParaMarcar, marca o id original
- * de toda tarefa cujas sessões ficam todas feitas, em qualquer ordem: quem desmarcou e remarcou uma sessão do meio
- * também fecha o módulo (idsParaMarcar sozinho só fecha quando a sessão marcada é a última).
+ * Regra única de "feito": o id original. Toda tarefa cujas sessões estão todas em `done` ganha o id original,
+ * em qualquer ordem de marcação (idsParaMarcar só o põe quando a sessão marcada é a última). O useProgress aplica
+ * isto ao carregar e a cada gravação, então o progresso salvo de antes também fica certo. Devolve o mesmo Set se nada muda.
  */
-export const idsAoMarcar = (ts: Tarefa[], done: Set<string>) => {
-  const ids = new Set(ts.flatMap(t => idsParaMarcar(t, true)));
-  for (const b of new Set(ts.map(t => t.baseId))) {
-    const ss = sessoesDe.get(b) ?? [];
-    if (ss.length > 1 && ss.every(s => done.has(s.id) || ids.has(s.id))) ids.add(b);
-  }
-  return [...ids];
+export const completarSessoes = (done: Set<string>) => {
+  const faltam = SESSOES.filter(([b, ids]) => !done.has(b) && ids.every(id => done.has(id))).map(([b]) => b);
+  return faltam.length ? new Set([...done, ...faltam]) : done;
 };
 /** Todos os ids de uma tarefa da trilha (o original e as sessões), para marcar ou desmarcar fora do painel Hoje. */
 export const idsDaTarefa = (baseId: string) => [baseId, ...(sessoesDe.get(baseId) ?? []).filter(t => t.id !== baseId).map(t => t.id)];
 /** Sessões feitas e total de uma tarefa (módulo de curso de 4h = 8 sessões). */
 export const sessoesFeitas = (baseId: string, done: Set<string>, valores: Valores) => {
   const ss = sessoesDe.get(baseId) ?? []; return { feitas: ss.filter(t => feita(t, done, valores)).length, total: ss.length };
-};
-/** Tarefa concluída: o id original marcado ou todas as sessões feitas (desmarcar uma sessão tira o original). */
-export const tarefaConcluida = (baseId: string, done: Set<string>, valores: Valores) => {
-  if (done.has(baseId)) return true; const s = sessoesFeitas(baseId, done, valores); return s.total > 0 && s.feitas === s.total;
 };
 /** Minutos que faltam de uma tarefa: a soma das sessões ainda não feitas (0 se concluída). */
 export const minutosRestantes = (baseId: string, done: Set<string>, valores: Valores) =>

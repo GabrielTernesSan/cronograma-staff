@@ -1,5 +1,5 @@
 import type { Assunto, Leitura, Pilar, TipoLeitura } from "../types";
-import { FORMACOES, fonteDe, MODULOS } from "./cursos";
+import { FORMACOES, fonteDe, MIN_LEITURA, MODULOS } from "./cursos";
 
 // Cada assunto é um nó da trilha. Subtópicos, leituras e prática são marcáveis.
 // Leituras: [título, fonte, url, tipo]. Só links verificados; nada de capítulo inventado.
@@ -617,7 +617,7 @@ export const assuntos: Assunto[] = [
 export const assuntosDoMes = (mes: number) => assuntos.filter((x) => x.mes === mes);
 
 // Tempo estimado: leitura por tipo (teoria); prática por trilha.
-export const MIN_LEITURA: Record<TipoLeitura, number> = { artigo: 40, doc: 60, curso: 180, livro: 120, ferramenta: 30, "vídeo": 60 };
+export { MIN_LEITURA };
 /** Duração própria (módulo de curso) ou a estimativa do tipo. */
 export const minLeitura = (l: Leitura) => l.minutos ?? MIN_LEITURA[l.tipo];
 /** Leituras que contam: módulos de curso (e as leituras de inglês e carreira). As opcionais são aprofundamento. */

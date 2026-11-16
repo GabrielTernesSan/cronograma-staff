@@ -1,4 +1,4 @@
-import { minutosRestantes, tarefaConcluida } from "./data/agenda";
+import { minutosRestantes } from "./data/agenda";
 import { laboratorios } from "./data/blocos";
 import { materiais, trimestres } from "./data/cronograma";
 import { cursoDe, FORMACOES, MODULOS } from "./data/cursos";
@@ -28,8 +28,9 @@ export type ProgressoCurso = { curso: string; url: string; formacao: keyof typeo
 export const progressoCursos = (done: Set<string>): ProgressoCurso[] => {
   const out = new Map<string, ProgressoCurso>();
   for (const m of MODULOS) {
-    // Curso não tem evidência: valores não entram na conta de feita. Módulo começado: falta só o das sessões não feitas.
-    const nome = cursoDe(m), feito = tarefaConcluida(m.id, done, {});
+    // Feito = id do módulo marcado (o useProgress o completa quando todas as sessões estão feitas). Curso não tem evidência,
+    // então valores não entram na conta. Módulo começado: falta só o das sessões não feitas.
+    const nome = cursoDe(m), feito = done.has(m.id);
     const p = out.get(nome) ?? { curso: nome, url: m.formacao === "alura" ? m.url ?? FORMACOES.alura.url : FORMACOES[m.formacao].url, // leituras: "" (cada uma tem o seu link)
       formacao: m.formacao, feitos: 0, total: 0, minutosRestantes: 0, minutosTotal: 0 };
     p.total++; p.minutosTotal += m.minutos ?? 0; if (feito) p.feitos++; else p.minutosRestantes += minutosRestantes(m.id, done, {});

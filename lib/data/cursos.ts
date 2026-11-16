@@ -1,3 +1,5 @@
+import type { TipoLeitura } from "../types";
+
 // Cursos da trilha: módulos das duas formações do Rodrigo Branas e cursos da Alura, cada um preso a um assunto.
 // Curso é a teoria obrigatória do assunto; os artigos do assunto ficam como aprofundamento opcional.
 // Os cursos têm fila própria no painel Hoje (partes com fonte "curso"): andam toda semana sem esperar o mês do assunto,
@@ -5,9 +7,10 @@
 // O id é do módulo, não do assunto: trocar o módulo de assunto não perde o progresso.
 // Duração Branas: soma das aulas que a página pública lista; aula sem duração na página conta 30 min.
 // Formação IA: módulos e aulas conferidos na plataforma (nov/2026); sem duração na plataforma, cada aula conta 30 min.
-// Ids novos (nov/2026) para os módulos de IA conferidos na plataforma: os antigos (branas-ia-01 a 12) tinham outra divisão
-// de aulas e de sessões, então não são reaproveitados (ids são o contrato do progresso; ninguém tinha marcado esses módulos).
-// Leituras em português: entram na fila no lugar dos módulos já feitos, como teoria do assunto; cada uma conta ARTIGO min.
+// Ids são o contrato do progresso: RAG, Second Brain, OpenClaw e Hermes mantêm branas-ia-09, 10, 11 e 12, com o mesmo tema.
+// A divisão em sessões (~sN) mudou com as aulas da plataforma; nenhuma sessão desses módulos tinha sido oferecida pela fila
+// (eles vêm bem depois dos módulos 01–08 na ordem dos assuntos), então não há sessão salva com o significado antigo.
+// Leituras em português: entram na fila no lugar dos módulos já feitos, como teoria do assunto; cada uma conta MIN_LEITURA.artigo min.
 // Duração Alura: a página só mostra a carga horária (vídeo + exercícios), bem maior que o vídeo
 // (ex.: 89 min de vídeo para 6h); cada curso conta 40% da carga até ser conferido na plataforma.
 
@@ -30,11 +33,11 @@ const ALURA = "https://www.alura.com.br/curso-online-";
 /** Curso da Alura: carga anunciada em horas vira 40% em minutos. */
 const alura = (id: string, titulo: string, assunto: string, carga: number, slug: string): Modulo =>
   ({ id: `alura-${id}`, formacao: "alura", titulo: `${titulo} (${carga}h na Alura)`, curso: titulo, assunto, minutos: Math.round(carga * 60 * 0.4), url: ALURA + slug });
-// Igual a MIN_LEITURA.artigo (trilha.ts); repetido aqui porque trilha.ts importa este arquivo.
-const ARTIGO = 40;
+// Tempo estimado de leitura por tipo (fica aqui porque trilha.ts importa este arquivo e as leituras da fila também usam).
+export const MIN_LEITURA: Record<TipoLeitura, number> = { artigo: 40, doc: 60, curso: 180, livro: 120, ferramenta: 30, "vídeo": 60 };
 /** Leitura em português (autor e link próprios): entra na fila de cursos como teoria do assunto. */
 const pt = (id: string, titulo: string, autor: string, url: string, assunto: string): Modulo =>
-  ({ id: `pt-${id}`, formacao: "leitura", titulo, fonte: autor, assunto, minutos: ARTIGO, url });
+  ({ id: `pt-${id}`, formacao: "leitura", titulo, fonte: autor, assunto, minutos: MIN_LEITURA.artigo, url });
 
 export const MODULOS: Modulo[] = [
   // Formação IA
@@ -43,11 +46,11 @@ export const MODULOS: Modulo[] = [
   // entram as leituras em português do fim desta lista.
   // O módulo 13 (Agentes Autônomos) está dividido em duas partes: a geral e o OpenClaw no assunto do OpenClaw,
   // o Hermes no assunto do Hermes (que de outro modo ficaria sem teoria).
-  ia("rag", 11, "RAG", ["introdução", "ingestão de fontes", "técnicas de chunking", "embedding", "storage (bancos vetoriais)", "pergunta e top k", "reranking", "RRF com BM25", "conectando o RAG na LLM", "multi-query"], "m03-embeddings"),
-  ia("second-brain", 12, "Second Brain", ["o problema da gestão de conhecimento", "LLM Wiki", "processo no AGENTS.md", "INGEST", "QUERY: anúncios", "QUERY: artigos de blog", "QUERY: landing page", "LINT"], "m25-second-brain"),
+  ia("09", 11, "RAG", ["introdução", "ingestão de fontes", "técnicas de chunking", "embedding", "storage (bancos vetoriais)", "pergunta e top k", "reranking", "RRF com BM25", "conectando o RAG na LLM", "multi-query"], "m03-embeddings"),
+  ia("10", 12, "Second Brain", ["o problema da gestão de conhecimento", "LLM Wiki", "processo no AGENTS.md", "INGEST", "QUERY: anúncios", "QUERY: artigos de blog", "QUERY: landing page", "LINT"], "m25-second-brain"),
   { id: "branas-ia-live-llm-wiki", formacao: "ia", titulo: "Live · Second Brain usando LLM Wiki (Pedro Nauck)", assunto: "m25-second-brain", minutos: 60 },
-  ia("agentes-autonomos-1", 13, "Agentes Autônomos (parte 1)", ["um pouco sobre a história", "comparação com outras ferramentas", "complexidade arquitetural", "visão geral: OpenClaw"], "m27-openclaw"),
-  ia("agentes-autonomos-2", 13, "Agentes Autônomos (parte 2)", ["visão geral: Hermes", "instalação do Hermes", "Slack no Hermes", "Linear no Hermes"], "m29-hermes"),
+  ia("11", 13, "Agentes Autônomos (parte 1)", ["um pouco sobre a história", "comparação com outras ferramentas", "complexidade arquitetural", "visão geral: OpenClaw"], "m27-openclaw"),
+  ia("12", 13, "Agentes Autônomos (parte 2)", ["visão geral: Hermes", "instalação do Hermes", "Slack no Hermes", "Linear no Hermes"], "m29-hermes"),
 
   // Formação Arquitetura
   { id: "branas-arq-01", formacao: "arq", titulo: "Módulo 01 · Automação de testes: fundamentos, FIRST e TDD, unit/integration/E2E", assunto: "m02-testes", minutos: 155 },

@@ -1,11 +1,14 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { completarSessoes } from "./data/agenda";
 import { parse, quando, saved, type State, type Valores } from "./progresso";
 import { avaliar, isoDia, pendentes, revId, type Card, type Nota } from "./revisao";
 export type { Valores };
 export type Sync = "sem-token" | "salvando" | "salvo" | "erro";
 const STORAGE_KEY = "cronograma-staff:v4", LEGACY_KEY = "cronograma-staff:v3", TOKEN_KEY = "cronograma-staff:token", API = "/api/progresso";
 const EMPTY: State = { done: new Set(), valores: {}, cards: {} };
+// Todo estado que entra (carregado ou gravado) passa por aqui: módulo com todas as sessões marcadas fica marcado.
+const normalizar = (s: State): State => { const done = completarSessoes(s.done); return done === s.done ? s : { ...s, done }; };
 const write = (s: State, at?: string) => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(saved(s, at))); } catch {} return s; };
 const lerToken = () => { try { return localStorage.getItem(TOKEN_KEY) ?? ""; } catch { return ""; } };
 const gravarToken = (t: string) => { try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch {} };
@@ -15,9 +18,9 @@ export function useProgress() {
   const [state, setState] = useState<State>(EMPTY); const [loaded, setLoaded] = useState(false); const [sync, setSync] = useState<Sync>("sem-token");
   const token = useRef(""), sujo = useRef(false), timer = useRef<ReturnType<typeof setTimeout>>(undefined), atual = useRef(state); atual.current = state;
   const enviar = useCallback(async (s: State) => { if (!token.current) return setSync("sem-token"); setSync("salvando"); try { const r = await fetch(API, { method: "PUT", headers: { authorization: `Bearer ${token.current}`, "content-type": "application/json" }, body: JSON.stringify(saved(s, localAt() || undefined)) }); if (r.status === 401) { token.current = ""; gravarToken(""); setSync("erro"); } else setSync(r.ok ? "salvo" : "erro"); } catch { setSync("erro"); } }, []);
-  useEffect(() => { token.current = lerToken(); const local = read(); setState(local); if (!token.current) setSync("sem-token"); const at = localAt(); fetch(API, { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(j => { if (sujo.current || !j?.dados) return void (at && token.current && enviar(local)); const s = parse(j.dados), sAt = quando(j.dados); if (s && sAt >= at) { setState(write(s, sAt || undefined)); if (token.current) setSync("salvo"); } else if (token.current) enviar(local); }).catch(() => token.current && setSync("erro")).finally(() => setLoaded(true)); }, [enviar]);
+  useEffect(() => { token.current = lerToken(); const local = normalizar(read()); setState(local); if (!token.current) setSync("sem-token"); const at = localAt(); fetch(API, { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(j => { if (sujo.current || !j?.dados) return void (at && token.current && enviar(local)); const s0 = parse(j.dados), s = s0 && normalizar(s0), sAt = quando(j.dados); if (s && sAt >= at) { setState(write(s, sAt || undefined)); if (token.current) setSync("salvo"); } else if (token.current) enviar(local); }).catch(() => token.current && setSync("erro")).finally(() => setLoaded(true)); }, [enviar]);
   useEffect(() => { if (!sujo.current) return; sujo.current = false; clearTimeout(timer.current); timer.current = setTimeout(() => enviar(atual.current), 800); }, [state, enviar]);
-  const gravar = useCallback((s: State) => { sujo.current = true; return write(s); }, []);
+  const gravar = useCallback((s: State) => { sujo.current = true; return write(normalizar(s)); }, []);
   const commit = useCallback((s: State) => setState(gravar(s)), [gravar]);
   const toggle = useCallback((id: string) => setState(p => { const done = new Set(p.done); done.has(id) ? done.delete(id) : done.add(id); return gravar({ ...p, done }); }), [gravar]);
   const setMany = useCallback((ids: string[], value: boolean) => setState(p => { const done = new Set(p.done); ids.forEach(id => value ? done.add(id) : done.delete(id)); return gravar({ ...p, done }); }), [gravar]);

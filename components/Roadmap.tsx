@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
-import { agrupar, assuntoById, feita, idsAoMarcar, idsDaTarefa, idsParaMarcar, metaMes, minutosRestantes, MODULOS_NA_FILA, sessoesFeitas, planoAte, previsaoCursos, previsaoMes, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
+import { agrupar, assuntoById, feita, idsDaTarefa, idsParaMarcar, metaMes, minutosRestantes, MODULOS_NA_FILA, sessoesFeitas, planoAte, previsaoCursos, previsaoMes, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
 import { diaDeEstudo, diasDaSemana, DESTINOS, DESTINOS_NOTA, INICIO, inicioMes, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, periodo, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
 import { cursoDe, fonteDe, FORMACOES, MODULOS } from "@/lib/data/cursos";
 import { assuntos, assuntosDoMes, horasPratica, horasTeoria, minLeitura, obrigatorias, opcionais } from "@/lib/data/trilha";
@@ -148,7 +148,7 @@ function PartesDoDia({ dia, seg, ativo, onSelect }: { dia: DiaHoje; seg: Date; a
   return <ol className="mt-5 grid gap-3">{dia.partes.map(p => {
     const id = parteId(seg, dia.dia.dow, p.indice), f = parteFeita(seg, dia.dia, p.indice, a.done), base = dia.dia.partes[p.indice];
     // Marcar a última tarefa da parte marca a parte; desmarcar uma tarefa desmarca a parte.
-    const aoMarcar = (g: Tarefa[], valor: boolean) => { const resto = p.tarefas.filter(x => !g.includes(x)).every(x => feita(x, a.done, a.valores)); a.setMany([...(valor ? idsAoMarcar(g, a.done) : g.flatMap(t => idsParaMarcar(t, false))), ...(valor ? (resto ? [id] : []) : [id])], valor); };
+    const aoMarcar = (g: Tarefa[], valor: boolean) => { const resto = p.tarefas.filter(x => !g.includes(x)).every(x => feita(x, a.done, a.valores)); a.setMany([...g.flatMap(t => idsParaMarcar(t, valor)), ...(valor ? (resto ? [id] : []) : [id])], valor); };
     return <li key={p.indice} className={`overflow-hidden rounded-xl border ${ativo && f ? "border-ok/40 bg-ok/5" : "border-line bg-surface"}`}>
       <label className={`flex items-start gap-3 bg-surface2/60 px-4 py-3 ${ativo ? "cursor-pointer" : ""}`}>
         <span className={`mt-1.5 inline-block size-2 shrink-0 rounded-full ${base?.pilar ? DOT[base.pilar] : "bg-muted"}`} />
@@ -170,7 +170,7 @@ function Chip({ children, tom }: { children: React.ReactNode; tom?: "accent" | "
 function TarefaItem({ g, onSelect, aoMarcar }: { g: Tarefa[]; onSelect: (s: Sel) => void; aoMarcar?: (g: Tarefa[], valor: boolean) => void }) {
   const a = useApp(); const t = g[0], c = g.every(x => feita(x, a.done, a.valores)); const assunto = t.assuntoId ? assuntoById.get(t.assuntoId) : undefined;
   const titulo = t.titulo ?? t.texto, tipo = t.curso && t.formato === "vídeo" ? "curso" : t.formato === "vídeo" ? "vídeo" : t.formato === "curso" ? "curso" : TIPOS[t.tipo];
-  const marcar = aoMarcar ?? ((xs: Tarefa[], v: boolean) => a.setMany(v ? idsAoMarcar(xs, a.done) : xs.flatMap(x => idsParaMarcar(x, false)), v));
+  const marcar = aoMarcar ?? ((xs: Tarefa[], v: boolean) => a.setMany(xs.flatMap(x => idsParaMarcar(x, v)), v));
   return <li className="flex items-start gap-3 px-4 py-3">
     <input aria-label={titulo} type="checkbox" className="mt-0.5 size-4 shrink-0" checked={c} onChange={() => marcar(g, !c)} />
     <div className="min-w-0 flex-1">
@@ -477,7 +477,7 @@ function AssuntoPanel({ id, onSelect }: { id: string; onSelect: (s: Sel) => void
     <h2 className="mt-2 text-2xl font-bold">{x.titulo}</h2>
     <p className="mt-2 text-[16px] leading-relaxed text-muted">{x.resumo}</p>
     <Bar n={n} total={ids.length} /><p className="mt-1 font-mono text-[11px] text-muted">{n}/{ids.length} itens</p>
-    <div className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Ordem:</strong> primeiro a teoria (~{horasTeoria(x)}h), depois a prática (~{horasPratica(x)}h). {obrigatorias(x).length ? `A prática libera quando ${({ Cursos: "os cursos", Leituras: "as leituras", "Cursos e leituras": "os cursos e as leituras" } as const)[rotuloTeoria(x)]} do assunto estiverem marcados.` : "Este assunto não tem curso: a prática já está liberada."}</p></div><h3 className="mt-7 text-lg font-bold">Passo 1 · Teoria <span className="font-mono text-[12px] font-normal text-muted">~{horasTeoria(x)}h</span></h3><h3 className="label mt-3 mb-1">O que o assunto cobre</h3><ul className="list-disc pl-5 text-[14.5px] text-muted">{x.subtopicos.map(s => <li key={s.id}>{s.texto}</li>)}</ul>
+    <div className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Ordem:</strong> primeiro a teoria (~{horasTeoria(x)}h), depois a prática (~{horasPratica(x)}h). {obrigatorias(x).length ? `A prática libera quando ${({ Cursos: "os cursos do assunto estiverem marcados", Leituras: "as leituras do assunto estiverem marcadas", "Cursos e leituras": "os cursos e as leituras do assunto estiverem marcados" } as const)[rotuloTeoria(x)]}.` : "Este assunto não tem curso: a prática já está liberada."}</p></div><h3 className="mt-7 text-lg font-bold">Passo 1 · Teoria <span className="font-mono text-[12px] font-normal text-muted">~{horasTeoria(x)}h</span></h3><h3 className="label mt-3 mb-1">O que o assunto cobre</h3><ul className="list-disc pl-5 text-[14.5px] text-muted">{x.subtopicos.map(s => <li key={s.id}>{s.texto}</li>)}</ul>
     {obrigatorias(x).length > 0 && <><h3 className="label mt-7 mb-1">{rotuloTeoria(x)}</h3><Leituras ls={obrigatorias(x)} /></>}
     {opcionais(x).length > 0 && <><h3 className="label mt-7 mb-1">Aprofundamento <span className="normal-case tracking-normal text-muted">(opcional, fora da fila)</span></h3><Leituras ls={opcionais(x)} /></>}
     <h3 className="label mt-7 mb-1">Anotações <span className="normal-case tracking-normal text-muted">(opcional)</span></h3>
@@ -503,15 +503,15 @@ function Leituras({ ls }: { ls: Leitura[] }) {
 /* ───────── Cursos (Branas e Alura): fila própria ───────── */
 function Cursos({ onSelect }: { onSelect: (s: Sel) => void }) {
   const app = useApp(); const agora = useAgora();
-  const cursos = progressoCursos(app.done);
+  const cursos = useMemo(() => progressoCursos(app.done), [app.done]);
   const restante = cursos.reduce((s, c) => s + c.minutosRestantes, 0), total = cursos.reduce((s, c) => s + c.minutosTotal, 0);
   const fim = agora ? previsaoCursos(app.done, app.valores, paraIso(agora)) : null;
   const horasSemana = SEMANA.reduce((s, d) => s + d.partes.reduce((t, p) => t + (p.fonte === "curso" ? p.horas : 0), 0), 0);
   const h = (min: number) => `${Math.round(min / 6) / 10}h`;
   const grupos: [string, typeof cursos][] = [["Rodrigo Branas", cursos.filter(c => c.formacao === "ia" || c.formacao === "arq")], ["Alura", cursos.filter(c => c.formacao === "alura")], ["Leituras em português", cursos.filter(c => c.formacao === "leitura")]];
   // Módulos na ordem da fila (a ordem de TAREFAS), com as sessões já feitas de cada um.
-  // ok: o id original marcado ou todas as sessões feitas; resto: minutos das sessões que faltam.
-  const fila = useMemo(() => MODULOS_NA_FILA.map(m => { const s = sessoesFeitas(m.id, app.done, app.valores); return { m, ...s, ok: app.done.has(m.id) || (s.total > 0 && s.feitas === s.total), resto: minutosRestantes(m.id, app.done, app.valores) }; }), [app.done, app.valores]);
+  // ok: o id original marcado (o useProgress o completa quando todas as sessões estão feitas); resto: minutos das sessões que faltam.
+  const fila = useMemo(() => MODULOS_NA_FILA.map(m => { const s = sessoesFeitas(m.id, app.done, app.valores); return { m, ...s, ok: app.done.has(m.id), resto: minutosRestantes(m.id, app.done, app.valores) }; }), [app.done, app.valores]);
   const proximo = fila.find(x => !x.ok);
   // Assunto do primeiro módulo pendente de cada curso, para abrir no painel.
   const assuntoPendente = (curso: string) => (fila.find(x => cursoDe(x.m) === curso && !x.ok) ?? fila.find(x => cursoDe(x.m) === curso))?.m.assunto;
@@ -530,7 +530,7 @@ function Cursos({ onSelect }: { onSelect: (s: Sel) => void }) {
       <a href={proximo.m.url ?? FORMACOES[proximo.m.formacao].url} target="_blank" rel="noreferrer" className="mt-1 block font-display text-[17px] font-bold leading-snug hover:text-accent hover:underline">{proximo.m.titulo} ↗</a>
       <p className="mt-1 font-mono text-[11.5px] text-muted">{fonteDe(proximo.m)} · {proximo.feitas > 0 ? `${proximo.feitas}/${proximo.total} sessões feitas · ` : ""}faltam ~{h(proximo.resto)}</p></div>}
     <section><h2 className="text-xl font-bold">Na ordem da fila</h2>
-      <p className="mt-1 text-[13.5px] text-muted">A mesma ordem que o painel Hoje segue. Marque aqui o que já fez fora do app: o módulo inteiro (com as sessões) fica feito e a fila pula para o próximo.</p>
+      <p className="mt-1 text-[13.5px] text-muted">A ordem em que o painel Hoje puxa os cursos (se um item não cabe no horário do dia, o Hoje adianta o seguinte e volta nele depois). Marque aqui o que já fez fora do app: o módulo inteiro (com as sessões) fica feito e a fila pula para o próximo.</p>
       <ul className="card mt-3 divide-y divide-line-soft">{fila.map(({ m, feitas, total, ok }) => { return <li key={m.id} className={`flex items-start gap-3 px-4 py-2.5 ${m.id === proximo?.m.id ? "bg-accent/5" : ""}`}>
         <input aria-label={`Marcar como feito: ${m.titulo}`} className="mt-1 size-4 shrink-0" type="checkbox" checked={ok} onChange={() => app.setMany(idsDaTarefa(m.id), !ok)} />
         <div className="min-w-0 flex-1"><a href={m.url ?? FORMACOES[m.formacao].url} target="_blank" rel="noreferrer" className={`text-[14px] font-medium hover:text-accent hover:underline ${ok ? "text-muted line-through" : ""}`}>{m.titulo}</a>
