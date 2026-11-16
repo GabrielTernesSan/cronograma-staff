@@ -196,7 +196,7 @@ assert.deepEqual(comuns, [], "resgate repete tarefa do plano da semana");
 // Resgate não pega módulo de curso (a fila de cursos anda em ordem pelo Hoje); resgate salvo com curso é remontado
 {
   const at = atrasados(new Date("2026-11-16T12:00:00"), new Set(), {});
-  const r = montarResgate(at.dias, { "2026-11-09": [["branas-ia-07~s1"], []] }, new Set(), {}, []);
+  const r = montarResgate(at.dias, { "2026-11-09": [["branas-ia-09~s1"], []], "2026-11-10": [["tarefa-que-nao-existe"], []] }, new Set(), {}, []);
   assert.ok(Object.values(r).flat(2).every(id => !T(id).curso), "resgate com módulo de curso");
   assert.ok(Object.values(r).flat(2).length > 0, "resgate vazio");
 }

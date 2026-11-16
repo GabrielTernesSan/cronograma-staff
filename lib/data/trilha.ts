@@ -1,5 +1,5 @@
 import type { Assunto, Leitura, Pilar, TipoLeitura } from "../types";
-import { FORMACOES, MODULOS } from "./cursos";
+import { FORMACOES, fonteDe, MODULOS } from "./cursos";
 
 // Cada assunto é um nó da trilha. Subtópicos, leituras e prática são marcáveis.
 // Leituras: [título, fonte, url, tipo]. Só links verificados; nada de capítulo inventado.
@@ -32,7 +32,7 @@ const MES: Record<string, number> = {
 
 // Módulos de curso (Branas e Alura) abrem as leituras do assunto, com id, link e duração próprios.
 // Os ids das outras leituras (-r1, -r2...) saem da posição dentro de a(), então pôr o módulo na frente não os muda.
-const modulosDe = (assuntoId: string): Leitura[] => MODULOS.filter(m => m.assunto === assuntoId).map(m => ({ id: m.id, titulo: m.titulo, fonte: FORMACOES[m.formacao].fonte, url: m.url ?? FORMACOES[m.formacao].url, tipo: "vídeo", minutos: m.minutos, curso: true }));
+const modulosDe = (assuntoId: string): Leitura[] => MODULOS.filter(m => m.assunto === assuntoId).map(m => ({ id: m.id, titulo: m.titulo, fonte: fonteDe(m), url: m.url ?? FORMACOES[m.formacao].url, tipo: m.formacao === "leitura" ? "artigo" : "vídeo", minutos: m.minutos, curso: true }));
 // Nos pilares técnicos o curso é a teoria; artigo, doc e link de curso externo viram aprofundamento opcional.
 // Inglês e carreira não têm curso: as leituras deles continuam sendo a teoria.
 const TECNICOS: Pilar[] = ["arquitetura", "ia", "cloud"];
