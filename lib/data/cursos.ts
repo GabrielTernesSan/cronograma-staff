@@ -128,6 +128,10 @@ export const MODULOS: Modulo[] = [
 
 /** De onde vem o módulo, para mostrar: autor da leitura ou nome da formação. */
 export const fonteDe = (m: Modulo) => m.fonte ?? FORMACOES[m.formacao].fonte;
+/** Fonte curta, para listas apertadas: autor da leitura ou nome curto da formação. */
+export const fonteCurtaDe = (m: Modulo) => m.fonte ?? FORMACOES[m.formacao].curto;
+/** Link do módulo: o próprio (curso da Alura, leitura) ou a página da formação. */
+export const urlDe = (m: Modulo) => m.url ?? FORMACOES[m.formacao].url;
 
 /** Nome do curso de um módulo, para agrupar o progresso: a formação do Branas inteira ou cada curso da Alura. */
 export const cursoDe = (m: Modulo) => m.curso ?? FORMACOES[m.formacao].fonte;

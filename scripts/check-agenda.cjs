@@ -173,6 +173,14 @@ for (const m of MODULOS) if (m.url) assert.ok(!assuntos.find(a => a.id === m.ass
   assert.equal(completarSessoes(semS3), semS3, "sessão faltando completou o módulo");
   // Progresso já certo não muda (mesmo Set: o useProgress não regrava à toa)
   const certo = new Set(["branas-ia-10", ...sess]); assert.equal(completarSessoes(certo), certo);
+  // Desmarcar pelo id original sem as sessões seria desfeito pela normalização: idsDaTarefa leva as sessões junto
+  const lab = laboratorios[0].atividades[0].id, labIds = ids(lab);
+  assert.ok(labIds.length > 1, "atividade de lab não tem sessões");
+  const tudoFeito = new Set(labIds);
+  const soOriginal = new Set(tudoFeito); soOriginal.delete(lab);
+  assert.ok(completarSessoes(soOriginal).has(lab), "tirar só o id original deveria ser refeito (por isso o botão usa idsDaTarefa)");
+  const comSessoes = new Set([...tudoFeito].filter(id => !labIds.includes(id)));
+  assert.ok(!completarSessoes(comSessoes).has(lab), "desmarcar atividade com as sessões foi desfeito");
 }
 console.log("Fila de cursos OK");
 

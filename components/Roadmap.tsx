@@ -2,10 +2,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
-import { agrupar, assuntoById, feita, idsDaTarefa, idsParaMarcar, metaMes, minutosRestantes, MODULOS_NA_FILA, sessoesFeitas, planoAte, previsaoCursos, previsaoMes, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
+import { agrupar, assuntoById, feita, idsDaTarefa, idsParaMarcar, metaMes, minutosRestantes, MODULOS_NA_FILA, sessoesFeitas, tarefaDeVideoCurso, planoAte, previsaoCursos, previsaoMes, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
 import { diaDeEstudo, diasDaSemana, DESTINOS, DESTINOS_NOTA, INICIO, inicioMes, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, periodo, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
-import { cursoDe, fonteDe, FORMACOES, MODULOS } from "@/lib/data/cursos";
-import { assuntos, assuntosDoMes, horasPratica, horasTeoria, minLeitura, obrigatorias, opcionais } from "@/lib/data/trilha";
+import { cursoDe, fonteCurtaDe, fonteDe, urlDe } from "@/lib/data/cursos";
+import { assuntos, assuntosDoMes, ehVideoCurso, horasPratica, horasTeoria, minLeitura, obrigatorias, opcionais } from "@/lib/data/trilha";
 import { diasEntre, fmtDia, fmtDiaSemana, fmtMesAno, hojeIso, paraData, paraIso } from "@/lib/datas";
 import { addDias, DIA, dataDoDia, diaId, fase, horasDia, mesDoPlano, parteFeita, parteId, segunda } from "@/lib/grade";
 import { useHoje, type DiaHoje } from "@/lib/useHoje";
@@ -169,7 +169,7 @@ function Chip({ children, tom }: { children: React.ReactNode; tom?: "accent" | "
 // Um item por tarefa; sessões seguidas da mesma tarefa (g) aparecem juntas e são marcadas juntas.
 function TarefaItem({ g, onSelect, aoMarcar }: { g: Tarefa[]; onSelect: (s: Sel) => void; aoMarcar?: (g: Tarefa[], valor: boolean) => void }) {
   const a = useApp(); const t = g[0], c = g.every(x => feita(x, a.done, a.valores)); const assunto = t.assuntoId ? assuntoById.get(t.assuntoId) : undefined;
-  const titulo = t.titulo ?? t.texto, tipo = t.curso && t.formato === "vídeo" ? "curso" : t.formato === "vídeo" ? "vídeo" : t.formato === "curso" ? "curso" : TIPOS[t.tipo];
+  const titulo = t.titulo ?? t.texto, tipo = tarefaDeVideoCurso(t) ? "curso" : t.formato === "vídeo" ? "vídeo" : t.formato === "curso" ? "curso" : TIPOS[t.tipo];
   const marcar = aoMarcar ?? ((xs: Tarefa[], v: boolean) => a.setMany(xs.flatMap(x => idsParaMarcar(x, v)), v));
   return <li className="flex items-start gap-3 px-4 py-3">
     <input aria-label={titulo} type="checkbox" className="mt-0.5 size-4 shrink-0" checked={c} onChange={() => marcar(g, !c)} />
@@ -496,7 +496,7 @@ function Leituras({ ls }: { ls: Leitura[] }) {
   const a = useApp();
   return <ul>{ls.map(l => <li key={l.id} className="flex items-start gap-3 border-t border-line-soft py-3 first:border-t-0">
     <input aria-label={`Marcar como feita: ${l.titulo}`} className="mt-1.5 size-4 shrink-0" type="checkbox" checked={a.done.has(l.id)} onChange={() => a.setMany(idsDaTarefa(l.id), !a.done.has(l.id))} />
-    <div className="min-w-0"><a href={l.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${a.done.has(l.id) ? "text-muted line-through" : ""}`}>{l.titulo} ↗</a><p className="font-mono text-[11px] text-muted">{l.fonte} · {l.curso && l.tipo === "vídeo" ? "curso" : l.tipo} · ~{minLeitura(l)} min</p></div>
+    <div className="min-w-0"><a href={l.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${a.done.has(l.id) ? "text-muted line-through" : ""}`}>{l.titulo} ↗</a><p className="font-mono text-[11px] text-muted">{l.fonte} · {ehVideoCurso(l) ? "curso" : l.tipo} · ~{minLeitura(l)} min</p></div>
   </li>)}</ul>;
 }
 
@@ -527,14 +527,14 @@ function Cursos({ onSelect }: { onSelect: (s: Sel) => void }) {
       </dl>
     </div>
     {proximo && <div className="card border-accent/50 p-5"><p className="label">Próximo na fila</p>
-      <a href={proximo.m.url ?? FORMACOES[proximo.m.formacao].url} target="_blank" rel="noreferrer" className="mt-1 block font-display text-[17px] font-bold leading-snug hover:text-accent hover:underline">{proximo.m.titulo} ↗</a>
+      <a href={urlDe(proximo.m)} target="_blank" rel="noreferrer" className="mt-1 block font-display text-[17px] font-bold leading-snug hover:text-accent hover:underline">{proximo.m.titulo} ↗</a>
       <p className="mt-1 font-mono text-[11.5px] text-muted">{fonteDe(proximo.m)} · {proximo.feitas > 0 ? `${proximo.feitas}/${proximo.total} sessões feitas · ` : ""}faltam ~{h(proximo.resto)}</p></div>}
     <section><h2 className="text-xl font-bold">Na ordem da fila</h2>
       <p className="mt-1 text-[13.5px] text-muted">A ordem em que o painel Hoje puxa os cursos (se um item não cabe no horário do dia, o Hoje adianta o seguinte e volta nele depois). Marque aqui o que já fez fora do app: o módulo inteiro (com as sessões) fica feito e a fila pula para o próximo.</p>
       <ul className="card mt-3 divide-y divide-line-soft">{fila.map(({ m, feitas, total, ok }) => { return <li key={m.id} className={`flex items-start gap-3 px-4 py-2.5 ${m.id === proximo?.m.id ? "bg-accent/5" : ""}`}>
         <input aria-label={`Marcar como feito: ${m.titulo}`} className="mt-1 size-4 shrink-0" type="checkbox" checked={ok} onChange={() => app.setMany(idsDaTarefa(m.id), !ok)} />
-        <div className="min-w-0 flex-1"><a href={m.url ?? FORMACOES[m.formacao].url} target="_blank" rel="noreferrer" className={`text-[14px] font-medium hover:text-accent hover:underline ${ok ? "text-muted line-through" : ""}`}>{m.titulo}</a>
-          <p className="font-mono text-[11px] text-muted">{m.fonte ?? FORMACOES[m.formacao].curto} · ~{h(m.minutos ?? 0)}{!ok && feitas > 0 ? ` · ${feitas}/${total} sessões` : ""}</p></div>
+        <div className="min-w-0 flex-1"><a href={urlDe(m)} target="_blank" rel="noreferrer" className={`text-[14px] font-medium hover:text-accent hover:underline ${ok ? "text-muted line-through" : ""}`}>{m.titulo}</a>
+          <p className="font-mono text-[11px] text-muted">{fonteCurtaDe(m)} · ~{h(m.minutos ?? 0)}{!ok && feitas > 0 ? ` · ${feitas}/${total} sessões` : ""}</p></div>
         <Btn onClick={() => onSelect({ kind: "assunto", id: m.assunto })}>assunto</Btn>
       </li>; })}</ul>
     </section>
@@ -550,7 +550,7 @@ function Cursos({ onSelect }: { onSelect: (s: Sel) => void }) {
 }
 
 /** Título da teoria obrigatória do assunto: cursos, leituras ou os dois. */
-const rotuloTeoria = (x: Assunto) => { const ls = obrigatorias(x), v = ls.some(l => l.curso && l.tipo === "vídeo"), a = ls.some(l => !(l.curso && l.tipo === "vídeo")); return v && a ? "Cursos e leituras" as const : v ? "Cursos" as const : "Leituras" as const; };
+const rotuloTeoria = (x: Assunto) => { const ls = obrigatorias(x), v = ls.some(ehVideoCurso), a = ls.some(l => !ehVideoCurso(l)); return v && a ? "Cursos e leituras" as const : v ? "Cursos" as const : "Leituras" as const; };
 
 function MesPanel({ mes, onSelect }: { mes: number; onSelect: (s: Sel) => void }) {
   const a = useApp(); const l = laboratorios[mes - 1]; if (!l) return null;
@@ -565,7 +565,7 @@ function MesPanel({ mes, onSelect }: { mes: number; onSelect: (s: Sel) => void }
     <p className="mt-3 font-mono text-[11px] leading-relaxed text-muted">Meta do calendário: {fmtDia(inicioMes(mes))} → {fmtDia(metaMes(mes))} · previsão no ritmo atual: {previsao ? fmtDia(previsao) : "concluído"}</p>
     <div className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Teoria:</strong> os cursos e as leituras dos assuntos abaixo (andam na fila de cursos, sem esperar o mês; os outros artigos são aprofundamento opcional) (~{assuntosDoMes(mes).reduce((t, x) => t + horasTeoria(x), 0)}h).</p><p className="mt-1"><strong>Prática:</strong> a prática de cada assunto e as atividades do laboratório (~{assuntosDoMes(mes).reduce((t, x) => t + horasPratica(x), 0)}h).</p></div><h3 className="label mt-7 mb-2">Assuntos deste mês</h3>
     <div className="flex flex-col gap-2">{assuntosDoMes(mes).map(x => <button key={x.id} type="button" onClick={() => onSelect({ kind: "assunto", id: x.id })} className="flex items-center justify-between gap-3 rounded-lg border border-line bg-surface px-3 py-2 text-left hover:border-accent"><span className="flex items-center gap-2"><span className={`inline-block size-2 rounded-full ${DOT[x.pilar]}`} />{x.titulo}</span><span className="font-mono text-[11px] text-muted">{assuntoDone(x, a.done)}/{assuntoIds(x).length}</span></button>)}</div>
-    <div className="mt-7 flex items-center gap-3"><h3 className="label">Atividades do laboratório</h3><button type="button" className="ml-auto rounded-md border border-line px-2 py-1 text-[12px] text-muted hover:border-accent hover:text-accent" onClick={() => a.setMany(ids, countDone(ids, a.done) !== ids.length)}>{countDone(ids, a.done) === ids.length ? "desmarcar" : "marcar todas"}</button></div>
+    <div className="mt-7 flex items-center gap-3"><h3 className="label">Atividades do laboratório</h3><button type="button" className="ml-auto rounded-md border border-line px-2 py-1 text-[12px] text-muted hover:border-accent hover:text-accent" onClick={() => a.setMany(ids.flatMap(idsDaTarefa), countDone(ids, a.done) !== ids.length)}>{countDone(ids, a.done) === ids.length ? "desmarcar" : "marcar todas"}</button></div>
     {l.atividades.map(x => <Check key={x.id} id={x.id} text={x.texto} />)}
     <h3 className="label mt-7 mb-2">Evidências</h3>
     {l.evidencias.map(x => <label key={x.id} className="grid gap-2 border-t border-line-soft py-3 first:border-t-0"><span><span className="block font-medium">{x.label}</span><span className="text-[13px] text-muted">{x.prova}</span></span><input className="medicao w-full" value={a.valorDe(x.id)} placeholder="registrar evidência real" onChange={e => a.setValor(x.id, e.target.value)} /></label>)}

@@ -1,5 +1,5 @@
 import type { Assunto, Leitura, Pilar, TipoLeitura } from "../types";
-import { FORMACOES, fonteDe, MIN_LEITURA, MODULOS } from "./cursos";
+import { fonteDe, MIN_LEITURA, MODULOS, urlDe } from "./cursos";
 
 // Cada assunto é um nó da trilha. Subtópicos, leituras e prática são marcáveis.
 // Leituras: [título, fonte, url, tipo]. Só links verificados; nada de capítulo inventado.
@@ -32,7 +32,7 @@ const MES: Record<string, number> = {
 
 // Módulos de curso (Branas e Alura) abrem as leituras do assunto, com id, link e duração próprios.
 // Os ids das outras leituras (-r1, -r2...) saem da posição dentro de a(), então pôr o módulo na frente não os muda.
-const modulosDe = (assuntoId: string): Leitura[] => MODULOS.filter(m => m.assunto === assuntoId).map(m => ({ id: m.id, titulo: m.titulo, fonte: fonteDe(m), url: m.url ?? FORMACOES[m.formacao].url, tipo: m.formacao === "leitura" ? "artigo" : "vídeo", minutos: m.minutos, curso: true }));
+const modulosDe = (assuntoId: string): Leitura[] => MODULOS.filter(m => m.assunto === assuntoId).map(m => ({ id: m.id, titulo: m.titulo, fonte: fonteDe(m), url: urlDe(m), tipo: m.formacao === "leitura" ? "artigo" : "vídeo", minutos: m.minutos, curso: true }));
 // Nos pilares técnicos o curso é a teoria; artigo, doc e link de curso externo viram aprofundamento opcional.
 // Inglês e carreira não têm curso: as leituras deles continuam sendo a teoria.
 const TECNICOS: Pilar[] = ["arquitetura", "ia", "cloud"];
@@ -617,9 +617,10 @@ export const assuntos: Assunto[] = [
 export const assuntosDoMes = (mes: number) => assuntos.filter((x) => x.mes === mes);
 
 // Tempo estimado: leitura por tipo (teoria); prática por trilha.
-export { MIN_LEITURA };
 /** Duração própria (módulo de curso) ou a estimativa do tipo. */
 export const minLeitura = (l: Leitura) => l.minutos ?? MIN_LEITURA[l.tipo];
+/** Módulo de curso em vídeo (Branas, Alura). curso: true também vale para as leituras em português da fila, que são artigos. */
+export const ehVideoCurso = (l: Leitura) => !!l.curso && l.tipo === "vídeo";
 /** Leituras que contam: módulos de curso (e as leituras de inglês e carreira). As opcionais são aprofundamento. */
 export const obrigatorias = (x: Assunto) => x.leituras.filter(l => !l.opcional);
 export const opcionais = (x: Assunto) => x.leituras.filter(l => l.opcional);

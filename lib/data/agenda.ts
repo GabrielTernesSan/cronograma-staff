@@ -76,6 +76,8 @@ export const idsDaTarefa = (baseId: string) => [baseId, ...(sessoesDe.get(baseId
 export const sessoesFeitas = (baseId: string, done: Set<string>, valores: Valores) => {
   const ss = sessoesDe.get(baseId) ?? []; return { feitas: ss.filter(t => feita(t, done, valores)).length, total: ss.length };
 };
+/** Minutos de uma tarefa: a soma das sessões (a mesma conta da fila, com a estimativa por tipo quando falta duração). */
+export const minutosTotais = (baseId: string) => (sessoesDe.get(baseId) ?? []).reduce((s, t) => s + t.minutos, 0);
 /** Minutos que faltam de uma tarefa: a soma das sessões ainda não feitas (0 se concluída). */
 export const minutosRestantes = (baseId: string, done: Set<string>, valores: Valores) =>
   done.has(baseId) ? 0 : (sessoesDe.get(baseId) ?? []).reduce((s, t) => s + (feita(t, done, valores) ? 0 : t.minutos), 0);
@@ -100,6 +102,8 @@ export const proximoDiaDeEstudo = (iso: string) => { let d = iso < INICIO ? INIC
 
 const ehTeoria = (t: Tarefa) => t.tipo === "leitura";
 export const ehCurso = (t: Tarefa) => !!t.curso;
+/** Tarefa de módulo de curso em vídeo (não uma leitura da fila de cursos). */
+export const tarefaDeVideoCurso = (t: Tarefa) => !!t.curso && t.formato === "vídeo";
 const ehLab = (t: Tarefa) => t.tipo === "lab" || t.tipo === "evidencia";
 // Prática só depois de terminar a teoria do mesmo assunto.
 const pronta = (t: Tarefa, done: Set<string>, valores: Valores) => t.tipo !== "pratica" || !t.assuntoId || (teoriaDe.get(t.assuntoId) ?? []).every(x => feita(x, done, valores));

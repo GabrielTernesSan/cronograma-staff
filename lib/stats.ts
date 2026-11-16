@@ -1,4 +1,4 @@
-import { minutosRestantes } from "./data/agenda";
+import { minutosRestantes, minutosTotais } from "./data/agenda";
 import { laboratorios } from "./data/blocos";
 import { materiais, trimestres } from "./data/cronograma";
 import { cursoDe, FORMACOES, MODULOS } from "./data/cursos";
@@ -33,7 +33,7 @@ export const progressoCursos = (done: Set<string>): ProgressoCurso[] => {
     const nome = cursoDe(m), feito = done.has(m.id);
     const p = out.get(nome) ?? { curso: nome, url: m.formacao === "alura" ? m.url ?? FORMACOES.alura.url : FORMACOES[m.formacao].url, // leituras: "" (cada uma tem o seu link)
       formacao: m.formacao, feitos: 0, total: 0, minutosRestantes: 0, minutosTotal: 0 };
-    p.total++; p.minutosTotal += m.minutos ?? 0; if (feito) p.feitos++; else p.minutosRestantes += minutosRestantes(m.id, done, {});
+    p.total++; p.minutosTotal += minutosTotais(m.id); if (feito) p.feitos++; else p.minutosRestantes += minutosRestantes(m.id, done, {});
     out.set(nome, p);
   }
   return [...out.values()];
