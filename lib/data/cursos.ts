@@ -1,5 +1,6 @@
 // Módulos das duas formações do Rodrigo Branas, encaixados nos assuntos da trilha.
-// Cada módulo entra como leitura do assunto (vídeo) e vai para a fila do painel Hoje no mês desse assunto.
+// Cada módulo entra como primeira leitura do assunto (vídeo) e vai para a fila do painel Hoje no mês desse assunto.
+// Vários módulos no mesmo assunto seguem a ordem desta lista.
 // O id é do módulo, não do assunto: trocar o módulo de assunto não perde o progresso.
 // Duração: soma das aulas que a página pública lista; aula sem duração na página conta 30 min.
 // A página da Formação IA não lista aulas nem duração: cada módulo conta IA_PADRAO até ser conferido na plataforma.
@@ -18,12 +19,12 @@ export const MODULOS: Modulo[] = [
   { id: "branas-ia-01", formacao: "ia", titulo: "Módulo 01 · LLMs: tipos, modelos, preço, janela de contexto, caching e modelos locais", assunto: "m08-custo-latencia", minutos: IA_PADRAO },
   { id: "branas-ia-02", formacao: "ia", titulo: "Módulo 02 · Harness: Claude Code, Codex, OpenCode, Copilot, Kiro e Antigravity", assunto: "m02-harness", minutos: IA_PADRAO },
   { id: "branas-ia-03", formacao: "ia", titulo: "Módulo 03 · Context Engineering: memória, seleção, compactação, orçamento de tokens e handoffs", assunto: "m15-contexto", minutos: IA_PADRAO },
-  { id: "branas-ia-04", formacao: "ia", titulo: "Módulo 04 · Rules: AGENTS.md, CLAUDE.md, escopo e hierarquia de instruções", assunto: "m15-contexto", minutos: IA_PADRAO },
+  { id: "branas-ia-04", formacao: "ia", titulo: "Módulo 04 · Rules: AGENTS.md, CLAUDE.md, escopo e hierarquia de instruções", assunto: "m01-spec-agentes", minutos: IA_PADRAO },
   { id: "branas-ia-05", formacao: "ia", titulo: "Módulo 05 · Skills: anatomia, progressive disclosure, gatilhos, testes e distribuição", assunto: "m02-harness", minutos: IA_PADRAO },
   { id: "branas-ia-06", formacao: "ia", titulo: "Módulo 06 · MCPs: clientes, servidores, transportes, tools/resources/prompts e segurança", assunto: "m06-tools-mcp", minutos: IA_PADRAO },
   { id: "branas-ia-07", formacao: "ia", titulo: "Módulo 07 · Spec-Driven Development: PRD, specs, critérios de aceite e ciclos de verificação", assunto: "m01-spec-agentes", minutos: IA_PADRAO },
   { id: "branas-ia-08", formacao: "ia", titulo: "Módulo 08 · Construção de agentes: loop, tool calling, memória, multi-agente, evals e deploy", assunto: "m05-agentes-base", minutos: IA_PADRAO },
-  { id: "branas-ia-09", formacao: "ia", titulo: "Módulo 09 · RAG: ingestão, chunking, busca híbrida, reranking, citações e avaliação", assunto: "m04-rag-base", minutos: IA_PADRAO },
+  { id: "branas-ia-09", formacao: "ia", titulo: "Módulo 09 · RAG: ingestão, chunking, busca híbrida, reranking, citações e avaliação", assunto: "m03-embeddings", minutos: IA_PADRAO },
   { id: "branas-ia-10", formacao: "ia", titulo: "Módulo 10 · Second Brain: captura, curadoria, busca semântica e memória entre agentes", assunto: "m25-second-brain", minutos: IA_PADRAO },
   { id: "branas-ia-11", formacao: "ia", titulo: "Módulo 11 · OpenClaw: gateway, runtime, canais, automações agendadas e agentes 24/7", assunto: "m27-openclaw", minutos: IA_PADRAO },
   { id: "branas-ia-12", formacao: "ia", titulo: "Módulo 12 · Hermes: modelos, loop de aprendizado, memória persistente, subagentes e MCP", assunto: "m29-hermes", minutos: IA_PADRAO },

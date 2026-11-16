@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
-import { assuntoById, feita, idsParaMarcar, metaMes, previsaoMes, projetarDias, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
+import { assuntoById, feita, idsParaMarcar, metaMes, previsaoMes, projetarDias, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
 import { diaDeEstudo, diasDaSemana, DESTINOS, DESTINOS_NOTA, INICIO, inicioMes, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, periodo, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
 import { assuntos, assuntosDoMes, horasPratica, horasTeoria, minLeitura } from "@/lib/data/trilha";
 import { diasEntre, fmtDia, fmtDiaSemana, fmtMesAno, hojeIso, paraData, paraIso } from "@/lib/datas";
@@ -11,7 +11,7 @@ import { useHoje, type DiaHoje } from "@/lib/useHoje";
 import { atrasados, montarResgate, totalItens, type DiaAtrasado, type Resgate } from "@/lib/atrasos";
 import { doAssunto, fmtIntervalo, isoDia, NOTAS, novoCard, pendentes, previa, sequencia } from "@/lib/revisao";
 import { ALL_ACTIVITY_IDS, ALL_ASSUNTO_IDS, ALL_EVIDENCE_IDS, ALL_LEITURA_IDS, ALL_MARCO_IDS, assuntoDone, assuntoIds, countDone, countValues, labComplete, labsComplete, pct } from "@/lib/stats";
-import type { Assunto, Laboratorio, Pilar, Trimestre } from "@/lib/types";
+import type { Assunto, Pilar } from "@/lib/types";
 
 const title = (p: Pilar) => PILARES[p].titulo;
 const DOT: Record<Pilar, string> = { arquitetura: "bg-accent", ia: "bg-measure", cloud: "bg-ok", ingles: "bg-decisao", carreira: "bg-warn" };
@@ -22,109 +22,159 @@ const ANOS = [
 ];
 type Sel = { kind: "assunto"; id: string } | { kind: "mes"; mes: number } | { kind: "tri"; id: string } | { kind: "revisao" } | { kind: "atrasos" } | null;
 
+const ABAS = [{ id: "hoje", t: "Hoje" }, { id: "semana", t: "Semana" }, { id: "trilha", t: "Trilha" }, { id: "mercado", t: "Mercado" }] as const;
+type Aba = (typeof ABAS)[number]["id"];
+// Data do navegador só depois de montar (o HTML estático não sabe que dia é).
+const useAgora = () => { const [d, setD] = useState<Date | null>(null); useEffect(() => setD(new Date()), []); return d; };
+
 export function Roadmap() {
-  const app = useApp(); const file = useRef<HTMLInputElement>(null); const hojeApi = useHoje();
-  const [msg, setMsg] = useState(""); const [tok, setTok] = useState(""); const [pedirToken, setPedirToken] = useState(false); const [confirm, setConfirm] = useState(false); const [sel, setSel] = useState<Sel>(null);
-  const { done, valores, filters } = app;
-  const flip = (p: Pilar) => app.setFilters(f => ({ ...f, pillars: f.pillars.includes(p) ? f.pillars.filter(x => x !== p) : [...f.pillars, p] }));
-  const activities = countDone(ALL_ACTIVITY_IDS, done), evidence = countValues(ALL_EVIDENCE_IDS, valores), topicItems = countDone(ALL_ASSUNTO_IDS, done);
-  const topicsDone = assuntos.filter(x => assuntoDone(x, done) === assuntoIds(x).length).length;
-  const total = ALL_ACTIVITY_IDS.length + ALL_EVIDENCE_IDS.length + ALL_ASSUNTO_IDS.length;
-  return <div className="mx-auto max-w-[1180px] px-6 pb-24">
-    <header className="border-b-2 border-text pb-6 pt-12">
-      <p className="label mb-4">36 meses · início {fmtDia(INICIO)}/{INICIO.slice(0, 4)} · {fmtMesAno(INICIO)} → {fmtMesAno(metaMes(36))} · 8h/semana · decisões com evidência</p>
-      <h1 className="max-w-[19ch] text-[clamp(2.1rem,6vw,3.7rem)] font-bold leading-[1.08] tracking-tight">Senior Abroad: Architecture, AI Engineering &amp; Cloud</h1>
-      <p className="mt-4 max-w-[70ch] text-[18px] leading-relaxed">Engenheiro sênior de .NET e Azure que constrói e opera sistemas com IA em produção: agentes com limites, RAG com avaliação, plataforma e custo. A saída do Brasil acontece em dois passos: primeiro um contrato remoto internacional, que prova o nível e forma reserva; depois a mudança com visto patrocinado.</p>
-      <ol className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 font-mono">{ROTA.map((r, i) => <li key={r.codigo} className="flex items-center gap-3">{i > 0 && <span aria-hidden className="h-px w-8 border-t border-dashed border-muted sm:w-14" />}<span className="flex flex-col"><span className="font-display text-xl font-bold">{r.codigo}</span><span className="text-[11px] text-muted">{r.quando} · {r.texto}</span></span></li>)}</ol>
-      <dl className="mt-6 flex flex-wrap gap-x-7 gap-y-2 font-mono text-xs text-muted">
-        <Stat l="assuntos" v={`${topicsDone}/${assuntos.length}`} /><Stat l="leituras" v={`${countDone(ALL_LEITURA_IDS, done)}/${ALL_LEITURA_IDS.length}`} /><Stat l="laboratórios" v={`${labsComplete(done, valores)}/${laboratorios.length}`} /><Stat l="marcos" v={`${countDone(ALL_MARCO_IDS, done)}/${ALL_MARCO_IDS.length}`} /><Stat l="progresso real" v={`${app.loaded ? pct(activities + evidence + topicItems, total) : 0}%`} />
-      </dl>
-      <div className="no-print mt-5 flex flex-wrap gap-2">
-        <Btn active={filters.onlyPending} onClick={() => app.setFilters(f => ({ ...f, onlyPending: !f.onlyPending }))}>só pendentes</Btn>
-        {(Object.keys(PILARES) as Pilar[]).map(p => <Btn key={p} active={filters.pillars.includes(p)} onClick={() => flip(p)}><span className={`mr-1.5 inline-block size-2 rounded-full ${DOT[p]}`} />{title(p)}</Btn>)}
-        <span className="mx-1 h-4 w-px bg-line" />
-        <Btn onClick={app.exportJson}>exportar</Btn><Btn onClick={() => file.current?.click()}>importar</Btn>
-        <input ref={file} className="hidden" type="file" accept="application/json,.json" onChange={async e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setMsg((await app.importJson(f)).message); }} />
-        {confirm ? <><Btn danger onClick={() => { app.reset(); setConfirm(false); }}>confirmar zerar</Btn><Btn onClick={() => setConfirm(false)}>cancelar</Btn></> : <Btn onClick={() => setConfirm(true)}>zerar</Btn>}
-        <span className={`font-mono text-[11px] ${app.sync === "erro" ? "text-warn" : app.sync === "salvo" ? "text-ok" : "text-muted"}`}>{app.sync === "sem-token" ? "só local" : app.sync === "salvando" ? "salvando…" : app.sync === "salvo" ? "salvo na nuvem" : "erro ao salvar"}</span>
-        {pedirToken ? <form className="flex gap-2" onSubmit={e => { e.preventDefault(); app.setToken(tok); setTok(""); setPedirToken(false); }}><input className="border border-line bg-surface px-2 py-1 font-mono text-[11px]" type="password" autoComplete="off" placeholder="token" value={tok} onChange={e => setTok(e.target.value)} /><Btn onClick={() => { app.setToken(tok); setTok(""); setPedirToken(false); }}>salvar token</Btn></form> : <Btn onClick={() => setPedirToken(true)}>token</Btn>}
-        {msg && <span className="font-mono text-[11px] text-accent">{msg}</span>}
+  const hojeApi = useHoje(); const agora = useAgora();
+  const [sel, setSel] = useState<Sel>(null); const [aba, setAbaState] = useState<Aba>("hoje");
+  // A aba fica no hash (#trilha), então dá para voltar nela e mandar o link; a query (?hoje=) é mantida.
+  useEffect(() => { const ler = () => { const x = window.location.hash.slice(1); if (ABAS.some(a => a.id === x)) setAbaState(x as Aba); }; ler(); window.addEventListener("hashchange", ler); return () => window.removeEventListener("hashchange", ler); }, []);
+  const setAba = (x: Aba) => { setAbaState(x); history.replaceState(null, "", `#${x}`); window.scrollTo(0, 0); };
+  return <div className="min-h-screen pb-24">
+    <header className="no-print sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-[1180px] items-center gap-2 px-4 sm:gap-4 sm:px-6">
+        <span className="hidden font-display text-[15px] font-bold tracking-tight sm:inline">Senior Abroad</span>
+        <nav aria-label="Seções" className="flex min-w-0 gap-1 overflow-x-auto">{ABAS.map(x => <button key={x.id} type="button" onClick={() => setAba(x.id)} aria-current={aba === x.id ? "page" : undefined} className={`shrink-0 rounded-lg px-3 py-1.5 text-[14px] font-medium transition ${aba === x.id ? "bg-surface text-text shadow-sm ring-1 ring-line" : "text-muted hover:text-text"}`}>{x.t}</button>)}</nav>
+        <div className="ml-auto flex shrink-0 items-center gap-2"><SyncStatus /><Menu /></div>
       </div>
-      {app.legacy && <p className="mt-4 border-l-2 border-warn bg-warn/10 px-4 py-2 text-[14px] text-muted">O progresso do cronograma anterior está preservado no exportável como histórico ({app.legacy.done.length} marcações). Ele não conta como avanço novo, para não inventar histórico.</p>}
     </header>
-    <main className="mt-10">
-      <Hoje h={hojeApi} onSelect={setSel} />
-      <Semana h={hojeApi} onSelect={setSel} />
-      <Trilha onSelect={setSel} />
-      <section className="mt-12 border-t border-line pt-10"><h2 className="text-2xl font-bold">Mercado, futuro e destino</h2>
-        <div className="mt-5 grid gap-8 md:grid-cols-2"><div className="min-w-0"><p className="label mb-3">O que o mercado pede em 2026</p><ul className="list-disc space-y-2 pl-5 text-[15.5px] leading-relaxed">{MERCADO_DADOS.map(x => <li key={x}>{x}</li>)}</ul></div><div className="min-w-0"><p className="label mb-3">Leitura do futuro (2027–2029)</p><ul className="list-disc space-y-2 pl-5 text-[15.5px] leading-relaxed">{MERCADO_LEITURA.map(x => <li key={x}>{x}</li>)}</ul></div></div>
-        <p className="label mb-3 mt-8">Destinos e régua de salário para visto</p><p className="mb-3 max-w-[70ch] text-[14.5px] text-muted">{DESTINOS_NOTA}</p>
-        <div className="overflow-x-auto border border-line bg-surface"><table className="doc-table min-w-[640px] text-[14.5px]"><thead><tr><th>Destino</th><th>Via</th><th>Mínimo 2026</th><th>Prós</th><th>Contras</th></tr></thead><tbody>{DESTINOS.map(d => <tr key={d.pais}><td className="font-semibold">{d.pais}</td><td>{d.via}</td><td className="whitespace-nowrap font-mono text-[13px]">{d.minimo}</td><td className="text-muted">{d.pros}</td><td className="text-muted">{d.contras}</td></tr>)}</tbody></table></div>
-        <p className="mt-4 font-mono text-[11px] text-muted">fontes: {MERCADO_FONTES.map(([t, u], i) => <span key={u}>{i > 0 && " · "}<a className="text-accent hover:underline" href={u} target="_blank" rel="noreferrer">{t}</a></span>)}</p>
-      </section>
-      <section className="mt-12 border-t border-line pt-10"><h2 className="text-2xl font-bold">Materiais e hábitos</h2><div className="mt-5 grid gap-4 md:grid-cols-2">{materiais.map(m => <label key={m.id} className="block cursor-pointer border border-line bg-surface p-5"><div className="flex gap-3"><input className="mt-1 size-4" type="checkbox" checked={done.has(m.id)} onChange={() => app.toggle(m.id)} /><div><p className="label mb-1">{m.tipo}</p><p className={done.has(m.id) ? "font-semibold text-muted line-through" : "font-semibold"}>{m.titulo}</p><p className="mt-2 text-[14.5px] leading-relaxed text-muted">{m.descricao}</p>{m.url && <a className="mt-2 inline-block font-mono text-[11px] text-accent hover:underline" href={m.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>fonte pública ↗</a>}</div></div></label>)}</div></section>
+    <main className="mx-auto mt-6 max-w-[1180px] px-4 sm:mt-8 sm:px-6">
+      {aba === "hoje" && <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
+        <Hoje h={hojeApi} onSelect={setSel} />
+        {agora && <aside className="grid gap-4"><RevisaoHoje hoje={agora} onSelect={setSel} /><AtrasosHoje hoje={agora} onSelect={setSel} /><SemanaResumo hoje={agora} onAbrir={() => setAba("semana")} /></aside>}
+      </div>}
+      {aba === "semana" && <Semana h={hojeApi} onSelect={setSel} />}
+      {aba === "trilha" && <Trilha onSelect={setSel} />}
+      {aba === "mercado" && <Mercado />}
     </main>
     <Drawer sel={sel} h={hojeApi} onClose={() => setSel(null)} onSelect={setSel} />
   </div>;
 }
 
-const TIPOS: Record<TipoTarefa, string> = { leitura: "leitura", estudo: "estudo", pratica: "prática", lab: "laboratório", evidencia: "evidência" };
+function SyncStatus() {
+  const { sync } = useApp();
+  const [cor, texto] = sync === "erro" ? ["bg-warn", "erro ao salvar"] : sync === "salvo" ? ["bg-ok", "salvo na nuvem"] : sync === "salvando" ? ["bg-measure", "salvando…"] : ["bg-muted", "só local"];
+  return <span className="flex items-center gap-1.5 text-[12.5px] text-muted" title={texto}><span className={`inline-block size-2 rounded-full ${cor}`} /><span className="hidden md:inline">{texto}</span></span>;
+}
+
+// Exportar, importar, token e zerar ficam fora do caminho, num menu.
+function Menu() {
+  const app = useApp(); const file = useRef<HTMLInputElement>(null); const box = useRef<HTMLDetailsElement>(null);
+  const [msg, setMsg] = useState(""); const [tok, setTok] = useState(""); const [confirm, setConfirm] = useState(false);
+  const salvarToken = () => { app.setToken(tok); setTok(""); setMsg("Token salvo."); };
+  useEffect(() => { const fechar = (e: MouseEvent) => { if (box.current?.open && !box.current.contains(e.target as Node)) box.current.open = false; }; document.addEventListener("click", fechar); return () => document.removeEventListener("click", fechar); }, []);
+  const item = "block w-full rounded-md px-3 py-2 text-left text-[14px] hover:bg-surface2";
+  return <details ref={box} className="relative">
+    <summary aria-label="Mais opções" className="flex size-9 items-center justify-center rounded-lg text-[18px] text-muted hover:bg-surface hover:text-text">⋯</summary>
+    <div className="absolute right-0 mt-2 w-64 rounded-xl border border-line bg-surface p-1.5 shadow-lg">
+      <button type="button" className={item} onClick={app.exportJson}>Exportar progresso</button>
+      <button type="button" className={item} onClick={() => file.current?.click()}>Importar progresso</button>
+      <input ref={file} className="hidden" type="file" accept="application/json,.json" onChange={async e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setMsg((await app.importJson(f)).message); }} />
+      <form className="flex gap-1.5 px-1.5 py-1.5" onSubmit={e => { e.preventDefault(); salvarToken(); }}><input aria-label="Token da nuvem" className="medicao min-w-0 flex-1" type="password" autoComplete="off" placeholder="token da nuvem" value={tok} onChange={e => setTok(e.target.value)} /><Btn onClick={salvarToken}>salvar</Btn></form>
+      <div className="my-1 border-t border-line-soft" />
+      {confirm ? <div className="flex gap-1.5 px-1.5 py-1.5"><Btn danger onClick={() => { app.reset(); setConfirm(false); setMsg("Progresso zerado."); }}>confirmar zerar</Btn><Btn onClick={() => setConfirm(false)}>cancelar</Btn></div>
+        : <button type="button" className={`${item} text-warn`} onClick={() => setConfirm(true)}>Zerar progresso…</button>}
+      {msg && <p className="px-3 py-2 text-[12.5px] text-accent" role="status">{msg}</p>}
+    </div>
+  </details>;
+}
+
+function Mercado() {
+  const app = useApp();
+  return <div className="grid gap-6">
+    <section className="card p-5 sm:p-6"><h2 className="text-xl font-bold">Mercado, futuro e destino</h2>
+      <div className="mt-4 grid gap-6 md:grid-cols-2"><div className="min-w-0"><p className="label mb-2">O que o mercado pede em 2026</p><ul className="list-disc space-y-2 pl-5 leading-relaxed">{MERCADO_DADOS.map(x => <li key={x}>{x}</li>)}</ul></div><div className="min-w-0"><p className="label mb-2">Leitura do futuro (2027–2029)</p><ul className="list-disc space-y-2 pl-5 leading-relaxed">{MERCADO_LEITURA.map(x => <li key={x}>{x}</li>)}</ul></div></div>
+      <p className="label mb-2 mt-8">Destinos e régua de salário para visto</p><p className="mb-3 max-w-[70ch] text-[14px] text-muted">{DESTINOS_NOTA}</p>
+      <div className="overflow-x-auto rounded-lg border border-line"><table className="doc-table min-w-[640px] text-[14px]"><thead><tr><th>Destino</th><th>Via</th><th>Mínimo 2026</th><th>Prós</th><th>Contras</th></tr></thead><tbody>{DESTINOS.map(d => <tr key={d.pais}><td className="font-semibold">{d.pais}</td><td>{d.via}</td><td className="whitespace-nowrap font-mono text-[13px]">{d.minimo}</td><td className="text-muted">{d.pros}</td><td className="text-muted">{d.contras}</td></tr>)}</tbody></table></div>
+      <p className="mt-4 text-[12px] text-muted">Fontes: {MERCADO_FONTES.map(([t, u], i) => <span key={u}>{i > 0 && " · "}<a className="text-accent hover:underline" href={u} target="_blank" rel="noreferrer">{t}</a></span>)}</p>
+    </section>
+    <section><h2 className="text-xl font-bold">Materiais e hábitos</h2><div className="mt-4 grid gap-4 md:grid-cols-2">{materiais.map(m => <label key={m.id} className="card block cursor-pointer p-5"><div className="flex gap-3"><input className="mt-1 size-4" type="checkbox" checked={app.done.has(m.id)} onChange={() => app.toggle(m.id)} /><div><p className="label mb-1">{m.tipo}</p><p className={app.done.has(m.id) ? "font-semibold text-muted line-through" : "font-semibold"}>{m.titulo}</p><p className="mt-2 text-[14px] leading-relaxed text-muted">{m.descricao}</p>{m.url && <a className="mt-2 inline-block text-[12.5px] text-accent hover:underline" href={m.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>fonte pública ↗</a>}</div></div></label>)}</div></section>
+  </div>;
+}
+
+const TIPOS: Record<TipoTarefa, string> = { leitura: "leitura", pratica: "prática", lab: "laboratório", evidencia: "evidência" };
+const NOMES_DIA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+const fmtDiaLongo = (iso: string) => `${NOMES_DIA[paraData(iso).getDay()]}, ${fmtDia(iso)}`;
+const minutosFeitos = (ts: Tarefa[], done: Set<string>, valores: Record<string, string>) => ts.filter(t => feita(t, done, valores)).reduce((s, t) => s + t.minutos, 0);
+const minutosTotal = (ts: Tarefa[]) => ts.reduce((s, t) => s + t.minutos, 0);
 
 type HojeApi = ReturnType<typeof useHoje>;
 function Hoje({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void }) {
   const a = useApp(); const { data, hoje, extra, proximo, antesDoInicio, adiantar } = h;
-  if (!data) return <section className="mb-12 border-2 border-text bg-surface px-5 py-5"><h2 className="text-2xl font-bold">Hoje</h2><p className="mt-3 text-muted">Carregando as tarefas…</p></section>;
+  if (!data) return <section className="card p-5 sm:p-6"><p className="label">Hoje</p><p className="mt-3 text-muted">Carregando as tarefas…</p></section>;
   const dia = hoje ?? proximo; const seg = dia ? segunda(paraData(dia.data)) : null;
   const tarefas = dia ? [...dia.partes.flatMap(p => p.tarefas), ...(hoje ? extra : [])] : [];
-  const mes = tarefas[0]?.mes;
+  const mes = tarefas[0]?.mes ?? mesDoPlano(paraData(data)) ?? undefined;
   const previsao = mes ? previsaoMes(mes, a.done, a.valores, data) : null;
   const atraso = mes && previsao ? diasEntre(metaMes(mes), previsao) : 0;
+  const doMes = mes ? TAREFAS.filter(t => t.mes === mes) : [];
+  const pctMes = pct(minutosFeitos(doMes, a.done, a.valores), minutosTotal(doMes));
   const concluido = !!hoje && !!seg && hoje.partes.every(p => parteFeita(seg, hoje.dia, p.indice, a.done));
-  const titulo = hoje ? `Hoje · ${fmtDiaSemana(data)}` : antesDoInicio && proximo ? `Começa ${fmtDiaSemana(proximo.data)}` : `Hoje · ${fmtDiaSemana(data)} · dia livre`;
-  return <section aria-labelledby="hoje-h" className="mb-12 border-2 border-text bg-surface px-5 py-5">
-    <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 id="hoje-h" className="text-2xl font-bold">{titulo}</h2>{dia && <span className="font-mono text-[12px] text-muted">{fmtH(dia.dia.horas)} · {dia.dia.pilares.map(title).join(" + ")}</span>}</div>
-    {antesDoInicio && <p className="mt-2 text-[15px] text-muted">O plano começa em {fmtDiaSemana(INICIO)}; segunda e terça são livres, então o primeiro estudo é {proximo ? fmtDiaSemana(proximo.data) : "o próximo dia da grade"}.</p>}
-    {!hoje && !antesDoInicio && proximo && <p className="mt-2 text-[15px] text-muted">Segunda e terça são livres. Próximo estudo: {fmtDiaSemana(proximo.data)}.</p>}
-    {mes && <button type="button" className="mt-3 text-left font-semibold hover:text-accent hover:underline" onClick={() => onSelect({ kind: "mes", mes })}>Mês {mes} · {laboratorios[mes - 1].titulo}</button>}
-    {dia && seg && <>
-      {!hoje && <p className="label mt-4">Prévia · {fmtDiaSemana(dia.data)}</p>}
-      <PartesDoDia dia={dia} seg={seg} ativo={!!hoje} onSelect={onSelect} />
-    </>}
-    {hoje && extra.length > 0 && <div className="mt-4"><p className="label">Adiantadas</p><ul>{extra.map(t => <TarefaItem key={t.id} t={t} onSelect={onSelect} />)}</ul></div>}
-    {concluido && <div className="mt-4 flex flex-wrap items-center gap-3"><p className="text-ok" role="status">✓ Dia concluído.</p><Btn onClick={adiantar}>adiantar próxima tarefa</Btn></div>}
-    {mes && <p className="mt-4 border-t border-line pt-3 font-mono text-[11px] leading-relaxed text-muted">{previsao ? `Seguindo a grade, o mês ${mes} fecha por volta de ${fmtDia(previsao)} · meta do calendário ${fmtDia(metaMes(mes))} (${atraso > 0 ? `${atraso} dias depois` : "dentro da meta"}).` : `Mês ${mes} concluído.`}</p>}
-    <p className="mt-2 text-[14px] text-muted">Dia perdido não vira atraso: o próximo dia de estudo começa da tarefa que ainda não foi feita.</p>
+  const rotulo = hoje ? "Hoje" : antesDoInicio ? "O plano começa em" : "Dia livre · próximo estudo";
+  return <section aria-labelledby="hoje-h" className="card p-5 sm:p-6">
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="min-w-0">
+        <p className="label">{rotulo}</p>
+        <h1 id="hoje-h" className="mt-1 text-[28px] font-bold leading-tight tracking-tight">{fmtDiaLongo(dia?.data ?? data)}</h1>
+        {dia && <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] text-muted"><span className="font-mono">{fmtH(dia.dia.horas)}</span>{dia.dia.pilares.map(p => <span key={p} className="flex items-center gap-1.5"><span className={`inline-block size-2 rounded-full ${DOT[p]}`} />{title(p)}</span>)}</p>}
+      </div>
+      {mes && <button type="button" onClick={() => onSelect({ kind: "mes", mes })} className="w-full rounded-xl border border-line bg-bg px-4 py-3 text-left transition hover:border-accent sm:w-64">
+        <span className="flex items-baseline justify-between gap-2"><span className="text-[13.5px] font-semibold">Mês {mes}</span><span className="font-mono text-[12.5px] text-muted">{pctMes}%</span></span>
+        <span className="mt-0.5 block truncate text-[12.5px] text-muted">{laboratorios[mes - 1].titulo}</span>
+        <Bar n={pctMes} total={100} />
+        <span className={`mt-2 block text-[12.5px] ${previsao && atraso > 0 ? "text-warn" : "text-ok"}`}>{previsao ? `Fecha por volta de ${fmtDia(previsao)} · ${atraso > 0 ? `${atraso} dias após a meta (${fmtDia(metaMes(mes))})` : "dentro da meta"}` : "Mês concluído"}</span>
+      </button>}
+    </div>
+    {!hoje && proximo && <p className="mt-4 rounded-lg bg-surface2 px-4 py-2.5 text-[14px] text-muted">{antesDoInicio ? `Segunda e terça são livres; o primeiro estudo é ${fmtDiaSemana(proximo.data)}.` : `Hoje é dia livre. Abaixo, a prévia de ${fmtDiaSemana(proximo.data)}.`}</p>}
+    {dia && seg && <PartesDoDia dia={dia} seg={seg} ativo={!!hoje} onSelect={onSelect} />}
+    {hoje && extra.length > 0 && <div className="mt-4 rounded-xl border border-line"><p className="label border-b border-line-soft px-4 py-2.5">Adiantadas</p><ul className="divide-y divide-line-soft">{extra.map(t => <TarefaItem key={t.id} t={t} onSelect={onSelect} />)}</ul></div>}
+    {concluido && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-ok/10 px-4 py-3"><p className="font-semibold text-ok" role="status">✓ Dia concluído</p><Btn onClick={adiantar}>adiantar a próxima tarefa</Btn></div>}
+    <p className="mt-4 text-[12.5px] text-muted">Dia perdido não vira atraso: o próximo dia de estudo começa da tarefa que ainda não foi feita.</p>
   </section>;
 }
 
-// Cada parte da grade com as tarefas da trilha que cabem nela. A caixa da parte é a mesma da grade semanal.
+// Cada parte da grade é um bloco com as tarefas da trilha que cabem nela; a mesma caixa marca a parte na grade semanal.
 function PartesDoDia({ dia, seg, ativo, onSelect }: { dia: DiaHoje; seg: Date; ativo: boolean; onSelect: (s: Sel) => void }) {
   const a = useApp();
-  return <ol className="mt-3">{dia.partes.map(p => {
-    const id = parteId(seg, dia.dia.dow, p.indice), f = parteFeita(seg, dia.dia, p.indice, a.done);
+  return <ol className="mt-5 grid gap-3">{dia.partes.map(p => {
+    const id = parteId(seg, dia.dia.dow, p.indice), f = parteFeita(seg, dia.dia, p.indice, a.done), base = dia.dia.partes[p.indice];
     // Marcar a última tarefa da parte marca a parte; desmarcar uma tarefa desmarca a parte.
     const aoMarcar = (t: Tarefa, valor: boolean) => { const resto = p.tarefas.filter(x => x.id !== t.id).every(x => feita(x, a.done, a.valores)); a.setMany([...idsParaMarcar(t, valor), ...(valor ? (resto ? [id] : []) : [id])], valor); };
-    return <li key={p.indice} className="border-t border-line py-3 first:border-t-0">
-      <label className={`flex items-start gap-3 ${ativo ? "cursor-pointer" : ""}`}>
-        {ativo && <input aria-label={`Marcar parte: ${p.texto}`} type="checkbox" className="mt-1 size-4 shrink-0" checked={f} onChange={() => a.setMany([id], !f)} />}
-        <span className={`flex-1 font-semibold ${ativo && f ? "text-muted line-through" : ""}`}>{p.texto}</span>
-        <span className="shrink-0 font-mono text-[12px] font-bold text-accent">{fmtH(p.horas)}</span>
+    return <li key={p.indice} className={`overflow-hidden rounded-xl border ${ativo && f ? "border-ok/40 bg-ok/5" : "border-line bg-surface"}`}>
+      <label className={`flex items-start gap-3 bg-surface2/60 px-4 py-3 ${ativo ? "cursor-pointer" : ""}`}>
+        <span className={`mt-1.5 inline-block size-2 shrink-0 rounded-full ${base?.pilar ? DOT[base.pilar] : "bg-muted"}`} />
+        <span className={`min-w-0 flex-1 text-[14px] font-semibold leading-snug ${ativo && f ? "text-muted line-through" : ""}`}>{p.texto}</span>
+        <span className="shrink-0 font-mono text-[12.5px] text-muted">{fmtH(p.horas)}</span>
+        {ativo && <input aria-label={`Marcar parte: ${p.texto}`} type="checkbox" className="mt-0.5 size-4 shrink-0" checked={f} onChange={() => a.setMany([id], !f)} />}
       </label>
-      {p.tarefas.length > 0 && <ul className={ativo ? "ml-7" : "ml-1"}>{p.tarefas.map(t => <TarefaItem key={t.id} t={t} onSelect={onSelect} aoMarcar={ativo ? aoMarcar : undefined} />)}</ul>}
+      {p.tarefas.length > 0 ? <ul className="divide-y divide-line-soft">{p.tarefas.map(t => <TarefaItem key={t.id} t={t} onSelect={onSelect} aoMarcar={ativo ? aoMarcar : undefined} />)}</ul>
+        : <p className="px-4 py-3 text-[13px] text-muted">{base?.fonte === "fixo" ? "Atividade fixa: siga o texto acima." : "Nada da fila cabe aqui hoje."}</p>}
     </li>;
   })}</ol>;
 }
 
+function Chip({ children, tom }: { children: React.ReactNode; tom?: "accent" | "measure" }) {
+  return <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11.5px] font-medium ${tom === "accent" ? "bg-accent/10 text-accent" : tom === "measure" ? "bg-measure/10 text-measure" : "bg-surface2 text-muted"}`}>{children}</span>;
+}
+
 function TarefaItem({ t, onSelect, aoMarcar }: { t: Tarefa; onSelect: (s: Sel) => void; aoMarcar?: (t: Tarefa, valor: boolean) => void }) {
   const a = useApp(); const c = feita(t, a.done, a.valores); const assunto = t.assuntoId ? assuntoById.get(t.assuntoId) : undefined;
-  const texto = `${t.texto}${t.sessao ? ` — sessão ${t.sessao[0]} de ${t.sessao[1]}` : ""}`;
+  const titulo = t.titulo ?? t.texto, tipo = t.formato === "vídeo" ? "vídeo" : t.formato === "curso" ? "curso" : TIPOS[t.tipo];
   const marcar = aoMarcar ?? ((x: Tarefa, v: boolean) => a.setMany(idsParaMarcar(x, v), v));
-  return <li className="flex items-start gap-3 border-t border-line-soft py-2 first:border-t-0">
-    <input aria-label={texto} type="checkbox" className="mt-1 size-4 shrink-0" checked={c} onChange={() => marcar(t, !c)} />
-    <div className="min-w-0"><p className={`text-[15px] ${c ? "text-muted line-through" : ""}`}>{t.url ? <a href={t.url} target="_blank" rel="noreferrer" className="hover:text-accent hover:underline">{texto} ↗</a> : texto}</p>
-      <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[11px] text-muted"><span>{TIPOS[t.tipo]} · ~{t.minutos} min</span>
-        {assunto && <Btn onClick={() => onSelect({ kind: "assunto", id: assunto.id })}>{assunto.titulo}</Btn>}
-        {t.tipo === "evidencia" && <Btn onClick={() => onSelect({ kind: "mes", mes: t.mes })}>abrir o mês</Btn>}
+  return <li className="flex items-start gap-3 px-4 py-3">
+    <input aria-label={titulo} type="checkbox" className="mt-0.5 size-4 shrink-0" checked={c} onChange={() => marcar(t, !c)} />
+    <div className="min-w-0 flex-1">
+      <p className={`text-[14.5px] leading-snug ${c ? "text-muted line-through" : ""}`}>{t.url ? <a href={t.url} target="_blank" rel="noreferrer" className="hover:text-accent hover:underline">{titulo} <span aria-hidden className="text-muted">↗</span></a> : titulo}</p>
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[12px] text-muted">
+        <Chip tom={t.tipo === "pratica" || t.tipo === "lab" ? "measure" : "accent"}>{tipo}</Chip>
+        {t.sessao && <Chip>sessão {t.sessao[0]}/{t.sessao[1]}</Chip>}
+        <span className="font-mono">{t.minutos} min</span>
+        {t.fonte && <span>· {t.fonte}</span>}
+        {assunto && <button type="button" onClick={() => onSelect({ kind: "assunto", id: assunto.id })} className="text-left hover:text-accent hover:underline">· {assunto.titulo} →</button>}
+        {t.tipo === "evidencia" && <button type="button" onClick={() => onSelect({ kind: "mes", mes: t.mes })} className="hover:text-accent hover:underline">· abrir o mês →</button>}
       </div>
     </div>
   </li>;
@@ -198,14 +248,12 @@ function Semana({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void }) {
   const seg = addDias(segunda(hoje), desloc * 7), ref = dataDoDia(seg, 4), mes = horasMes(ref.getFullYear(), ref.getMonth(), a.done);
   const feitas = horasSemana(seg, a.done), atual = desloc === 0, n = ofensiva(hoje, a.done), rec = Math.max(recorde(a.done), n);
   const dias = diasDaSemana(iso(seg)), totalSem = dias.reduce((t, d) => t + d.horas, 0); // inclui dias extras da semana
-  return <section aria-labelledby="semana-h" className="mb-14">
+  return <section aria-labelledby="semana-h">
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div><p className="label">Semana · {fmtH(total)} (qua a dom)</p><h2 id="semana-h" className="mt-1 text-2xl font-bold">Ofensiva: {n} {n === 1 ? "semana" : "semanas"} <span className="font-mono text-[13px] font-normal text-muted">· recorde {rec}</span></h2></div>
-      <div className="flex items-center gap-2"><Btn onClick={() => setDesloc(x => x - 1)}>← semana</Btn>{!atual && <Btn onClick={() => setDesloc(0)}>hoje</Btn>}<Btn onClick={() => setDesloc(x => x + 1)}>semana →</Btn></div>
+      <div className="flex items-center gap-2"><Btn onClick={() => setDesloc(x => x - 1)}>← anterior</Btn>{!atual && <Btn onClick={() => setDesloc(0)}>esta semana</Btn>}<Btn onClick={() => setDesloc(x => x + 1)}>próxima →</Btn></div>
     </div>
-    <RevisaoHoje hoje={hoje} onSelect={onSelect} />
-    <AtrasosHoje hoje={hoje} onSelect={onSelect} />
-    <div className="mt-4 border border-line bg-surface">
+    <div className="card mt-4 overflow-hidden">
       <p className="flex justify-between gap-3 border-b border-line px-4 py-2 font-mono text-[11px] text-muted"><span>{ddmm(dataDoDia(seg, dias[0]?.dow ?? 3))} → {ddmm(dataDoDia(seg, 0))}{atual && " · esta semana"}{totalSem > total && ` · ${fmtH(totalSem - total)} extras`}</span><span className={feitas >= META_SEMANA ? "text-ok" : ""}>{fmtH(feitas)}/{fmtH(totalSem)} · meta {fmtH(META_SEMANA)}</span></p>
       {dias.map(d => {
         const id = diaId(seg, d.dow), partes = d.partes.map((_, i) => parteId(seg, d.dow, i)), h = horasDia(seg, d, a.done), c = h === d.horas, parcial = h > 0 && !c;
@@ -219,7 +267,7 @@ function Semana({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void }) {
             {d.partes.map((p, i) => { const f = parteFeita(seg, d, i, a.done); return <label key={i} className="mt-1 flex cursor-pointer items-start gap-2 text-[13.5px] leading-snug">
               <input className="mt-0.5 size-3.5 shrink-0" type="checkbox" checked={f} onChange={() => marcarParte(i)} />
               <span className="flex-1"><span className={`${f ? "text-muted line-through" : "text-muted"}`}>{p.texto}</span>
-                {doDia?.[i]?.length ? <ul className="mt-1 space-y-0.5">{doDia[i].map(t => { const ok = feita(t, a.done, a.valores); return <li key={t.id} className={`flex gap-1.5 text-[13px] ${ok ? "text-muted line-through" : "text-text"}`}><span aria-hidden className="text-muted">·</span><span>{t.url ? <a href={t.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="hover:text-accent hover:underline">{t.texto} ↗</a> : t.texto}{t.sessao ? ` — sessão ${t.sessao[0]} de ${t.sessao[1]}` : ""} <span className="font-mono text-[11px] text-muted">~{t.minutos} min</span></span></li>; })}</ul> : null}
+                {doDia?.[i]?.length ? <ul className="mt-1 space-y-0.5">{doDia[i].map(t => { const ok = feita(t, a.done, a.valores); return <li key={t.id} className={`flex gap-1.5 text-[13px] ${ok ? "text-muted line-through" : "text-text"}`}><span aria-hidden className="text-muted">·</span><span>{t.url ? <a href={t.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="hover:text-accent hover:underline">{t.titulo ?? t.texto} ↗</a> : t.titulo ?? t.texto}{t.sessao ? ` · sessão ${t.sessao[0]}/${t.sessao[1]}` : ""} <span className="font-mono text-[11px] text-muted">{t.minutos} min</span></span></li>; })}</ul> : null}
               </span><span className="shrink-0 font-mono text-[11px] text-muted">{fmtH(p.horas)}</span>
             </label>; })}
             <Plano data={dataDoDia(seg, d.dow)} pilares={d.pilares} onSelect={onSelect} /></span>
@@ -234,9 +282,21 @@ function Semana({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void }) {
 /* ───────── Revisão espaçada (fora das horas da semana) ───────── */
 function RevisaoHoje({ hoje, onSelect }: { hoje: Date; onSelect: (s: Sel) => void }) {
   const a = useApp(); const dia = isoDia(hoje), n = pendentes(a.cards, dia).length, total = Object.keys(a.cards).length, seq = sequencia(dia, a.done);
-  return <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border border-line bg-surface px-4 py-3">
-    <p className="text-[14.5px]"><strong>Revisão de hoje:</strong> {total === 0 ? <span className="text-muted">nenhum card ainda; crie perguntas no painel de um assunto</span> : n ? `${n} ${n === 1 ? "card" : "cards"}` : <span className="text-ok">em dia</span>} <span className="font-mono text-[12px] text-muted">· sequência {seq} {seq === 1 ? "dia" : "dias"} · {total} no total</span></p>
-    {n > 0 && <Btn onClick={() => onSelect({ kind: "revisao" })}>revisar</Btn>}
+  return <div className="card p-4">
+    <div className="flex items-center justify-between gap-3"><p className="label">Revisão</p>{n > 0 && <Btn onClick={() => onSelect({ kind: "revisao" })}>revisar</Btn>}</div>
+    {total === 0 ? <p className="mt-2 text-[14px] text-muted">Nenhum card ainda. Crie perguntas no painel de um assunto.</p>
+      : <p className={`mt-2 text-[20px] font-bold ${n ? "" : "text-ok"}`}>{n ? `${n} ${n === 1 ? "card" : "cards"} hoje` : "Em dia"}</p>}
+    {total > 0 && <p className="mt-1 font-mono text-[12px] text-muted">sequência {seq} {seq === 1 ? "dia" : "dias"} · {total} no total</p>}
+  </div>;
+}
+
+function SemanaResumo({ hoje, onAbrir }: { hoje: Date; onAbrir: () => void }) {
+  const a = useApp(); const seg = segunda(hoje), feitas = horasSemana(seg, a.done), total = diasDaSemana(iso(seg)).reduce((t, d) => t + d.horas, 0), n = ofensiva(hoje, a.done);
+  return <div className="card p-4">
+    <div className="flex items-center justify-between gap-3"><p className="label">Esta semana</p><Btn onClick={onAbrir}>abrir</Btn></div>
+    <p className="mt-2 text-[20px] font-bold"><span className="font-mono">{fmtH(feitas)}</span> <span className="text-[14px] font-normal text-muted">de {fmtH(total)} · meta {fmtH(META_SEMANA)}</span></p>
+    <Bar n={feitas} total={total} />
+    <p className="mt-2 text-[12.5px] text-muted">Ofensiva: {n} {n === 1 ? "semana" : "semanas"} com {fmtH(META_SEMANA)} ou mais</p>
   </div>;
 }
 
@@ -278,9 +338,9 @@ const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um :
 function AtrasosHoje({ hoje, onSelect }: { hoje: Date; onSelect: (s: Sel) => void }) {
   const a = useApp(); const x = atrasados(hoje, a.done, a.valores), itens = totalItens(x);
   const partes = [x.dias.length && plural(x.dias.length, "dia", "dias"), itens && plural(itens, "item", "itens"), x.labs.length && plural(x.labs.length, "laboratório", "laboratórios")].filter(Boolean);
-  return <div className="mt-2 flex flex-wrap items-center justify-between gap-3 border border-line bg-surface px-4 py-3">
-    <p className="text-[14.5px]"><strong>Ficou pra trás:</strong> {partes.length ? <span className="text-warn">{partes.join(" · ")}</span> : <span className="text-ok">em dia</span>}</p>
-    {partes.length > 0 && <Btn onClick={() => onSelect({ kind: "atrasos" })}>resgatar</Btn>}
+  return <div className={`card p-4 ${partes.length ? "border-warn/40" : ""}`}>
+    <div className="flex items-center justify-between gap-3"><p className="label">Ficou pra trás</p>{partes.length > 0 && <Btn onClick={() => onSelect({ kind: "atrasos" })}>resgatar</Btn>}</div>
+    <p className={`mt-2 font-semibold ${partes.length ? "text-[15px] text-warn" : "text-[20px] text-ok"}`}>{partes.length ? partes.join(" · ") : "Em dia"}</p>
   </div>;
 }
 
@@ -303,7 +363,7 @@ function AtrasosPanel({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void 
     <h2 className="mt-2 text-2xl font-bold">{vazio ? "Nada ficou pra trás" : "O que ficou pra trás"}</h2>
     {!vazio && <p className="mt-2 text-[14.5px] text-muted">Tudo o que não foi marcado até ontem. Cada dia perdido traz as próximas tarefas da fila (sem repetir as de hoje); marcar a última tarefa de uma parte marca a parte no dia original.</p>}
     {x.dias.length > 0 && <><h3 className="label mt-7 mb-1">Dias não marcados · {x.dias.length}</h3>
-      {x.dias.map(d => { const { iso: dIso, data, seg, dia, partes } = d, ids = dia.partes.map((_, i) => parteId(seg, dia.dow, i)), falta = partes.reduce((t, i) => t + dia.partes[i].horas, 0); return <div key={dIso} className="mt-3 border border-line bg-surface px-4 py-3">
+      {x.dias.map(d => { const { iso: dIso, data, seg, dia, partes } = d, ids = dia.partes.map((_, i) => parteId(seg, dia.dow, i)), falta = partes.reduce((t, i) => t + dia.partes[i].horas, 0); return <div key={dIso} className="mt-3 rounded-xl border border-line bg-surface px-4 py-3">
         <div className="flex items-center gap-3">
           <input aria-label={`Marcar ${dia.dia} ${ddmm(data)} inteiro`} className="size-4 shrink-0 cursor-pointer" type="checkbox" checked={false} onChange={() => a.setMany(ids, true)} />
           <span className="font-mono text-[12px] font-bold">{dia.dia} {ddmm(data)}</span>
@@ -313,13 +373,12 @@ function AtrasosPanel({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void 
         <PartesDoDia dia={doDia(d)} seg={seg} ativo onSelect={onSelect} />
       </div>; })}</>}
     {x.assuntos.length > 0 && <><h3 className="label mt-7 mb-1">Itens de assunto vencidos · {totalItens(x)}</h3>
-      {x.assuntos.map(({ x: s, ids }) => { const travada = !a.temValor(`nota-${s.id}`); return <div key={s.id} className="mt-3 border border-line bg-surface px-4 py-2">
+      {x.assuntos.map(({ x: s, ids }) => <div key={s.id} className="mt-3 rounded-xl border border-line bg-surface px-4 py-2">
         <button type="button" onClick={() => onSelect({ kind: "assunto", id: s.id })} className="flex items-center gap-2 py-1 text-left font-semibold hover:text-accent hover:underline"><span className={`inline-block size-2 rounded-full ${DOT[s.pilar]}`} />M{String(s.mes).padStart(2, "0")} · {s.titulo}</button>
-        {ids.map(id => <Check key={id} id={id} text={texto(s, id)} disabled={id === s.pratica.id && travada} />)}
-        {ids.includes(s.pratica.id) && travada && <p className="mt-1 text-[13px] text-muted">Escreva o resumo no painel do assunto para liberar a prática.</p>}
-      </div>; })}</>}
+        {ids.map(id => <Check key={id} id={id} text={texto(s, id)} />)}
+      </div>)}</>}
     {x.labs.length > 0 && <><h3 className="label mt-7 mb-1">Laboratórios incompletos · {x.labs.length}</h3>
-      {x.labs.map(({ lab, atividades, evidencias }) => <div key={lab.id} className="mt-3 border border-line bg-surface px-4 py-2">
+      {x.labs.map(({ lab, atividades, evidencias }) => <div key={lab.id} className="mt-3 rounded-xl border border-line bg-surface px-4 py-2">
         <button type="button" onClick={() => onSelect({ kind: "mes", mes: lab.mes })} className="py-1 text-left font-semibold hover:text-accent hover:underline">M{String(lab.mes).padStart(2, "0")} · {lab.titulo}</button>
         {atividades.map(id => <Check key={id} id={id} text={lab.atividades.find(t => t.id === id)?.texto ?? id} />)}
         {evidencias.length > 0 && <p className="mt-1 font-mono text-[11px] text-muted">{plural(evidencias.length, "evidência sem registro", "evidências sem registro")}; registre no painel do laboratório.</p>}
@@ -327,62 +386,60 @@ function AtrasosPanel({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void 
   </article>;
 }
 
-/* ───────── Trilha (mapa de nós) ───────── */
+/* ───────── Trilha (visão geral + grade de meses) ───────── */
 function Trilha({ onSelect }: { onSelect: (s: Sel) => void }) {
+  const app = useApp(); const agora = useAgora(); const { done, valores, filters } = app;
+  const flip = (p: Pilar) => app.setFilters(f => ({ ...f, pillars: f.pillars.includes(p) ? f.pillars.filter(x => x !== p) : [...f.pillars, p] }));
+  const activities = countDone(ALL_ACTIVITY_IDS, done), evidence = countValues(ALL_EVIDENCE_IDS, valores), topicItems = countDone(ALL_ASSUNTO_IDS, done);
+  const topicsDone = assuntos.filter(x => assuntoDone(x, done) === assuntoIds(x).length).length;
+  const total = ALL_ACTIVITY_IDS.length + ALL_EVIDENCE_IDS.length + ALL_ASSUNTO_IDS.length;
+  const mesAtual = agora ? mesDoPlano(agora) : null;
+  const stats: [string, string][] = [["progresso", `${app.loaded ? pct(activities + evidence + topicItems, total) : 0}%`], ["assuntos", `${topicsDone}/${assuntos.length}`], ["leituras", `${countDone(ALL_LEITURA_IDS, done)}/${ALL_LEITURA_IDS.length}`], ["laboratórios", `${labsComplete(done, valores)}/${laboratorios.length}`], ["marcos", `${countDone(ALL_MARCO_IDS, done)}/${ALL_MARCO_IDS.length}`]];
   return <section aria-labelledby="trilha-h">
-    <div className="flex flex-wrap items-end justify-between gap-4"><div><h2 id="trilha-h" className="text-2xl font-bold">Trilha</h2><p className="mt-2 max-w-[70ch] text-muted">Cada mês é um nó central; os assuntos saem dele. Clique num assunto: primeiro a teoria (o que estudar e leituras, com tempo estimado), depois a prática. Clique no mês para ver o laboratório.</p></div>
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-muted"><li className="flex items-center gap-1.5"><span className="inline-block size-3 border border-line bg-surface" />não iniciado</li><li className="flex items-center gap-1.5"><span className="inline-block size-3 border-2 border-accent bg-surface" />em andamento</li><li className="flex items-center gap-1.5"><span className="inline-block size-3 border border-ok bg-ok/20" />concluído</li></ul></div>
+    <div className="card p-5 sm:p-6">
+      <p className="label">36 meses · {fmtMesAno(INICIO)} → {fmtMesAno(metaMes(36))} · 8h por semana</p>
+      <h1 id="trilha-h" className="mt-1 max-w-[30ch] text-[26px] font-bold leading-tight tracking-tight">Senior Abroad: Architecture, AI Engineering &amp; Cloud</h1>
+      <p className="mt-2 max-w-[75ch] text-[14.5px] leading-relaxed text-muted">Sênior de .NET e Azure que constrói e opera sistemas com IA em produção. A saída do Brasil vem em dois passos: um contrato remoto internacional e, depois, a mudança com visto patrocinado.</p>
+      <ol className="mt-4 flex flex-wrap gap-2">{ROTA.map(r => <li key={r.codigo} className="rounded-lg bg-surface2 px-3 py-2"><span className="block font-display text-[15px] font-bold">{r.codigo}</span><span className="text-[12px] text-muted">{r.quando} · {r.texto}</span></li>)}</ol>
+      <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">{stats.map(([l, v]) => <div key={l} className="rounded-lg border border-line-soft px-3 py-2"><dt className="text-[12px] text-muted">{l}</dt><dd className="font-mono text-[18px] font-bold">{v}</dd></div>)}</dl>
+      {app.legacy && <p className="mt-4 rounded-lg bg-warn/10 px-4 py-2 text-[13.5px] text-muted">O progresso do cronograma anterior está preservado no exportável como histórico ({app.legacy.done.length} marcações). Ele não conta como avanço novo.</p>}
+    </div>
+    <div className="no-print mt-6 flex flex-wrap items-center gap-2">
+      <Btn active={filters.onlyPending} onClick={() => app.setFilters(f => ({ ...f, onlyPending: !f.onlyPending }))}>só pendentes</Btn>
+      {(Object.keys(PILARES) as Pilar[]).map(p => <Btn key={p} active={filters.pillars.includes(p)} onClick={() => flip(p)}><span className={`mr-1.5 inline-block size-2 rounded-full ${DOT[p]}`} />{title(p)}</Btn>)}
+    </div>
     {ANOS.map(ano => <div key={ano.n} className="mt-10">
-      <div className="sticky top-0 z-20 -mx-6 border-b border-line bg-bg/95 px-6 py-3 backdrop-blur"><p className="label">Ano {ano.n} · {ano.meses}</p><h3 className="text-xl font-bold">{ano.nome}</h3></div>
-      <div className="relative mt-6">
-        <span aria-hidden className="absolute bottom-0 left-1/2 top-0 hidden w-0.5 -translate-x-1/2 bg-line md:block" />
-        {trimestres.filter(t => Math.ceil(t.meses[0] / 12) === ano.n).map(t => <div key={t.id} className="relative">
-          <QuarterPill t={t} onClick={() => onSelect({ kind: "tri", id: t.id })} />
-          {t.meses.map(m => <MonthRow key={m} mes={m} onSelect={onSelect} />)}
-        </div>)}
-      </div>
+      <div className="flex flex-wrap items-baseline gap-x-3"><h2 className="text-xl font-bold">Ano {ano.n} · {ano.nome}</h2><span className="text-[13px] text-muted">{ano.meses}</span></div>
+      {trimestres.filter(t => Math.ceil(t.meses[0] / 12) === ano.n).map(t => { const nm = countDone(t.marcos.map(m => m.id), done); return <div key={t.id} className="mt-5">
+        <button type="button" onClick={() => onSelect({ kind: "tri", id: t.id })} className="flex flex-wrap items-baseline gap-x-2 text-left hover:text-accent">
+          <span className="font-mono text-[12.5px] font-bold">{t.rotulo}</span><span className="text-[14px] font-semibold">{t.tema}</span>{t.marco && <span className="text-[13px] text-measure">· {t.marco}</span>}<span className="text-[12.5px] text-muted">· marcos {nm}/{t.marcos.length}</span>
+        </button>
+        <div className="mt-3 grid gap-3 md:grid-cols-3">{t.meses.map(m => <MesCard key={m} mes={m} atual={m === mesAtual} onSelect={onSelect} />)}</div>
+      </div>; })}
     </div>)}
   </section>;
 }
 
-function QuarterPill({ t, onClick }: { t: Trimestre; onClick: () => void }) {
-  const a = useApp(); const n = countDone(t.marcos.map(m => m.id), a.done);
-  return <div className="relative z-10 my-6 flex justify-start md:justify-center"><button type="button" onClick={onClick} className="rounded-full border border-text bg-bg px-4 py-1.5 font-mono text-[12px] hover:bg-surface2">
-    <span className="font-bold">{t.rotulo}</span> · {t.tema}{t.marco && <span className="text-measure"> · {t.marco}</span>} <span className="text-muted">· marcos {n}/{t.marcos.length}</span>
-  </button></div>;
-}
-
-function MonthRow({ mes, onSelect }: { mes: number; onSelect: (s: Sel) => void }) {
-  const lab = laboratorios[mes - 1]; const topics = assuntosDoMes(mes);
-  const left = topics.filter((_, i) => i % 2 === 0), right = topics.filter((_, i) => i % 2 === 1);
-  return <div className="relative grid grid-cols-1 gap-y-2 py-3 md:grid-cols-[1fr_16rem_1fr] md:items-center">
-    <div className="order-2 flex flex-col gap-2 border-l border-dashed border-line pl-5 md:order-none md:items-end md:border-0 md:pl-0">{left.map(x => <TopicNode key={x.id} x={x} side="left" onClick={() => onSelect({ kind: "assunto", id: x.id })} />)}</div>
-    <MonthNode lab={lab} onClick={() => onSelect({ kind: "mes", mes })} />
-    <div className="order-3 flex flex-col gap-2 border-l border-dashed border-line pl-5 md:order-none md:items-start md:border-0 md:pl-0">{right.map(x => <TopicNode key={x.id} x={x} side="right" onClick={() => onSelect({ kind: "assunto", id: x.id })} />)}</div>
-  </div>;
-}
-
-function MonthNode({ lab, onClick }: { lab: Laboratorio; onClick: () => void }) {
-  const a = useApp(); const complete = labComplete(lab, a.done, a.valores);
-  const dim = (a.filters.pillars.length > 0 && !lab.pilares.some(p => a.filters.pillars.includes(p))) || (a.filters.onlyPending && complete);
-  return <button type="button" onClick={onClick} className={`order-1 relative z-10 w-full border-2 px-4 py-3 text-left transition md:order-none ${complete ? "border-ok bg-ok/15" : "border-text bg-surface2 hover:bg-surface"} ${dim ? "opacity-35" : ""}`}>
-    <span className="flex items-baseline justify-between gap-2 font-mono text-[11px] text-muted"><span>M{String(lab.mes).padStart(2, "0")} · {lab.tipo === "projeto-integrador" ? "integrador" : "laboratório"}</span>{complete && <span className="text-ok">✓</span>}</span>
-    <span className="mt-1 block font-display text-[15.5px] font-bold leading-snug">{lab.titulo}</span>
-  </button>;
-}
-
-function TopicNode({ x, side, onClick }: { x: Assunto; side: "left" | "right"; onClick: () => void }) {
-  const a = useApp(); const ids = assuntoIds(x); const n = assuntoDone(x, a.done); const complete = n === ids.length;
-  const dim = (a.filters.pillars.length > 0 && !a.filters.pillars.includes(x.pilar)) || (a.filters.onlyPending && complete);
-  const state = complete ? "border-ok bg-ok/15" : n > 0 ? "border-accent border-2 bg-surface" : "border-line bg-surface";
-  return <div className={`flex w-full items-center md:justify-end ${side === "left" ? "md:flex-row" : "md:flex-row-reverse"} ${dim ? "opacity-35" : ""}`}>
-    <button type="button" onClick={onClick} className={`w-full border px-3 md:w-[17rem] py-2 text-left transition hover:-translate-y-px hover:shadow-sm ${state}`}>
-      <span className="flex items-center gap-2"><span className={`inline-block size-2 shrink-0 rounded-full ${DOT[x.pilar]}`} /><span className="font-display text-[14px] font-semibold leading-snug">{x.titulo}</span></span>
-      <span className="mt-1 flex justify-between font-mono text-[10.5px] text-muted"><span>teoria {horasTeoria(x)}h · prática {horasPratica(x)}h</span><span>{complete ? "✓ feito" : `${n}/${ids.length}`}</span></span>
+function MesCard({ mes, atual, onSelect }: { mes: number; atual: boolean; onSelect: (s: Sel) => void }) {
+  const a = useApp(); const lab = laboratorios[mes - 1]; const xs = assuntosDoMes(mes); const ts = TAREFAS.filter(t => t.mes === mes);
+  const p = pct(minutosFeitos(ts, a.done, a.valores), minutosTotal(ts)), completo = labComplete(lab, a.done, a.valores) && p === 100;
+  const fora = (x: Assunto) => a.filters.pillars.length > 0 && !a.filters.pillars.includes(x.pilar);
+  const dimMes = (a.filters.pillars.length > 0 && !lab.pilares.some(q => a.filters.pillars.includes(q)) && xs.every(fora)) || (a.filters.onlyPending && completo);
+  return <div className={`card flex flex-col overflow-hidden transition ${atual ? "ring-2 ring-accent" : ""} ${completo ? "border-ok/50" : ""} ${dimMes ? "opacity-40" : ""}`}>
+    <button type="button" onClick={() => onSelect({ kind: "mes", mes })} className="px-4 pb-3 pt-4 text-left hover:bg-surface2/60">
+      <span className="flex items-center justify-between gap-2 text-[12px] text-muted"><span className="font-mono font-bold text-text">M{String(mes).padStart(2, "0")}</span><span>{atual ? <span className="font-semibold text-accent">mês atual</span> : completo ? <span className="text-ok">✓ concluído</span> : `${fmtMesAno(inicioMes(mes))}`}</span></span>
+      <span className="mt-1 block font-display text-[15px] font-bold leading-snug">{lab.titulo}</span>
+      <span className="mt-2 flex items-center gap-2"><span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface2"><span className={`block h-full rounded-full ${completo ? "bg-ok" : "bg-accent"}`} style={{ width: `${p}%` }} /></span><span className="font-mono text-[11.5px] text-muted">{p}%</span></span>
     </button>
-    <span aria-hidden className="hidden h-0 w-8 shrink-0 border-t border-dashed border-muted md:block" />
+    <ul className="divide-y divide-line-soft border-t border-line-soft">{xs.map(x => { const ids = assuntoIds(x), n = assuntoDone(x, a.done), ok = n === ids.length, dim = fora(x) || (a.filters.onlyPending && ok); return <li key={x.id}>
+      <button type="button" onClick={() => onSelect({ kind: "assunto", id: x.id })} className={`flex w-full items-center gap-2.5 px-4 py-2 text-left hover:bg-surface2/60 ${dim ? "opacity-40" : ""}`}>
+        <span className={`inline-block size-2 shrink-0 rounded-full ${DOT[x.pilar]}`} />
+        <span className={`min-w-0 flex-1 truncate text-[13.5px] ${ok ? "text-muted line-through" : ""}`}>{x.titulo}</span>
+        <span className={`shrink-0 font-mono text-[11.5px] ${ok ? "text-ok" : n > 0 ? "text-accent" : "text-muted"}`}>{ok ? "✓" : `${n}/${ids.length}`}</span>
+      </button></li>; })}</ul>
   </div>;
 }
+
 
 /* ───────── Painel lateral ───────── */
 function Drawer({ sel, h, onClose, onSelect }: { sel: Sel; h: HojeApi; onClose: () => void; onSelect: (s: Sel) => void }) {
@@ -390,9 +447,9 @@ function Drawer({ sel, h, onClose, onSelect }: { sel: Sel; h: HojeApi; onClose: 
   useEffect(() => { if (!sel) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); panel.current?.focus(); panel.current?.scrollTo(0, 0); return () => window.removeEventListener("keydown", k); }, [sel, onClose]);
   if (!sel) return null;
   return <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true">
-    <button type="button" aria-label="Fechar" className="flex-1 bg-black/40" onClick={onClose} />
-    <div ref={panel} tabIndex={-1} className="h-full w-full max-w-[36rem] overflow-y-auto border-l border-line bg-bg px-6 pb-16 pt-5 outline-none">
-      <div className="mb-4 flex justify-end"><button type="button" onClick={onClose} className="border border-line px-2.5 py-1 font-mono text-[11px] text-muted hover:border-accent hover:text-accent">fechar · esc</button></div>
+    <button type="button" aria-label="Fechar" className="flex-1 bg-black/30 backdrop-blur-[1px]" onClick={onClose} />
+    <div ref={panel} tabIndex={-1} className="h-full w-full max-w-[38rem] overflow-y-auto border-l border-line bg-bg px-5 pb-16 pt-4 shadow-2xl outline-none sm:px-7">
+      <div className="sticky top-0 z-10 -mx-5 mb-4 flex justify-end bg-bg/90 px-5 py-2 backdrop-blur sm:-mx-7 sm:px-7"><Btn onClick={onClose}>fechar · esc</Btn></div>
       {sel.kind === "assunto" && <AssuntoPanel id={sel.id} onSelect={onSelect} />}
       {sel.kind === "mes" && <MesPanel mes={sel.mes} onSelect={onSelect} />}
       {sel.kind === "tri" && <TriPanel id={sel.id} />}
@@ -410,18 +467,16 @@ function AssuntoPanel({ id, onSelect }: { id: string; onSelect: (s: Sel) => void
     <h2 className="mt-2 text-2xl font-bold">{x.titulo}</h2>
     <p className="mt-2 text-[16px] leading-relaxed text-muted">{x.resumo}</p>
     <Bar n={n} total={ids.length} /><p className="mt-1 font-mono text-[11px] text-muted">{n}/{ids.length} itens</p>
-    <div className="mt-6 border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Ordem:</strong> primeiro a teoria (~{horasTeoria(x)}h), depois a prática (~{horasPratica(x)}h). Comece a prática quando conseguir explicar cada subtópico em voz alta sem consultar.</p></div><h3 className="mt-7 text-lg font-bold">Passo 1 · Teoria <span className="font-mono text-[12px] font-normal text-muted">~{horasTeoria(x)}h</span></h3><h3 className="label mt-3 mb-1">O que estudar</h3>{x.subtopicos.map(s => <Check key={s.id} id={s.id} text={s.texto} />)}
+    <div className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Ordem:</strong> primeiro a teoria (~{horasTeoria(x)}h), depois a prática (~{horasPratica(x)}h). A prática libera quando as leituras do assunto estiverem marcadas.</p></div><h3 className="mt-7 text-lg font-bold">Passo 1 · Teoria <span className="font-mono text-[12px] font-normal text-muted">~{horasTeoria(x)}h</span></h3><h3 className="label mt-3 mb-1">O que as leituras cobrem</h3><ul className="list-disc pl-5 text-[14.5px] text-muted">{x.subtopicos.map(s => <li key={s.id}>{s.texto}</li>)}</ul>
     <h3 className="label mt-7 mb-1">Leituras</h3>
     <ul>{x.leituras.map(l => <li key={l.id} className="flex items-start gap-3 border-t border-line-soft py-3 first:border-t-0">
       <input aria-label={`Marcar como lida: ${l.titulo}`} className="mt-1.5 size-4 shrink-0" type="checkbox" checked={a.done.has(l.id)} onChange={() => a.toggle(l.id)} />
       <div className="min-w-0"><a href={l.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${a.done.has(l.id) ? "text-muted line-through" : ""}`}>{l.titulo} ↗</a><p className="font-mono text-[11px] text-muted">{l.fonte} · {l.tipo} · ~{minLeitura(l)} min</p></div>
     </li>)}</ul>
-    <h3 className="label mt-7 mb-1">Explique com suas palavras</h3>
-    <p className="mb-2 text-[13.5px] text-muted">Sem consultar: o que é, por que importa e como se liga ao que você já sabe. Onde travar é o que precisa estudar de novo.</p>
-    <textarea className="nota w-full" rows={5} value={a.valorDe(nota)} placeholder="resumo de 3 a 5 linhas" onChange={e => a.setValor(nota, e.target.value)} />
+    <h3 className="label mt-7 mb-1">Anotações <span className="normal-case tracking-normal text-muted">(opcional)</span></h3>
+    <textarea className="nota w-full" rows={4} value={a.valorDe(nota)} placeholder="o que vale guardar deste assunto" onChange={e => a.setValor(nota, e.target.value)} />
     <h3 className="label mt-7 mb-1">Perguntas de revisão</h3><CardsAssunto assunto={x.id} />
-    <h3 className="mt-8 text-lg font-bold">Passo 2 · Prática <span className="font-mono text-[12px] font-normal text-muted">~{horasPratica(x)}h</span></h3><Check id={x.pratica.id} text={x.pratica.texto} disabled={!a.temValor(nota) && !a.isDone(x.pratica.id)} />
-    {!a.temValor(nota) && !a.isDone(x.pratica.id) && <p className="mt-1 text-[13px] text-muted">Escreva o resumo acima para liberar a prática.</p>}
+    <h3 className="mt-8 text-lg font-bold">Passo 2 · Prática <span className="font-mono text-[12px] font-normal text-muted">~{horasPratica(x)}h</span></h3><Check id={x.pratica.id} text={x.pratica.texto} />
     <div className="mt-8 flex flex-wrap justify-between gap-2 border-t border-line pt-4">
       {prev ? <Btn onClick={() => onSelect({ kind: "assunto", id: prev.id })}>← {prev.titulo}</Btn> : <span />}
       <Btn onClick={() => onSelect({ kind: "mes", mes: x.mes })}>laboratório do mês</Btn>
@@ -437,17 +492,17 @@ function MesPanel({ mes, onSelect }: { mes: number; onSelect: (s: Sel) => void }
   return <article>
     <p className="label">M{String(l.mes).padStart(2, "0")} · {l.fase} · {l.tipo === "projeto-integrador" ? "projeto integrador" : "laboratório"}</p>
     <h2 className="mt-2 text-2xl font-bold">{l.titulo}</h2>
-    <div className="mt-3 flex flex-wrap gap-2">{l.pilares.map(p => <span key={p} className={`border border-line px-2 py-0.5 font-mono text-[10px] ${PILARES[p].cor}`}>{title(p)}</span>)}</div>
+    <div className="mt-3 flex flex-wrap gap-2">{l.pilares.map(p => <span key={p} className={`rounded-md border border-line px-2 py-0.5 text-[11.5px] ${PILARES[p].cor}`}>{title(p)}</span>)}</div>
     <p className="mt-4"><strong>Problema real: </strong>{l.problema}</p>
     <p className="mt-2 text-muted"><strong className="text-text">Objetivo: </strong>{l.objetivo}</p>
     <p className="mt-3 font-mono text-[11px] leading-relaxed text-muted">Meta do calendário: {fmtDia(inicioMes(mes))} → {fmtDia(metaMes(mes))} · previsão no ritmo atual: {previsao ? fmtDia(previsao) : "concluído"}</p>
-    <div className="mt-6 border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Semanas 1–2 · teoria:</strong> o que estudar e as leituras dos assuntos abaixo (~{assuntosDoMes(mes).reduce((t, x) => t + horasTeoria(x), 0)}h).</p><p className="mt-1"><strong>Semanas 3–4 · prática:</strong> a prática de cada assunto e as atividades do laboratório (~{assuntosDoMes(mes).reduce((t, x) => t + horasPratica(x), 0)}h).</p></div><h3 className="label mt-7 mb-2">Assuntos deste mês</h3>
-    <div className="flex flex-col gap-2">{assuntosDoMes(mes).map(x => <button key={x.id} type="button" onClick={() => onSelect({ kind: "assunto", id: x.id })} className="flex items-center justify-between gap-3 border border-line bg-surface px-3 py-2 text-left hover:border-accent"><span className="flex items-center gap-2"><span className={`inline-block size-2 rounded-full ${DOT[x.pilar]}`} />{x.titulo}</span><span className="font-mono text-[11px] text-muted">{assuntoDone(x, a.done)}/{assuntoIds(x).length}</span></button>)}</div>
-    <div className="mt-7 flex items-center gap-3"><h3 className="label">Atividades do laboratório</h3><button type="button" className="ml-auto border border-line px-2 py-1 font-mono text-[10px] text-muted" onClick={() => a.setMany(ids, countDone(ids, a.done) !== ids.length)}>{countDone(ids, a.done) === ids.length ? "desmarcar" : "marcar todas"}</button></div>
+    <div className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Semanas 1–2 · teoria:</strong> as leituras e os módulos de curso dos assuntos abaixo (~{assuntosDoMes(mes).reduce((t, x) => t + horasTeoria(x), 0)}h).</p><p className="mt-1"><strong>Semanas 3–4 · prática:</strong> a prática de cada assunto e as atividades do laboratório (~{assuntosDoMes(mes).reduce((t, x) => t + horasPratica(x), 0)}h).</p></div><h3 className="label mt-7 mb-2">Assuntos deste mês</h3>
+    <div className="flex flex-col gap-2">{assuntosDoMes(mes).map(x => <button key={x.id} type="button" onClick={() => onSelect({ kind: "assunto", id: x.id })} className="flex items-center justify-between gap-3 rounded-lg border border-line bg-surface px-3 py-2 text-left hover:border-accent"><span className="flex items-center gap-2"><span className={`inline-block size-2 rounded-full ${DOT[x.pilar]}`} />{x.titulo}</span><span className="font-mono text-[11px] text-muted">{assuntoDone(x, a.done)}/{assuntoIds(x).length}</span></button>)}</div>
+    <div className="mt-7 flex items-center gap-3"><h3 className="label">Atividades do laboratório</h3><button type="button" className="ml-auto rounded-md border border-line px-2 py-1 text-[12px] text-muted hover:border-accent hover:text-accent" onClick={() => a.setMany(ids, countDone(ids, a.done) !== ids.length)}>{countDone(ids, a.done) === ids.length ? "desmarcar" : "marcar todas"}</button></div>
     {l.atividades.map(x => <Check key={x.id} id={x.id} text={x.texto} />)}
     <h3 className="label mt-7 mb-2">Evidências</h3>
     {l.evidencias.map(x => <label key={x.id} className="grid gap-2 border-t border-line-soft py-3 first:border-t-0"><span><span className="block font-medium">{x.label}</span><span className="text-[13px] text-muted">{x.prova}</span></span><input className="medicao w-full" value={a.valorDe(x.id)} placeholder="registrar evidência real" onChange={e => a.setValor(x.id, e.target.value)} /></label>)}
-    <details className="mt-7 border border-line bg-surface"><summary className="px-4 py-3 font-medium">Plano completo e critérios</summary><div className="grid gap-5 border-t border-line p-4"><Info h="Contexto" x={[l.contexto]} /><Info h="Pré-requisitos" x={l.preRequisitos} /><Info h="Requisitos funcionais" x={l.requisitosFuncionais} /><Info h="Requisitos não funcionais" x={l.requisitosNaoFuncionais} /><Info h="Tecnologias sugeridas" x={l.tecnologias} /><Info h="Alternativas" x={l.alternativas} /><Info h="Como usar IA" x={[l.usoIa]} /><Info h="Como validar a IA" x={[l.validacaoIa]} /><Info h="Critérios de conclusão" x={l.criterios} /><Info h="Entregáveis" x={l.entregaveis} /></div></details>
+    <details className="mt-7 rounded-xl border border-line bg-surface"><summary className="px-4 py-3 font-medium">Plano completo e critérios</summary><div className="grid gap-5 border-t border-line p-4"><Info h="Contexto" x={[l.contexto]} /><Info h="Pré-requisitos" x={l.preRequisitos} /><Info h="Requisitos funcionais" x={l.requisitosFuncionais} /><Info h="Requisitos não funcionais" x={l.requisitosNaoFuncionais} /><Info h="Tecnologias sugeridas" x={l.tecnologias} /><Info h="Alternativas" x={l.alternativas} /><Info h="Como usar IA" x={[l.usoIa]} /><Info h="Como validar a IA" x={[l.validacaoIa]} /><Info h="Critérios de conclusão" x={l.criterios} /><Info h="Entregáveis" x={l.entregaveis} /></div></details>
   </article>;
 }
 
@@ -462,7 +517,6 @@ function TriPanel({ id }: { id: string }) {
 }
 
 function Info({ h, x }: { h: string; x: string[] }) { return <div><p className="label mb-2">{h}</p><ul className="space-y-1.5 text-[14.5px] leading-relaxed text-muted">{x.map(y => <li key={y}>{y}</li>)}</ul></div>; }
-function Check({ id, text, disabled }: { id: string; text: string; disabled?: boolean }) { const a = useApp(); const c = a.isDone(id); return <label className={`flex items-start gap-2 border-t border-line-soft py-2 first:border-t-0 ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}><input className="mt-1 size-4 shrink-0" type="checkbox" checked={c} disabled={disabled} onChange={() => a.toggle(id)} /><span className={c ? "text-[15px] text-muted line-through" : "text-[15px]"}>{text}</span></label>; }
-function Bar({ n, total }: { n: number; total: number }) { return <div className="mt-4 h-1 bg-line"><div className="h-full bg-accent" style={{ width: `${pct(n, total)}%` }} /></div>; }
-function Stat({ l, v }: { l: string; v: string }) { return <div className="flex gap-1.5"><dt className="uppercase tracking-wider">{l}</dt><dd className="font-semibold text-text">{v}</dd></div>; }
-function Btn({ children, onClick, active, danger }: { children: React.ReactNode; onClick: () => void; active?: boolean; danger?: boolean }) { return <button type="button" onClick={onClick} aria-pressed={active} className={`inline-flex items-center border px-2.5 py-1 font-mono text-[11px] ${danger ? "border-warn text-warn" : active ? "border-accent bg-accent/10 text-accent" : "border-line text-muted hover:border-accent hover:text-accent"}`}>{children}</button>; }
+function Check({ id, text, disabled }: { id: string; text: string; disabled?: boolean }) { const a = useApp(); const c = a.isDone(id); return <label className={`flex items-start gap-2 border-t border-line-soft py-2 first:border-t-0 ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}><input className="mt-1 size-4 shrink-0" type="checkbox" checked={c} disabled={disabled} onChange={() => a.toggle(id)} /><span className={c ? "text-[14.5px] text-muted line-through" : "text-[14.5px]"}>{text}</span></label>; }
+function Bar({ n, total }: { n: number; total: number }) { const p = pct(n, total); return <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface2"><div className={`h-full rounded-full ${p >= 100 ? "bg-ok" : "bg-accent"}`} style={{ width: `${p}%` }} /></div>; }
+function Btn({ children, onClick, active, danger }: { children: React.ReactNode; onClick: () => void; active?: boolean; danger?: boolean }) { return <button type="button" onClick={onClick} aria-pressed={active} className={`inline-flex shrink-0 items-center rounded-lg border px-2.5 py-1 text-[12.5px] font-medium transition ${danger ? "border-warn/60 text-warn hover:bg-warn/10" : active ? "border-accent bg-accent/10 text-accent" : "border-line bg-surface text-muted hover:border-accent hover:text-accent"}`}>{children}</button>; }

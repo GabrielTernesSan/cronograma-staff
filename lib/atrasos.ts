@@ -26,7 +26,7 @@ export function atrasados(hoje: Date, done: Set<string>, valores: Valores): Atra
   // Depois do fim do plano tudo conta como mês fechado.
   const mesHoje = mesDoPlano(hoje), mes = mesHoje ?? DURACAO_MESES + 1, teoriaVencida = mesHoje !== null && fase(hoje) === "prática";
   const lista = assuntos.flatMap(x => {
-    const vencidos = x.mes < mes ? assuntoIds(x) : x.mes === mes && teoriaVencida ? [...x.subtopicos.map(s => s.id), ...x.leituras.map(l => l.id)] : [];
+    const vencidos = x.mes < mes ? assuntoIds(x) : x.mes === mes && teoriaVencida ? x.leituras.map(l => l.id) : [];
     const ids = vencidos.filter(id => !done.has(id));
     return ids.length ? [{ x, ids }] : [];
   });

@@ -1,10 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, JetBrains_Mono, Newsreader } from "next/font/google";
+import { Archivo, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-// Três papéis: Archivo carrega os títulos, Newsreader o texto corrido (é um
-// documento de estudo, não um painel), JetBrains Mono os números, unidades e
-// nomes de projeto.
+// Três papéis: Archivo nos títulos, Inter no texto da interface e JetBrains Mono
+// só nos números (horas, datas, contadores).
 const archivo = Archivo({
   subsets: ["latin"],
   weight: ["500", "600", "700"],
@@ -12,10 +11,10 @@ const archivo = Archivo({
   display: "swap",
 });
 
-const newsreader = Newsreader({
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-newsreader",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -47,7 +46,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`${archivo.variable} ${newsreader.variable} ${jetbrains.variable}`}
+      className={`${archivo.variable} ${inter.variable} ${jetbrains.variable}`}
     >
       <body>{children}</body>
     </html>

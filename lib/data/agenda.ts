@@ -1,16 +1,18 @@
 import type { Valores } from "../useProgress";
 import { addDias, paraData } from "../datas";
-import type { Pilar } from "../types";
+import type { Pilar, TipoLeitura } from "../types";
 import { laboratorios } from "./blocos";
 import { diaDeEstudo, fimMes, INICIO, SESSAO_MIN, type DiaSemana, type Parte } from "./cronograma";
 import { assuntos, assuntosDoMes, horasPratica, minLeitura } from "./trilha";
 
 // Fila única com todas as tarefas dos 36 meses, na ordem em que devem ser feitas.
 // Reaproveita os IDs da trilha e dos laboratórios: marcar aqui marca no mapa e vice-versa.
-export type TipoTarefa = "leitura" | "estudo" | "pratica" | "lab" | "evidencia";
+export type TipoTarefa = "leitura" | "pratica" | "lab" | "evidencia";
 export type Tarefa = {
   id: string; baseId: string; ultima: boolean; sessao?: [number, number];
   mes: number; assuntoId?: string; texto: string; minutos: number; tipo: TipoTarefa; url?: string;
+  // Para a interface: título sem o prefixo do texto, de onde vem e o formato da leitura.
+  titulo?: string; fonte?: string; formato?: TipoLeitura;
 };
 type Base = Omit<Tarefa, "id" | "baseId" | "ultima" | "sessao">;
 
@@ -26,11 +28,10 @@ const fatiar = (baseId: string, b: Base): Tarefa[] => {
 const doMes = (mes: number): Tarefa[] => {
   const xs = assuntosDoMes(mes), lab = laboratorios[mes - 1];
   const teoria = xs.flatMap(x => [
-    ...x.leituras.map(l => fatiar(l.id, { mes, assuntoId: x.id, tipo: "leitura", texto: `${l.tipo === "vídeo" ? "Assistir" : "Ler"}: ${l.titulo} (${l.fonte})`, minutos: minLeitura(l), url: l.url })),
-    ...x.subtopicos.map(s => fatiar(s.id, { mes, assuntoId: x.id, tipo: "estudo", texto: `Estudar e explicar em voz alta, sem consultar: ${s.texto}`, minutos: 20 })),
+    ...x.leituras.map(l => fatiar(l.id, { mes, assuntoId: x.id, tipo: "leitura", texto: `${l.tipo === "vídeo" ? "Assistir" : "Ler"}: ${l.titulo} (${l.fonte})`, minutos: minLeitura(l), url: l.url, titulo: l.titulo, fonte: l.fonte, formato: l.tipo })),
   ]).flat();
-  const pratica = xs.flatMap(x => fatiar(x.pratica.id, { mes, assuntoId: x.id, tipo: "pratica", texto: `Prática: ${x.pratica.texto}`, minutos: horasPratica(x) * 60 }));
-  const atividades = lab ? lab.atividades.flatMap(a => fatiar(a.id, { mes, tipo: "lab", texto: `Laboratório M${String(mes).padStart(2, "0")}: ${a.texto}`, minutos: 120 })) : [];
+  const pratica = xs.flatMap(x => fatiar(x.pratica.id, { mes, assuntoId: x.id, tipo: "pratica", texto: `Prática: ${x.pratica.texto}`, titulo: x.pratica.texto, minutos: horasPratica(x) * 60 }));
+  const atividades = lab ? lab.atividades.flatMap(a => fatiar(a.id, { mes, tipo: "lab", texto: `Laboratório M${String(mes).padStart(2, "0")}: ${a.texto}`, titulo: a.texto, minutos: 120 })) : [];
   const evid = lab ? [{ id: `${lab.id}-evid`, baseId: `${lab.id}-evid`, ultima: true, mes, tipo: "evidencia" as const, texto: `Registrar as evidências do laboratório M${String(mes).padStart(2, "0")} (abrir o mês e preencher)`, minutos: 20 }] : [];
   return [...teoria, ...pratica, ...atividades, ...evid];
 };
@@ -40,7 +41,7 @@ export const tarefaById = new Map(TAREFAS.map(t => [t.id, t]));
 export const assuntoById = new Map(assuntos.map(x => [x.id, x]));
 export const pilarDe = (t: Tarefa): Pilar | undefined => t.assuntoId ? assuntoById.get(t.assuntoId)?.pilar : undefined;
 const teoriaDe = new Map<string, Tarefa[]>();
-TAREFAS.forEach(t => { if (t.assuntoId && (t.tipo === "leitura" || t.tipo === "estudo")) teoriaDe.set(t.assuntoId, [...(teoriaDe.get(t.assuntoId) ?? []), t]); });
+TAREFAS.forEach(t => { if (t.assuntoId && t.tipo === "leitura") teoriaDe.set(t.assuntoId, [...(teoriaDe.get(t.assuntoId) ?? []), t]); });
 
 export const feita = (t: Tarefa, done: Set<string>, valores: Valores) => {
   if (done.has(t.id) || done.has(t.baseId)) return true;
@@ -59,7 +60,7 @@ export const diaDaSemana = (iso: string): DiaSemana | undefined => diaDeEstudo(i
 /** Primeiro dia com estudo a partir de iso (nunca antes do início do plano). */
 export const proximoDiaDeEstudo = (iso: string) => { let d = iso < INICIO ? INICIO : iso; while (!diaDaSemana(d)) d = addDias(d, 1); return d; };
 
-const ehTeoria = (t: Tarefa) => t.tipo === "leitura" || t.tipo === "estudo";
+const ehTeoria = (t: Tarefa) => t.tipo === "leitura";
 const ehLab = (t: Tarefa) => t.tipo === "lab" || t.tipo === "evidencia";
 // Prática só depois de terminar a teoria do mesmo assunto.
 const pronta = (t: Tarefa, done: Set<string>, valores: Valores) => t.tipo !== "pratica" || !t.assuntoId || (teoriaDe.get(t.assuntoId) ?? []).every(x => feita(x, done, valores));

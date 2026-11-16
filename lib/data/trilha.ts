@@ -30,7 +30,8 @@ const MES: Record<string, number> = {
   "m06-waf": 22, "m08-functions": 22, "m03-ddd-cqrs": 23, "m02-ml-base": 30, "m03-metricas": 31, "m02-llm-schema": 31,
 };
 
-// Módulos das formações do Branas entram no fim das leituras do assunto, com id e duração próprios.
+// Módulos das formações do Branas abrem as leituras do assunto (o curso é a base, os artigos aprofundam), com id e duração próprios.
+// Os ids das outras leituras (-r1, -r2...) saem da posição dentro de a(), então pôr o módulo na frente não os muda.
 const modulosDe = (assuntoId: string): Leitura[] => MODULOS.filter(m => m.assunto === assuntoId).map(m => ({ id: m.id, titulo: m.titulo, ...FORMACOES[m.formacao], tipo: "vídeo", minutos: m.minutos }));
 
 export const assuntos: Assunto[] = [
@@ -115,17 +116,18 @@ export const assuntos: Assunto[] = [
      ["Prompt engineering overview", "Anthropic", "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview", "doc"]],
     "Rodar o mesmo dataset no LLM e comparar acerto, custo e latência com a baseline."),
 
+  // Mês 10: o laboratório começa pelo chunking, então embeddings vem antes do RAG.
+  a(3, "embeddings", "ia", "Embeddings e chunking", "Entender como o texto vira vetor e como o corte do documento muda o resultado.",
+    ["O que é embedding", "Similaridade de cosseno", "Estratégias de chunking", "Metadados por chunk"],
+    [["Vector embeddings", "OpenAI", "https://developers.openai.com/api/docs/guides/embeddings", "doc"],
+     ["Chunking Strategies for LLM Applications", "Pinecone", "https://www.pinecone.io/learn/chunking-strategies/", "artigo"]],
+    "Testar dois tamanhos de chunk e medir quantas perguntas recuperam o trecho certo."),
   a(4, "rag-base", "ia", "RAG: recuperação e geração", "Responder com base em documentos, citando a fonte.",
     ["Pipeline: ingestão, recuperação, geração", "Citação obrigatória", "Abstenção sem evidência", "Tamanho de contexto"],
     [["Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks", "Lewis et al.", "https://arxiv.org/abs/2005.11401", "artigo"],
      ["RAG in Azure AI Search", "Microsoft Learn", "https://learn.microsoft.com/en-us/azure/search/retrieval-augmented-generation-overview", "doc"],
      ["Introducing Contextual Retrieval", "Anthropic", "https://www.anthropic.com/research/contextual-retrieval", "artigo"]],
     "Construir RAG sobre a documentação da PoC com citação e resposta de abstenção."),
-  a(3, "embeddings", "ia", "Embeddings e chunking", "Entender como o texto vira vetor e como o corte do documento muda o resultado.",
-    ["O que é embedding", "Similaridade de cosseno", "Estratégias de chunking", "Metadados por chunk"],
-    [["Vector embeddings", "OpenAI", "https://developers.openai.com/api/docs/guides/embeddings", "doc"],
-     ["Chunking Strategies for LLM Applications", "Pinecone", "https://www.pinecone.io/learn/chunking-strategies/", "artigo"]],
-    "Testar dois tamanhos de chunk e medir quantas perguntas recuperam o trecho certo."),
   a(4, "eval-inicial", "ia", "Conjunto de perguntas de referência", "Criar o primeiro dataset de avaliação junto com o RAG.",
     ["Perguntas com resposta esperada", "Perguntas sem resposta", "Perguntas adversariais", "Versionar o dataset"],
     [["Your AI Product Needs Evals", "Hamel Husain", "https://hamel.dev/blog/posts/evals/", "artigo"],
@@ -164,11 +166,7 @@ export const assuntos: Assunto[] = [
      ["Enable OpenTelemetry in Application Insights", "Microsoft Learn", "https://learn.microsoft.com/en-us/azure/azure-monitor/app/opentelemetry-enable", "doc"]],
     "Instrumentar a API publicada no Container Apps, achar uma requisição lenta pelo trace e criar um alerta de taxa de erro."),
 
-  a(5, "agentes-base", "ia", "Agentes e workflows", "Diferenciar workflow determinístico de agente autônomo e escolher o mais simples.",
-    ["Workflow x agente", "Padrões: roteamento, paralelização, orquestrador", "Loop do agente", "Quando não usar agente"],
-    [["Building effective agents", "Anthropic", "https://www.anthropic.com/research/building-effective-agents", "artigo"],
-     ["A practical guide to building agents", "OpenAI", "https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf", "artigo"]],
-    "Desenhar uma tarefa repetida do time como workflow e justificar onde entra autonomia do agente."),
+  // Mês 3: o laboratório é de ferramentas, MCP e aprovação humana; agentes vem depois.
   a(6, "tools-mcp", "ia", "Tool use e MCP", "Dar ferramentas ao modelo com contrato claro e permissões mínimas.",
     ["Definição de tool e schema", "Descrição da tool como prompt", "Servidor MCP", "Tools só leitura primeiro"],
     [["Tool use with Claude", "Anthropic", "https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview", "doc"],
@@ -179,6 +177,11 @@ export const assuntos: Assunto[] = [
     ["Proposta em schema", "Ponto de aprovação", "Registro da decisão", "Negar por padrão"],
     [["Human-in-the-loop", "LangChain docs", "https://docs.langchain.com/oss/python/langchain/human-in-the-loop", "doc"]],
     "Agente propõe a mudança; nada é publicado nem enviado sem aprovação registrada."),
+  a(5, "agentes-base", "ia", "Agentes e workflows", "Diferenciar workflow determinístico de agente autônomo e escolher o mais simples.",
+    ["Workflow x agente", "Padrões: roteamento, paralelização, orquestrador", "Loop do agente", "Quando não usar agente"],
+    [["Building effective agents", "Anthropic", "https://www.anthropic.com/research/building-effective-agents", "artigo"],
+     ["A practical guide to building agents", "OpenAI", "https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf", "artigo"]],
+    "Desenhar uma tarefa repetida do time como workflow e justificar onde entra autonomia do agente."),
 
   a(7, "idempotencia", "arquitetura", "Idempotência e retries", "Evitar deploy duplicado quando a mesma requisição chega duas vezes.",
     ["Chave de idempotência", "Retry com backoff e jitter", "Timeout", "Dead-letter"],
@@ -605,13 +608,13 @@ export const assuntos: Assunto[] = [
     ["Modelos e provedores", "Loop de aprendizado e criação de skills", "Memória persistente", "Subagentes, MCP e containers"],
     [],
     "Configurar o Hermes com memória persistente e um MCP do time e comparar com o harness montado no ano 1."),
-].map((x) => ({ ...x, mes: MES[x.id] ?? x.mes, leituras: [...x.leituras, ...modulosDe(x.id)] })).sort((x, y) => x.mes - y.mes); // sort estável: mantém a ordem de escrita dentro de cada mês
+].map((x) => ({ ...x, mes: MES[x.id] ?? x.mes, leituras: [...modulosDe(x.id), ...x.leituras] })).sort((x, y) => x.mes - y.mes); // sort estável: mantém a ordem de escrita dentro de cada mês
 
 export const assuntosDoMes = (mes: number) => assuntos.filter((x) => x.mes === mes);
 
-// Tempo estimado: leitura por tipo + 20 min de anotação por subtópico (teoria); prática por trilha.
+// Tempo estimado: leitura por tipo (teoria); prática por trilha.
 export const MIN_LEITURA: Record<TipoLeitura, number> = { artigo: 40, doc: 60, curso: 180, livro: 120, ferramenta: 30, "vídeo": 60 };
 /** Duração própria (módulo de curso) ou a estimativa do tipo. */
 export const minLeitura = (l: Leitura) => l.minutos ?? MIN_LEITURA[l.tipo];
-export const horasTeoria = (x: Assunto) => Math.round((x.leituras.reduce((t, l) => t + minLeitura(l), 0) + x.subtopicos.length * 20) / 30) / 2;
+export const horasTeoria = (x: Assunto) => Math.round(x.leituras.reduce((t, l) => t + minLeitura(l), 0) / 30) / 2;
 export const horasPratica = (x: Assunto) => (x.pilar === "ingles" || x.pilar === "carreira" ? 2 : 4);

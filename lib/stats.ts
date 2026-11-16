@@ -16,7 +16,8 @@ export const quarterDone = (t: Trimestre, done: Set<string>, valores: Valores) =
 export const pct = (part: number, total: number) => total === 0 ? 0 : Math.round((part / total) * 100);
 import { assuntos } from "./data/trilha";
 import type { Assunto } from "./types";
-export const assuntoIds = (x: Assunto) => [...x.subtopicos.map((s) => s.id), ...x.leituras.map((l) => l.id), x.pratica.id];
+// Subtópicos não contam: são só o mapa do que as leituras cobrem.
+export const assuntoIds = (x: Assunto) => [...x.leituras.map((l) => l.id), x.pratica.id];
 export const ALL_ASSUNTO_IDS = assuntos.flatMap(assuntoIds);
 export const ALL_LEITURA_IDS = assuntos.flatMap((x) => x.leituras.map((l) => l.id));
 export const assuntoDone = (x: Assunto, done: Set<string>) => countDone(assuntoIds(x), done);

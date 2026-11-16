@@ -45,7 +45,7 @@ for (const d of semana) {
     const xs = partes[i].map(T), min = xs.reduce((s, t) => s + t.minutos, 0);
     if (p.fonte === "fixo") return assert.equal(xs.length, 0);
     if (xs.length > 1) assert.ok(min <= p.horas * 60 + 10, `${d} parte ${i}: ${min} min`);
-    if (p.fonte === "teoria") assert.ok(xs.every(t => pilarDe(t) === p.pilar && (t.tipo === "leitura" || t.tipo === "estudo")), `${d}: teoria fora do pilar`);
+    if (p.fonte === "teoria") assert.ok(xs.every(t => pilarDe(t) === p.pilar && t.tipo === "leitura"), `${d}: teoria fora do pilar`);
     if (p.fonte === "tudo") assert.ok(xs.every(t => pilarDe(t) === p.pilar));
     assert.ok(xs.every(t => t.tipo !== "pratica"), `${d}: prática antes da teoria`);
   });

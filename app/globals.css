@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
-/* Paleta clara é a base: papel de leve viés verde, tinta quase preta, teal
-   estrutural e âmbar reservado para medição — o único lugar onde a cor grita.
-   O tema escuro só redefine os tokens, mais abaixo. */
+/* Paleta clara é a base: fundo neutro levemente esverdeado, cards brancos,
+   teal como cor de ação e âmbar para medição. O tema escuro só redefine os
+   tokens, mais abaixo. */
 @theme {
-  --color-bg: #f6f8f6;
+  --color-bg: #f3f5f4;
   --color-surface: #ffffff;
-  --color-surface2: #eef2ef;
-  --color-line: #dce3df;
-  --color-line-soft: #e8edea;
+  --color-surface2: #eaefec;
+  --color-line: #dde4e0;
+  --color-line-soft: #ebf0ed;
   --color-text: #141a18;
-  --color-muted: #5c6864;
+  --color-muted: #5f6b67;
   --color-accent: #0d5b50;
   --color-measure: #a05c00;
   --color-ok: #2f7a3d;
@@ -18,7 +18,7 @@
   --color-decisao: #6b46c1;
 
   --font-display: var(--font-archivo), "Segoe UI", system-ui, sans-serif;
-  --font-body: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  --font-body: var(--font-inter), "Segoe UI", system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, Consolas, monospace;
 }
 
@@ -48,9 +48,20 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-body);
-  font-size: 17px;
-  line-height: 1.62;
+  font-size: 15px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Bloco base da interface: cartão com canto arredondado e sombra leve.
+   Fica na camada components para os utilitários (ring, border-*) poderem sobrescrever. */
+@layer components {
+  .card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgb(20 26 24 / 0.04);
+  }
 }
 
 h1,
@@ -107,15 +118,13 @@ details > summary::-webkit-details-marker {
   display: none;
 }
 
-/* Rótulo de seção: mono, caixa alta, espaçado. Repete em todo o documento e é
-   o que dá o ar de ficha técnica. */
+/* Rótulo de seção: pequeno, caixa alta discreta. */
 .label {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.16em;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-muted);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* campo de medição — o registro do número que ele mediu */
@@ -126,7 +135,8 @@ input.medicao {
   font-family: var(--font-mono);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
-  padding: 5px 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
 }
 input.medicao::placeholder {
   color: var(--color-muted);
@@ -149,7 +159,8 @@ textarea.nota {
   color: var(--color-text);
   font-size: 15px;
   line-height: 1.5;
-  padding: 6px 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
   resize: vertical;
 }
 textarea.nota::placeholder {

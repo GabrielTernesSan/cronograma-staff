@@ -34,7 +34,8 @@ export function useHoje() {
     if (!app.loaded || montado.current) return; montado.current = true;
     const hoje = dataAtual(); setData(hoje);
     if (hoje < INICIO || !diaDaSemana(hoje)) return;
-    const s = ler(); if (s && s.data === hoje) { setSalvo(s); return; }
+    // Lista salva com tarefa que saiu da trilha (ex.: conteúdo reorganizado) é remontada.
+    const s = ler(); if (s && s.data === hoje && [...s.partes.flat(), ...s.extra].every(id => tarefaById.has(id))) { setSalvo(s); return; }
     const novo = { data: hoje, partes: montarDia(hoje, app.done, app.valores) ?? [], extra: [] }; gravar(novo); setSalvo(novo);
   }, [app.loaded, app.done, app.valores]);
   const adiantar = useCallback(() => setSalvo(s => {
