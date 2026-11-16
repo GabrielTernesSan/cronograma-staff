@@ -113,3 +113,38 @@ assert.equal(new Set(MODULOS.map(m => m.id)).size, MODULOS.length);
 for (const m of MODULOS) assert.ok(assuntos.some(a => a.id === m.assunto), `${m.id}: assunto ${m.assunto} não existe`);
 assert.ok(MODULOS.every(m => TAREFAS.some(t => t.baseId === m.id)), "módulo fora da fila");
 console.log("Módulos do Branas OK:", MODULOS.length);
+
+// Agrupar: sessões seguidas da mesma tarefa viram um item só; tarefas diferentes ficam separadas
+const { agrupar } = require("../lib/data/agenda.ts");
+const fatiada = TAREFAS.filter(t => t.sessao && t.sessao[1] >= 3).find(t => t.sessao[0] === 1);
+const [s1, s2, s3] = TAREFAS.filter(t => t.baseId === fatiada.baseId);
+const outra = TAREFAS.find(t => t.baseId !== fatiada.baseId);
+assert.deepEqual(agrupar([s1, s2, outra]).map(g => g.map(t => t.id)), [[s1.id, s2.id], [outra.id]]);
+assert.deepEqual(agrupar([s1, outra, s3]).map(g => g.length), [1, 1, 1]);
+assert.deepEqual(agrupar([]), []);
+console.log("Agrupar sessões OK");
+
+// Resgate: dia resgatado salvo com tarefa do plano da semana é remontado sem ela (não aparece duas vezes)
+const { montarResgate } = require("../lib/atrasos.ts");
+const { segunda } = require("../lib/grade.ts");
+const { paraData } = require("../lib/datas.ts");
+const perdido = "2026-11-11", diaPerdido = { iso: perdido, data: paraData(perdido), seg: segunda(paraData(perdido)), dia: diaDaSemana(perdido), partes: [0] };
+const salvoAntes = montarDia(perdido, new Set(), {}), repetida = salvoAntes[0][0];
+const resgate = montarResgate([diaPerdido], { [perdido]: salvoAntes }, new Set(), {}, [repetida]);
+assert.ok(!resgate[perdido].flat().includes(repetida), "tarefa de hoje continuou no resgate");
+assert.ok(resgate[perdido][0].length > 0, "dia remontado ficou vazio");
+// Dia salvo sem tarefa do plano fica como está
+assert.deepEqual(montarResgate([diaPerdido], { [perdido]: salvoAntes }, new Set(), {}, [])[perdido], salvoAntes);
+
+// Plano da semana x resgate: em dia livre (seg 16/11), a prévia de quarta e a projeção até domingo não se repetem no resgate
+const { planoAte } = require("../lib/data/agenda.ts");
+const { atrasados } = require("../lib/atrasos.ts");
+const previaQua = montarDia("2026-11-18", new Set(), {}).flat();
+const plano = planoAte(previaQua, "2026-11-18", "2026-11-16", "2026-11-22", new Set(), {});
+assert.equal(plano.de, "2026-11-19");
+const planoIds = [...previaQua, ...[...plano.dias.values()].flat(2)];
+assert.equal(new Set(planoIds).size, planoIds.length, "plano da semana repete tarefa");
+const resgSem = montarResgate(atrasados(paraData("2026-11-16"), new Set(), {}).dias, {}, new Set(), {}, planoIds);
+const comuns = Object.values(resgSem).flat(2).filter(id => planoIds.includes(id));
+assert.deepEqual(comuns, [], "resgate repete tarefa do plano da semana");
+console.log("Resgate sem repetir o plano da semana OK");

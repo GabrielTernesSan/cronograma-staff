@@ -52,6 +52,11 @@ export const feita = (t: Tarefa, done: Set<string>, valores: Valores) => {
 /** IDs a marcar/desmarcar. Desmarcar uma sessão desfaz também o id original. */
 export const idsParaMarcar = (t: Tarefa, valor: boolean) => valor ? (t.ultima && t.baseId !== t.id ? [t.id, t.baseId] : [t.id]) : [...new Set([t.id, t.baseId])];
 
+/** Junta sessões seguidas da mesma tarefa (mesmo baseId) num grupo, para a interface mostrar um item só. */
+export const agrupar = (ts: Tarefa[]): Tarefa[][] => ts.reduce<Tarefa[][]>((gs, t) => {
+  const ult = gs[gs.length - 1]; if (ult && ult[0].baseId === t.baseId) ult.push(t); else gs.push([t]); return gs;
+}, []);
+
 export const pendentes = (done: Set<string>, valores: Valores) => TAREFAS.filter(t => !feita(t, done, valores));
 
 /* ───────── Dia de estudo: a grade de qua a dom define quanto tempo e de qual pilar ───────── */
@@ -120,6 +125,17 @@ export const projetarDias = (de: string, ate: string, done: Set<string>, valores
     partes.flat().forEach(id => { const t = tarefaById.get(id); if (t) idsParaMarcar(t, true).forEach(x => sim.add(x)); });
   }
   return out;
+};
+
+/**
+ * Plano até `ate`: as tarefas já fixadas no painel Hoje (`fixas`, do dia `dataFixa`: hoje ou a prévia do próximo
+ * dia de estudo) contam como feitas e a projeção começa no dia seguinte a elas (ou em `de`, se não há dia fixo).
+ * A grade da semana e o resgate usam esta mesma função, para nunca discordarem.
+ */
+export const planoAte = (fixas: string[], dataFixa: string | null, de: string, ate: string, done: Set<string>, valores: Valores) => {
+  const sim = new Set(done); fixas.forEach(id => { const t = tarefaById.get(id); if (t) idsParaMarcar(t, true).forEach(x => sim.add(x)); });
+  const inicio = dataFixa ? addDias(dataFixa, 1) : de;
+  return { de: inicio, dias: inicio <= ate ? projetarDias(inicio, ate, sim, valores) : new Map<string, string[][]>() };
 };
 
 /** Próxima pendente fora da lista de hoje, para o botão "adiantar". */

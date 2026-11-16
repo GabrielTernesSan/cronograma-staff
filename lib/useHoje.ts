@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "./app-context";
 import { diaDaSemana, montarDia, proximaTarefa, proximoDiaDeEstudo, tarefaById, type Tarefa } from "./data/agenda";
 import { INICIO, type DiaSemana } from "./data/cronograma";
@@ -30,10 +30,13 @@ const expandir = (data: string, ids: string[][]): DiaHoje | null => {
 export function useHoje() {
   const app = useApp(); const montado = useRef(false);
   const [data, setData] = useState<string | null>(null); const [salvo, setSalvo] = useState<Salvo | null>(null);
+  const [previa, setPrevia] = useState<{ data: string; partes: string[][] } | null>(null);
   useEffect(() => {
     if (!app.loaded || montado.current) return; montado.current = true;
     const hoje = dataAtual(); setData(hoje);
-    if (hoje < INICIO || !diaDaSemana(hoje)) return;
+    // Prévia montada uma vez só (não grava): marcar uma tarefa risca o item em vez de trocá-lo pela próxima.
+    // O dia de verdade é montado quando ele chegar, a partir do que estiver pendente.
+    if (hoje < INICIO || !diaDaSemana(hoje)) { const prox = proximoDiaDeEstudo(hoje); setPrevia({ data: prox, partes: montarDia(prox, app.done, app.valores) ?? [] }); return; }
     // Lista salva com tarefa que saiu da trilha (ex.: conteúdo reorganizado) é remontada.
     const s = ler(); if (s && s.data === hoje && [...s.partes.flat(), ...s.extra].every(id => tarefaById.has(id))) { setSalvo(s); return; }
     const novo = { data: hoje, partes: montarDia(hoje, app.done, app.valores) ?? [], extra: [] }; gravar(novo); setSalvo(novo);
@@ -43,9 +46,9 @@ export function useHoje() {
     const prox = proximaTarefa(app.done, app.valores, usadas); if (!prox) return s;
     const novo = { ...s, extra: [...s.extra, prox.id] }; gravar(novo); return novo;
   }), [app.done, app.valores]);
-  const hoje = salvo ? expandir(salvo.data, salvo.partes) : null;
-  // Prévia calculada na hora (não grava): o dia de verdade é montado quando ele chegar.
-  const proxData = data && !hoje ? proximoDiaDeEstudo(data) : null;
-  const proximo = proxData ? expandir(proxData, montarDia(proxData, app.done, app.valores) ?? []) : null;
-  return { data, hoje, extra: salvo ? tarefas(salvo.extra) : [], proximo, antesDoInicio: !!data && data < INICIO, adiantar };
+  // Memorizados: quem depende deles (projeção da semana) só recalcula quando a lista muda.
+  const hoje = useMemo(() => salvo ? expandir(salvo.data, salvo.partes) : null, [salvo]);
+  const proximo = useMemo(() => previa && !hoje ? expandir(previa.data, previa.partes) : null, [previa, hoje]);
+  const extra = useMemo(() => salvo ? tarefas(salvo.extra) : [], [salvo]);
+  return { data, hoje, extra, proximo, antesDoInicio: !!data && data < INICIO, adiantar };
 }

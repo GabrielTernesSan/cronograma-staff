@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
-import { assuntoById, feita, idsParaMarcar, metaMes, previsaoMes, projetarDias, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
+import { agrupar, assuntoById, feita, idsParaMarcar, metaMes, planoAte, previsaoMes, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
 import { diaDeEstudo, diasDaSemana, DESTINOS, DESTINOS_NOTA, INICIO, inicioMes, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, periodo, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
 import { assuntos, assuntosDoMes, horasPratica, horasTeoria, minLeitura } from "@/lib/data/trilha";
 import { diasEntre, fmtDia, fmtDiaSemana, fmtMesAno, hojeIso, paraData, paraIso } from "@/lib/datas";
@@ -100,8 +100,12 @@ const NOMES_DIA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", 
 const fmtDiaLongo = (iso: string) => `${NOMES_DIA[paraData(iso).getDay()]}, ${fmtDia(iso)}`;
 const minutosFeitos = (ts: Tarefa[], done: Set<string>, valores: Record<string, string>) => ts.filter(t => feita(t, done, valores)).reduce((s, t) => s + t.minutos, 0);
 const minutosTotal = (ts: Tarefa[]) => ts.reduce((s, t) => s + t.minutos, 0);
+// "sessão 1/6" ou, com várias sessões seguidas, "sessões 1–2/6".
+const fmtSessoes = (g: Tarefa[]) => { const [i, n] = g[0].sessao ?? [1, 1], j = g[g.length - 1].sessao?.[0] ?? i; return j > i ? `sessões ${i}–${j}/${n}` : `sessão ${i}/${n}`; };
 
 type HojeApi = ReturnType<typeof useHoje>;
+/** Ids já fixados no painel Hoje: o dia de hoje com as adiantadas, ou a prévia do próximo dia em dia livre. */
+const idsFixos = (hoje: DiaHoje | null, proximo: DiaHoje | null, extra: Tarefa[]) => { const d = hoje ?? proximo; return d ? [...d.partes.flatMap(p => p.tarefas.map(t => t.id)), ...(hoje ? extra : []).map(t => t.id)] : []; };
 function Hoje({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void }) {
   const a = useApp(); const { data, hoje, extra, proximo, antesDoInicio, adiantar } = h;
   if (!data) return <section className="card p-5 sm:p-6"><p className="label">Hoje</p><p className="mt-3 text-muted">Carregando as tarefas…</p></section>;
@@ -130,7 +134,7 @@ function Hoje({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void }) {
     </div>
     {!hoje && proximo && <p className="mt-4 rounded-lg bg-surface2 px-4 py-2.5 text-[14px] text-muted">{antesDoInicio ? `Segunda e terça são livres; o primeiro estudo é ${fmtDiaSemana(proximo.data)}.` : `Hoje é dia livre. Abaixo, a prévia de ${fmtDiaSemana(proximo.data)}.`}</p>}
     {dia && seg && <PartesDoDia dia={dia} seg={seg} ativo={!!hoje} onSelect={onSelect} />}
-    {hoje && extra.length > 0 && <div className="mt-4 rounded-xl border border-line"><p className="label border-b border-line-soft px-4 py-2.5">Adiantadas</p><ul className="divide-y divide-line-soft">{extra.map(t => <TarefaItem key={t.id} t={t} onSelect={onSelect} />)}</ul></div>}
+    {hoje && extra.length > 0 && <div className="mt-4 rounded-xl border border-line"><p className="label border-b border-line-soft px-4 py-2.5">Adiantadas</p><ul className="divide-y divide-line-soft">{agrupar(extra).map(g => <TarefaItem key={g[0].id} g={g} onSelect={onSelect} />)}</ul></div>}
     {concluido && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-ok/10 px-4 py-3"><p className="font-semibold text-ok" role="status">✓ Dia concluído</p><Btn onClick={adiantar}>adiantar a próxima tarefa</Btn></div>}
     <p className="mt-4 text-[12.5px] text-muted">Dia perdido não vira atraso: o próximo dia de estudo começa da tarefa que ainda não foi feita.</p>
   </section>;
@@ -142,7 +146,7 @@ function PartesDoDia({ dia, seg, ativo, onSelect }: { dia: DiaHoje; seg: Date; a
   return <ol className="mt-5 grid gap-3">{dia.partes.map(p => {
     const id = parteId(seg, dia.dia.dow, p.indice), f = parteFeita(seg, dia.dia, p.indice, a.done), base = dia.dia.partes[p.indice];
     // Marcar a última tarefa da parte marca a parte; desmarcar uma tarefa desmarca a parte.
-    const aoMarcar = (t: Tarefa, valor: boolean) => { const resto = p.tarefas.filter(x => x.id !== t.id).every(x => feita(x, a.done, a.valores)); a.setMany([...idsParaMarcar(t, valor), ...(valor ? (resto ? [id] : []) : [id])], valor); };
+    const aoMarcar = (g: Tarefa[], valor: boolean) => { const resto = p.tarefas.filter(x => !g.includes(x)).every(x => feita(x, a.done, a.valores)); a.setMany([...g.flatMap(t => idsParaMarcar(t, valor)), ...(valor ? (resto ? [id] : []) : [id])], valor); };
     return <li key={p.indice} className={`overflow-hidden rounded-xl border ${ativo && f ? "border-ok/40 bg-ok/5" : "border-line bg-surface"}`}>
       <label className={`flex items-start gap-3 bg-surface2/60 px-4 py-3 ${ativo ? "cursor-pointer" : ""}`}>
         <span className={`mt-1.5 inline-block size-2 shrink-0 rounded-full ${base?.pilar ? DOT[base.pilar] : "bg-muted"}`} />
@@ -150,7 +154,7 @@ function PartesDoDia({ dia, seg, ativo, onSelect }: { dia: DiaHoje; seg: Date; a
         <span className="shrink-0 font-mono text-[12.5px] text-muted">{fmtH(p.horas)}</span>
         {ativo && <input aria-label={`Marcar parte: ${p.texto}`} type="checkbox" className="mt-0.5 size-4 shrink-0" checked={f} onChange={() => a.setMany([id], !f)} />}
       </label>
-      {p.tarefas.length > 0 ? <ul className="divide-y divide-line-soft">{p.tarefas.map(t => <TarefaItem key={t.id} t={t} onSelect={onSelect} aoMarcar={ativo ? aoMarcar : undefined} />)}</ul>
+      {p.tarefas.length > 0 ? <ul className="divide-y divide-line-soft">{agrupar(p.tarefas).map(g => <TarefaItem key={g[0].id} g={g} onSelect={onSelect} aoMarcar={ativo ? aoMarcar : undefined} />)}</ul>
         : <p className="px-4 py-3 text-[13px] text-muted">{base?.fonte === "fixo" ? "Atividade fixa: siga o texto acima." : "Nada da fila cabe aqui hoje."}</p>}
     </li>;
   })}</ol>;
@@ -160,18 +164,19 @@ function Chip({ children, tom }: { children: React.ReactNode; tom?: "accent" | "
   return <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11.5px] font-medium ${tom === "accent" ? "bg-accent/10 text-accent" : tom === "measure" ? "bg-measure/10 text-measure" : "bg-surface2 text-muted"}`}>{children}</span>;
 }
 
-function TarefaItem({ t, onSelect, aoMarcar }: { t: Tarefa; onSelect: (s: Sel) => void; aoMarcar?: (t: Tarefa, valor: boolean) => void }) {
-  const a = useApp(); const c = feita(t, a.done, a.valores); const assunto = t.assuntoId ? assuntoById.get(t.assuntoId) : undefined;
+// Um item por tarefa; sessões seguidas da mesma tarefa (g) aparecem juntas e são marcadas juntas.
+function TarefaItem({ g, onSelect, aoMarcar }: { g: Tarefa[]; onSelect: (s: Sel) => void; aoMarcar?: (g: Tarefa[], valor: boolean) => void }) {
+  const a = useApp(); const t = g[0], c = g.every(x => feita(x, a.done, a.valores)); const assunto = t.assuntoId ? assuntoById.get(t.assuntoId) : undefined;
   const titulo = t.titulo ?? t.texto, tipo = t.formato === "vídeo" ? "vídeo" : t.formato === "curso" ? "curso" : TIPOS[t.tipo];
-  const marcar = aoMarcar ?? ((x: Tarefa, v: boolean) => a.setMany(idsParaMarcar(x, v), v));
+  const marcar = aoMarcar ?? ((xs: Tarefa[], v: boolean) => a.setMany(xs.flatMap(x => idsParaMarcar(x, v)), v));
   return <li className="flex items-start gap-3 px-4 py-3">
-    <input aria-label={titulo} type="checkbox" className="mt-0.5 size-4 shrink-0" checked={c} onChange={() => marcar(t, !c)} />
+    <input aria-label={titulo} type="checkbox" className="mt-0.5 size-4 shrink-0" checked={c} onChange={() => marcar(g, !c)} />
     <div className="min-w-0 flex-1">
       <p className={`text-[14.5px] leading-snug ${c ? "text-muted line-through" : ""}`}>{t.url ? <a href={t.url} target="_blank" rel="noreferrer" className="hover:text-accent hover:underline">{titulo} <span aria-hidden className="text-muted">↗</span></a> : titulo}</p>
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[12px] text-muted">
         <Chip tom={t.tipo === "pratica" || t.tipo === "lab" ? "measure" : "accent"}>{tipo}</Chip>
-        {t.sessao && <Chip>sessão {t.sessao[0]}/{t.sessao[1]}</Chip>}
-        <span className="font-mono">{t.minutos} min</span>
+        {t.sessao && <Chip>{fmtSessoes(g)}</Chip>}
+        <span className="font-mono">{minutosTotal(g)} min</span>
         {t.fonte && <span>· {t.fonte}</span>}
         {assunto && <button type="button" onClick={() => onSelect({ kind: "assunto", id: assunto.id })} className="text-left hover:text-accent hover:underline">· {assunto.titulo} →</button>}
         {t.tipo === "evidencia" && <button type="button" onClick={() => onSelect({ kind: "mes", mes: t.mes })} className="hover:text-accent hover:underline">· abrir o mês →</button>}
@@ -230,17 +235,14 @@ function Semana({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void }) {
   const a = useApp(); const [hoje, setHoje] = useState<Date | null>(null); const [desloc, setDesloc] = useState(0);
   useEffect(() => setHoje(new Date()), []);
   const total = SEMANA.reduce((t, d) => t + d.horas, 0);
-  // Tarefas de cada dia da semana exibida: hoje vem da lista congelada; os próximos dias, da projeção da fila.
+  // Tarefas de cada dia da semana exibida: hoje (ou a prévia do próximo dia, em dia livre) vem da lista congelada
+  // do painel Hoje; os dias seguintes, da projeção da fila.
   const domingo = hoje ? paraIso(addDias(segunda(hoje), desloc * 7 + 6)) : null;
-  const projecao = useMemo(() => {
-    if (!h.data || !domingo) return null;
-    const jaHoje = h.hoje ? [...h.hoje.partes.flatMap(p => p.tarefas), ...h.extra] : [];
-    const sim = new Set(a.done); jaHoje.forEach(t => idsParaMarcar(t, true).forEach(x => sim.add(x)));
-    const de = h.hoje ? paraIso(addDias(paraData(h.data), 1)) : h.data;
-    return { de, dias: domingo >= de ? projetarDias(de, domingo, sim, a.valores) : new Map<string, string[][]>() };
-  }, [h.data, h.hoje, h.extra, domingo, a.done, a.valores]);
+  const fixo = h.hoje ?? h.proximo;
+  const projecao = useMemo(() => h.data && domingo ? planoAte(idsFixos(h.hoje, h.proximo, h.extra), fixo?.data ?? null, h.data, domingo, a.done, a.valores) : null,
+    [h.data, h.hoje, h.proximo, h.extra, fixo, domingo, a.done, a.valores]);
   const tarefasDoDia = (iso: string): Tarefa[][] | null => {
-    if (h.hoje && iso === h.data) return h.hoje.partes.map(p => p.tarefas);
+    if (fixo && iso === fixo.data) return fixo.partes.map(p => p.tarefas);
     const ids = projecao && iso >= projecao.de ? projecao.dias.get(iso) : undefined;
     return ids ? ids.map(xs => xs.map(id => tarefaById.get(id)).filter((t): t is Tarefa => !!t)) : null;
   };
@@ -267,7 +269,7 @@ function Semana({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void }) {
             {d.partes.map((p, i) => { const f = parteFeita(seg, d, i, a.done); return <label key={i} className="mt-1 flex cursor-pointer items-start gap-2 text-[13.5px] leading-snug">
               <input className="mt-0.5 size-3.5 shrink-0" type="checkbox" checked={f} onChange={() => marcarParte(i)} />
               <span className="flex-1"><span className={`${f ? "text-muted line-through" : "text-muted"}`}>{p.texto}</span>
-                {doDia?.[i]?.length ? <ul className="mt-1 space-y-0.5">{doDia[i].map(t => { const ok = feita(t, a.done, a.valores); return <li key={t.id} className={`flex gap-1.5 text-[13px] ${ok ? "text-muted line-through" : "text-text"}`}><span aria-hidden className="text-muted">·</span><span>{t.url ? <a href={t.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="hover:text-accent hover:underline">{t.titulo ?? t.texto} ↗</a> : t.titulo ?? t.texto}{t.sessao ? ` · sessão ${t.sessao[0]}/${t.sessao[1]}` : ""} <span className="font-mono text-[11px] text-muted">{t.minutos} min</span></span></li>; })}</ul> : null}
+                {doDia?.[i]?.length ? <ul className="mt-1 space-y-0.5">{agrupar(doDia[i]).map(g => { const t = g[0], ok = g.every(x => feita(x, a.done, a.valores)); return <li key={t.id} className={`flex gap-1.5 text-[13px] ${ok ? "text-muted line-through" : "text-text"}`}><span aria-hidden className="text-muted">·</span><span>{t.url ? <a href={t.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="hover:text-accent hover:underline">{t.titulo ?? t.texto} ↗</a> : t.titulo ?? t.texto}{t.sessao ? ` · ${fmtSessoes(g)}` : ""} <span className="font-mono text-[11px] text-muted">{minutosTotal(g)} min</span></span></li>; })}</ul> : null}
               </span><span className="shrink-0 font-mono text-[11px] text-muted">{fmtH(p.horas)}</span>
             </label>; })}
             <Plano data={dataDoDia(seg, d.dow)} pilares={d.pilares} onSelect={onSelect} /></span>
@@ -350,7 +352,11 @@ const lerResgate = (): Resgate => { try { const v = JSON.parse(localStorage.getI
 function AtrasosPanel({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void }) {
   const a = useApp(); const [hoje] = useState(() => new Date()); const x = atrasados(hoje, a.done, a.valores);
   const [material] = useState(() => {
-    const reservadas = h.hoje ? [...h.hoje.partes.flatMap(p => p.tarefas.map(t => t.id)), ...h.extra.map(t => t.id)] : [];
+    // O resgate só recebe o que vem depois do plano desta semana (hoje ou a prévia + a projeção até domingo),
+    // para a mesma tarefa não aparecer aqui e no painel Hoje ou na grade da semana.
+    const fixas = idsFixos(h.hoje, h.proximo, h.extra), base = h.hoje ?? h.proximo, domingo = paraIso(addDias(segunda(paraData(h.data ?? paraIso(hoje))), 6));
+    const plano = h.data ? planoAte(fixas, base?.data ?? null, h.data, domingo, a.done, a.valores) : null;
+    const reservadas = [...fixas, ...(plano ? [...plano.dias.values()].flat(2) : [])];
     const r = montarResgate(x.dias, lerResgate(), a.done, a.valores, reservadas);
     try { localStorage.setItem(RESGATE_KEY, JSON.stringify(r)); } catch {}
     return r;

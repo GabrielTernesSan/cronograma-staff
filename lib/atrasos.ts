@@ -41,13 +41,15 @@ export type Resgate = Record<string, string[][]>;
 /**
  * Material de cada dia perdido: as próximas tarefas pendentes da fila, como o painel Hoje faria.
  * Dias já montados (salvos) ficam como estão; as tarefas de hoje (reservadas) e as de outros dias resgatados
- * não se repetem. Parte já marcada não recebe tarefa.
+ * não se repetem. Parte já marcada não recebe tarefa. `reservadas` é o plano da semana (hoje ou a prévia e a
+ * projeção até domingo): o resgate só recebe o que vem depois dele. Dia salvo que tenha tarefa reservada
+ * (o plano andou depois que o resgate foi montado) é remontado.
  */
 export function montarResgate(dias: DiaAtrasado[], salvos: Resgate, done: Set<string>, valores: Valores, reservadas: string[]): Resgate {
-  const sim = new Set(done), out: Resgate = {};
+  const sim = new Set(done), out: Resgate = {}, plano = new Set(reservadas);
   const usar = (id: string) => { const t = tarefaById.get(id); if (t) idsParaMarcar(t, true).forEach(x => sim.add(x)); };
   reservadas.forEach(usar);
-  dias.forEach(d => { const s = salvos[d.iso]; if (Array.isArray(s) && s.length === d.dia.partes.length) { out[d.iso] = s; s.flat().forEach(usar); } });
+  dias.forEach(d => { const s = salvos[d.iso]; if (Array.isArray(s) && s.length === d.dia.partes.length && !s.flat().some(id => plano.has(id))) { out[d.iso] = s; s.flat().forEach(usar); } });
   dias.forEach(d => {
     if (out[d.iso]) return;
     const p = (montarDia(d.iso, sim, valores) ?? []).map((ids, i) => d.partes.includes(i) ? ids : []);
