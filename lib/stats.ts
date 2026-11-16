@@ -14,10 +14,24 @@ export const quarterLabs = (t: Trimestre) => laboratorios.filter((l) => t.meses.
 export const quarterIds = (t: Trimestre) => [...quarterLabs(t).flatMap((l) => [...l.atividades.map((a) => a.id), ...l.evidencias.map((e) => e.id)]), ...t.marcos.map((m) => m.id)];
 export const quarterDone = (t: Trimestre, done: Set<string>, valores: Valores) => countDone([...quarterLabs(t).flatMap((l) => l.atividades.map((a) => a.id)), ...t.marcos.map((m) => m.id)], done) + countValues(quarterLabs(t).flatMap((l) => l.evidencias.map((e) => e.id)), valores);
 export const pct = (part: number, total: number) => total === 0 ? 0 : Math.round((part / total) * 100);
-import { assuntos } from "./data/trilha";
+import { cursoDe, FORMACOES, MODULOS } from "./data/cursos";
+import { assuntos, obrigatorias } from "./data/trilha";
 import type { Assunto } from "./types";
-// Subtópicos não contam: são só o mapa do que as leituras cobrem.
-export const assuntoIds = (x: Assunto) => [...x.leituras.map((l) => l.id), x.pratica.id];
+// Subtópicos e leituras opcionais (aprofundamento) não contam: o assunto fecha com os cursos, as leituras obrigatórias e a prática.
+export const assuntoIds = (x: Assunto) => [...obrigatorias(x).map((l) => l.id), x.pratica.id];
 export const ALL_ASSUNTO_IDS = assuntos.flatMap(assuntoIds);
-export const ALL_LEITURA_IDS = assuntos.flatMap((x) => x.leituras.map((l) => l.id));
+export const ALL_CURSO_IDS = MODULOS.map((m) => m.id);
+
+export type ProgressoCurso = { curso: string; url: string; formacao: keyof typeof FORMACOES; feitos: number; total: number; minutosRestantes: number; minutosTotal: number };
+/** Progresso por curso: cada formação do Branas é um curso; cada curso da Alura é um. Na ordem do catálogo. */
+export const progressoCursos = (done: Set<string>): ProgressoCurso[] => {
+  const out = new Map<string, ProgressoCurso>();
+  for (const m of MODULOS) {
+    const nome = cursoDe(m), min = m.minutos ?? 0, feito = done.has(m.id);
+    const p = out.get(nome) ?? { curso: nome, url: m.formacao === "alura" ? m.url ?? FORMACOES.alura.url : FORMACOES[m.formacao].url, formacao: m.formacao, feitos: 0, total: 0, minutosRestantes: 0, minutosTotal: 0 };
+    p.total++; p.minutosTotal += min; if (feito) p.feitos++; else p.minutosRestantes += min;
+    out.set(nome, p);
+  }
+  return [...out.values()];
+};
 export const assuntoDone = (x: Assunto, done: Set<string>) => countDone(assuntoIds(x), done);

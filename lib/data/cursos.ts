@@ -1,18 +1,26 @@
-// Módulos das duas formações do Rodrigo Branas, encaixados nos assuntos da trilha.
-// Cada módulo entra como primeira leitura do assunto (vídeo) e vai para a fila do painel Hoje no mês desse assunto.
-// Vários módulos no mesmo assunto seguem a ordem desta lista.
+// Cursos da trilha: módulos das duas formações do Rodrigo Branas e cursos da Alura, cada um preso a um assunto.
+// Curso é a teoria obrigatória do assunto; os artigos do assunto ficam como aprofundamento opcional.
+// Os cursos têm fila própria no painel Hoje (partes com fonte "curso"): andam toda semana sem esperar o mês do assunto,
+// na ordem dos assuntos por mês e, dentro do mesmo assunto, na ordem desta lista.
 // O id é do módulo, não do assunto: trocar o módulo de assunto não perde o progresso.
-// Duração: soma das aulas que a página pública lista; aula sem duração na página conta 30 min.
+// Duração Branas: soma das aulas que a página pública lista; aula sem duração na página conta 30 min.
 // A página da Formação IA não lista aulas nem duração: cada módulo conta IA_PADRAO até ser conferido na plataforma.
+// Duração Alura: a página só mostra a carga horária (vídeo + exercícios), bem maior que o vídeo
+// (ex.: 89 min de vídeo para 6h); cada curso conta 40% da carga até ser conferido na plataforma.
 
 export const FORMACOES = {
   ia: { fonte: "Formação IA · Rodrigo Branas", url: "https://www.branas.io/formacoes/inteligencia-artificial" },
   arq: { fonte: "Formação Arquitetura · Rodrigo Branas", url: "https://www.branas.io/formacoes/arquitetura-de-software" },
+  alura: { fonte: "Alura", url: "https://www.alura.com.br" },
 } as const;
 
-export type Modulo = { id: string; formacao: keyof typeof FORMACOES; titulo: string; assunto: string; minutos?: number };
+export type Modulo = { id: string; formacao: keyof typeof FORMACOES; titulo: string; assunto: string; minutos?: number; url?: string };
 
 const IA_PADRAO = 180;
+const ALURA = "https://www.alura.com.br/curso-online-";
+/** Curso da Alura: carga anunciada em horas vira 40% em minutos. */
+const alura = (id: string, titulo: string, assunto: string, carga: number, slug: string): Modulo =>
+  ({ id: `alura-${id}`, formacao: "alura", titulo: `${titulo} (${carga}h na Alura)`, assunto, minutos: Math.round(carga * 60 * 0.4), url: ALURA + slug });
 
 export const MODULOS: Modulo[] = [
   // Formação IA
@@ -50,4 +58,35 @@ export const MODULOS: Modulo[] = [
   { id: "branas-arq-08c", formacao: "arq", titulo: "Módulo 08 · Design Patterns comportamentais (chain of responsibility a visitor) e repository", assunto: "m25-patterns-comportamento", minutos: 375 },
   { id: "branas-arq-11", formacao: "arq", titulo: "Módulo 11 · Frontend: fundamentos de arquitetura, Vue.js, React e Angular", assunto: "m26-frontend", minutos: 120 },
   { id: "branas-arq-02", formacao: "arq", titulo: "Módulo 02 · Refactoring: fundamentos, code smells e técnicas", assunto: "m28-legado", minutos: 101 },
+
+  // Alura · IA: harness e agentes
+  alura("spec-driven", "Spec-Driven Development: desenvolvimento assistido por agentes", "m01-spec-agentes", 8, "spec-driven-development-desenvolvimento-assistido-por-agentes"),
+  alura("guardrails-ia", "IA na engenharia de software: guardrails de qualidade e estratégias de adoção", "m02-harness", 6, "ia-engenharia-software-guardrails-qualidade-estrategias-adocao"),
+  alura("claude-python", "Claude e Python: desenvolva assistentes com a API da Anthropic", "m05-agentes-base", 8, "claude-python-desenvolva-assistentes-api-anthropic"),
+  alura("protocolos-agentes", "Protocolos e arquitetura para agentes: MCP, A2A, AG-UI e Backend for Agents", "m05-agentes-base", 12, "protocolos-agentes-inteligentes"),
+  alura("mcp", "Model Context Protocol (MCP): integração e otimização em agentes de IA", "m06-tools-mcp", 15, "model-context-protocol"),
+  alura("seguranca-agentes", "Engenharia de software na era da IA: segurança com agentes, MCPs e código gerado por IA", "m09-owasp-llm", 10, "ia-seguranca-desenvolvimento-software"),
+  // Alura · IA: evals, RAG e operação
+  alura("deepeval", "Integração contínua para LLMs: avaliação de modelos com GitHub Actions e Deepeval", "m07-evals", 10, "gitactions-mlflow-deepeval"),
+  alura("rag-arquiteturas", "Arquiteturas RAG com LLMs: embeddings, busca semântica e agentes com LangChain", "m03-embeddings", 8, "langchain-chatbots-rag"),
+  alura("langfuse", "Observabilidade para LLMs: monitoramento e avaliação com LangFuse", "m13-otel", 12, "langfuse-observabilidade-llms"),
+  alura("rag-avancado", "LangChain: técnicas avançadas de RAG", "m22-rag-avancado", 10, "langchain-rag-avancado"),
+  alura("openclaw", "Agentes de IA: automação com OpenClaw e GatorClaw", "m27-openclaw", 8, "agentes-ia-openclaw"),
+  // Alura · Arquitetura .NET
+  alura("clean-net", "Arquitetura .NET: descomplicando a Clean Architecture", "m02-clean", 10, "arquitetura-dotnet-descomplicando-clean-architecture"),
+  alura("testes-api-net", "Testes em .NET: aplicando testes de integração em APIs", "m02-testes", 6, "testes-dotnet-aplicando-testes-integracao-apis"),
+  alura("testes-banco-net", "Testes em .NET: testando integração com banco de dados", "m02-testes", 6, "testes-dotnet-testando-integracao-banco-dados"),
+  alura("microsservicos-net", "Microsserviços e .NET 6: implementando a comunicação", "m07-filas", 8, "microsservicos-dotnet6-implementando-comunicacao"),
+  alura("arq-distribuida-net", "Arquitetura distribuída e escalável com .NET: do monolito ao Kubernetes", "m13-eventos", 6, "arquitetura-distribuida-escalavel-dotnet"),
+  alura("ddd-estrategico", "Arquitetura .NET: modelando aplicações com DDD estratégico", "m03-ddd-cqrs", 10, "arquitetura-dotnet-aplicacoes-domain-driven-design-estrategico"),
+  alura("ddd-tatico", "Arquitetura .NET: modelando aplicações com DDD tático", "m03-ddd-cqrs", 10, "arquitetura-dotnet-modelando-aplicacoes-domain-driven-design-tatico"),
+  // Alura · Cloud: Azure e DevOps
+  alura("azure-net", ".NET: soluções em nuvem com Azure na prática", "m01-containers", 5, "azure-dotnet"),
+  alura("github-actions", "GitHub Actions: integrando e entregando código com segurança", "m04-cicd-segredos", 8, "github-actions-integrando-entregando-codigo-seguranca"),
+  alura("otel-grafana", "Observabilidade: métricas, logs e traces com OpenTelemetry e Grafana", "m05-observabilidade", 8, "observabilidade-e-monitoramento-em-ambientes-distribuidos"),
+  alura("terraform", "Terraform: gerenciar infraestrutura como código e modularizar recursos", "m03-iac", 18, "terraform-provisionando-infraestrutura-na-nuvem"),
+  alura("arq-azure-net", "Arquitetura em .NET: criando uma arquitetura de sistemas no Azure", "m06-waf", 8, "arquitetura-dotnet-arquitetura-sistemas-azure"),
 ];
+
+/** Nome do curso de um módulo, para agrupar o progresso: a formação do Branas inteira ou cada curso da Alura. */
+export const cursoDe = (m: Modulo) => m.formacao === "alura" ? m.titulo.replace(/ \(\d+h na Alura\)$/, "") : FORMACOES[m.formacao].fonte;

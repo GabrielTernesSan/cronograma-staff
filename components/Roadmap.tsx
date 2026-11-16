@@ -2,16 +2,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
-import { agrupar, assuntoById, feita, idsParaMarcar, metaMes, planoAte, previsaoMes, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
+import { agrupar, assuntoById, feita, idsParaMarcar, metaMes, planoAte, previsaoCursos, previsaoMes, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
 import { diaDeEstudo, diasDaSemana, DESTINOS, DESTINOS_NOTA, INICIO, inicioMes, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, periodo, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
-import { assuntos, assuntosDoMes, horasPratica, horasTeoria, minLeitura } from "@/lib/data/trilha";
+import { cursoDe, MODULOS } from "@/lib/data/cursos";
+import { assuntos, assuntosDoMes, horasPratica, horasTeoria, minLeitura, obrigatorias, opcionais } from "@/lib/data/trilha";
 import { diasEntre, fmtDia, fmtDiaSemana, fmtMesAno, hojeIso, paraData, paraIso } from "@/lib/datas";
 import { addDias, DIA, dataDoDia, diaId, fase, horasDia, mesDoPlano, parteFeita, parteId, segunda } from "@/lib/grade";
 import { useHoje, type DiaHoje } from "@/lib/useHoje";
 import { atrasados, montarResgate, totalItens, type DiaAtrasado, type Resgate } from "@/lib/atrasos";
 import { doAssunto, fmtIntervalo, isoDia, NOTAS, novoCard, pendentes, previa, sequencia } from "@/lib/revisao";
-import { ALL_ACTIVITY_IDS, ALL_ASSUNTO_IDS, ALL_EVIDENCE_IDS, ALL_LEITURA_IDS, ALL_MARCO_IDS, assuntoDone, assuntoIds, countDone, countValues, labComplete, labsComplete, pct } from "@/lib/stats";
-import type { Assunto, Pilar } from "@/lib/types";
+import { ALL_ACTIVITY_IDS, ALL_ASSUNTO_IDS, ALL_CURSO_IDS, ALL_EVIDENCE_IDS, ALL_MARCO_IDS, assuntoDone, assuntoIds, countDone, countValues, labComplete, labsComplete, pct, progressoCursos } from "@/lib/stats";
+import type { Assunto, Leitura, Pilar } from "@/lib/types";
 
 const title = (p: Pilar) => PILARES[p].titulo;
 const DOT: Record<Pilar, string> = { arquitetura: "bg-accent", ia: "bg-measure", cloud: "bg-ok", ingles: "bg-decisao", carreira: "bg-warn" };
@@ -22,7 +23,7 @@ const ANOS = [
 ];
 type Sel = { kind: "assunto"; id: string } | { kind: "mes"; mes: number } | { kind: "tri"; id: string } | { kind: "revisao" } | { kind: "atrasos" } | null;
 
-const ABAS = [{ id: "hoje", t: "Hoje" }, { id: "semana", t: "Semana" }, { id: "trilha", t: "Trilha" }, { id: "mercado", t: "Mercado" }] as const;
+const ABAS = [{ id: "hoje", t: "Hoje" }, { id: "semana", t: "Semana" }, { id: "trilha", t: "Trilha" }, { id: "cursos", t: "Cursos" }, { id: "mercado", t: "Mercado" }] as const;
 type Aba = (typeof ABAS)[number]["id"];
 // Data do navegador só depois de montar (o HTML estático não sabe que dia é).
 const useAgora = () => { const [d, setD] = useState<Date | null>(null); useEffect(() => setD(new Date()), []); return d; };
@@ -48,6 +49,7 @@ export function Roadmap() {
       </div>}
       {aba === "semana" && <Semana h={hojeApi} onSelect={setSel} />}
       {aba === "trilha" && <Trilha onSelect={setSel} />}
+      {aba === "cursos" && <Cursos onSelect={setSel} />}
       {aba === "mercado" && <Mercado />}
     </main>
     <Drawer sel={sel} h={hojeApi} onClose={() => setSel(null)} onSelect={setSel} />
@@ -167,7 +169,7 @@ function Chip({ children, tom }: { children: React.ReactNode; tom?: "accent" | "
 // Um item por tarefa; sessões seguidas da mesma tarefa (g) aparecem juntas e são marcadas juntas.
 function TarefaItem({ g, onSelect, aoMarcar }: { g: Tarefa[]; onSelect: (s: Sel) => void; aoMarcar?: (g: Tarefa[], valor: boolean) => void }) {
   const a = useApp(); const t = g[0], c = g.every(x => feita(x, a.done, a.valores)); const assunto = t.assuntoId ? assuntoById.get(t.assuntoId) : undefined;
-  const titulo = t.titulo ?? t.texto, tipo = t.formato === "vídeo" ? "vídeo" : t.formato === "curso" ? "curso" : TIPOS[t.tipo];
+  const titulo = t.titulo ?? t.texto, tipo = t.curso ? "curso" : t.formato === "vídeo" ? "vídeo" : t.formato === "curso" ? "curso" : TIPOS[t.tipo];
   const marcar = aoMarcar ?? ((xs: Tarefa[], v: boolean) => a.setMany(xs.flatMap(x => idsParaMarcar(x, v)), v));
   return <li className="flex items-start gap-3 px-4 py-3">
     <input aria-label={titulo} type="checkbox" className="mt-0.5 size-4 shrink-0" checked={c} onChange={() => marcar(g, !c)} />
@@ -400,7 +402,7 @@ function Trilha({ onSelect }: { onSelect: (s: Sel) => void }) {
   const topicsDone = assuntos.filter(x => assuntoDone(x, done) === assuntoIds(x).length).length;
   const total = ALL_ACTIVITY_IDS.length + ALL_EVIDENCE_IDS.length + ALL_ASSUNTO_IDS.length;
   const mesAtual = agora ? mesDoPlano(agora) : null;
-  const stats: [string, string][] = [["progresso", `${app.loaded ? pct(activities + evidence + topicItems, total) : 0}%`], ["assuntos", `${topicsDone}/${assuntos.length}`], ["leituras", `${countDone(ALL_LEITURA_IDS, done)}/${ALL_LEITURA_IDS.length}`], ["laboratórios", `${labsComplete(done, valores)}/${laboratorios.length}`], ["marcos", `${countDone(ALL_MARCO_IDS, done)}/${ALL_MARCO_IDS.length}`]];
+  const stats: [string, string][] = [["progresso", `${app.loaded ? pct(activities + evidence + topicItems, total) : 0}%`], ["assuntos", `${topicsDone}/${assuntos.length}`], ["módulos de curso", `${countDone(ALL_CURSO_IDS, done)}/${ALL_CURSO_IDS.length}`], ["laboratórios", `${labsComplete(done, valores)}/${laboratorios.length}`], ["marcos", `${countDone(ALL_MARCO_IDS, done)}/${ALL_MARCO_IDS.length}`]];
   return <section aria-labelledby="trilha-h">
     <div className="card p-5 sm:p-6">
       <p className="label">36 meses · {fmtMesAno(INICIO)} → {fmtMesAno(metaMes(36))} · 8h por semana</p>
@@ -473,12 +475,9 @@ function AssuntoPanel({ id, onSelect }: { id: string; onSelect: (s: Sel) => void
     <h2 className="mt-2 text-2xl font-bold">{x.titulo}</h2>
     <p className="mt-2 text-[16px] leading-relaxed text-muted">{x.resumo}</p>
     <Bar n={n} total={ids.length} /><p className="mt-1 font-mono text-[11px] text-muted">{n}/{ids.length} itens</p>
-    <div className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Ordem:</strong> primeiro a teoria (~{horasTeoria(x)}h), depois a prática (~{horasPratica(x)}h). A prática libera quando as leituras do assunto estiverem marcadas.</p></div><h3 className="mt-7 text-lg font-bold">Passo 1 · Teoria <span className="font-mono text-[12px] font-normal text-muted">~{horasTeoria(x)}h</span></h3><h3 className="label mt-3 mb-1">O que as leituras cobrem</h3><ul className="list-disc pl-5 text-[14.5px] text-muted">{x.subtopicos.map(s => <li key={s.id}>{s.texto}</li>)}</ul>
-    <h3 className="label mt-7 mb-1">Leituras</h3>
-    <ul>{x.leituras.map(l => <li key={l.id} className="flex items-start gap-3 border-t border-line-soft py-3 first:border-t-0">
-      <input aria-label={`Marcar como lida: ${l.titulo}`} className="mt-1.5 size-4 shrink-0" type="checkbox" checked={a.done.has(l.id)} onChange={() => a.toggle(l.id)} />
-      <div className="min-w-0"><a href={l.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${a.done.has(l.id) ? "text-muted line-through" : ""}`}>{l.titulo} ↗</a><p className="font-mono text-[11px] text-muted">{l.fonte} · {l.tipo} · ~{minLeitura(l)} min</p></div>
-    </li>)}</ul>
+    <div className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Ordem:</strong> primeiro a teoria (~{horasTeoria(x)}h), depois a prática (~{horasPratica(x)}h). {obrigatorias(x).length ? `A prática libera quando ${obrigatorias(x).some(l => l.curso) ? "os módulos de curso" : "as leituras"} do assunto estiverem marcados.` : "Este assunto não tem curso: a prática já está liberada."}</p></div><h3 className="mt-7 text-lg font-bold">Passo 1 · Teoria <span className="font-mono text-[12px] font-normal text-muted">~{horasTeoria(x)}h</span></h3><h3 className="label mt-3 mb-1">O que o assunto cobre</h3><ul className="list-disc pl-5 text-[14.5px] text-muted">{x.subtopicos.map(s => <li key={s.id}>{s.texto}</li>)}</ul>
+    {obrigatorias(x).length > 0 && <><h3 className="label mt-7 mb-1">{obrigatorias(x).some(l => l.curso) ? "Cursos" : "Leituras"}</h3><Leituras ls={obrigatorias(x)} /></>}
+    {opcionais(x).length > 0 && <><h3 className="label mt-7 mb-1">Aprofundamento <span className="normal-case tracking-normal text-muted">(opcional, fora da fila)</span></h3><Leituras ls={opcionais(x)} /></>}
     <h3 className="label mt-7 mb-1">Anotações <span className="normal-case tracking-normal text-muted">(opcional)</span></h3>
     <textarea className="nota w-full" rows={4} value={a.valorDe(nota)} placeholder="o que vale guardar deste assunto" onChange={e => a.setValor(nota, e.target.value)} />
     <h3 className="label mt-7 mb-1">Perguntas de revisão</h3><CardsAssunto assunto={x.id} />
@@ -489,6 +488,47 @@ function AssuntoPanel({ id, onSelect }: { id: string; onSelect: (s: Sel) => void
       {next ? <Btn onClick={() => onSelect({ kind: "assunto", id: next.id })}>{next.titulo} →</Btn> : <span />}
     </div>
   </article>;
+}
+
+function Leituras({ ls }: { ls: Leitura[] }) {
+  const a = useApp();
+  return <ul>{ls.map(l => <li key={l.id} className="flex items-start gap-3 border-t border-line-soft py-3 first:border-t-0">
+    <input aria-label={`Marcar como feita: ${l.titulo}`} className="mt-1.5 size-4 shrink-0" type="checkbox" checked={a.done.has(l.id)} onChange={() => a.toggle(l.id)} />
+    <div className="min-w-0"><a href={l.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${a.done.has(l.id) ? "text-muted line-through" : ""}`}>{l.titulo} ↗</a><p className="font-mono text-[11px] text-muted">{l.fonte} · {l.curso ? "curso" : l.tipo} · ~{minLeitura(l)} min</p></div>
+  </li>)}</ul>;
+}
+
+/* ───────── Cursos (Branas e Alura): fila própria ───────── */
+function Cursos({ onSelect }: { onSelect: (s: Sel) => void }) {
+  const app = useApp(); const agora = useAgora();
+  const cursos = progressoCursos(app.done);
+  const restante = cursos.reduce((s, c) => s + c.minutosRestantes, 0), total = cursos.reduce((s, c) => s + c.minutosTotal, 0);
+  const fim = agora ? previsaoCursos(app.done, app.valores, paraIso(agora)) : null;
+  const horasSemana = SEMANA.reduce((s, d) => s + d.partes.reduce((t, p) => t + (p.fonte === "curso" ? p.horas : 0), 0), 0);
+  const h = (min: number) => `${Math.round(min / 6) / 10}h`;
+  const grupos: [string, typeof cursos][] = [["Rodrigo Branas", cursos.filter(c => c.formacao !== "alura")], ["Alura", cursos.filter(c => c.formacao === "alura")]];
+  // Assunto do primeiro módulo pendente de cada curso, para abrir no painel.
+  const assuntoPendente = (curso: string) => { const m = MODULOS.find(x => cursoDe(x) === curso && !app.done.has(x.id)) ?? MODULOS.find(x => cursoDe(x) === curso); return m?.assunto; };
+  return <section aria-labelledby="cursos-h" className="grid gap-6">
+    <div className="card p-5 sm:p-6">
+      <p className="label">Fila própria · {horasSemana}h por semana</p>
+      <h1 id="cursos-h" className="mt-1 text-[26px] font-bold leading-tight tracking-tight">Cursos</h1>
+      <p className="mt-2 max-w-[75ch] text-[14.5px] leading-relaxed text-muted">Os módulos do Branas e os cursos da Alura são a teoria dos assuntos técnicos e andam toda semana, na ordem da trilha, sem esperar o mês do assunto. Os artigos de cada assunto ficam como aprofundamento opcional. Nos cursos da Alura, a duração é 40% da carga anunciada (a carga inclui exercícios) até ser conferida na plataforma.</p>
+      <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="rounded-lg border border-line-soft px-3 py-2"><dt className="text-[12px] text-muted">feito</dt><dd className="font-mono text-[18px] font-bold">{pct(total - restante, total)}%</dd></div>
+        <div className="rounded-lg border border-line-soft px-3 py-2"><dt className="text-[12px] text-muted">faltam</dt><dd className="font-mono text-[18px] font-bold">{h(restante)} de {h(total)}</dd></div>
+        <div className="rounded-lg border border-line-soft px-3 py-2"><dt className="text-[12px] text-muted">previsão de término</dt><dd className="font-mono text-[18px] font-bold">{!agora ? "…" : fim ? fmtDia(fim) : "concluído"}</dd></div>
+      </dl>
+    </div>
+    {grupos.map(([nome, cs]) => <section key={nome}><h2 className="text-xl font-bold">{nome}</h2>
+      <ul className="card mt-3 divide-y divide-line-soft">{cs.map(c => { const ok = c.feitos === c.total, x = assuntoPendente(c.curso); return <li key={c.curso} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
+        <div className="min-w-0 flex-1"><a href={c.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${ok ? "text-muted line-through" : ""}`}>{c.curso} ↗</a>
+          <p className="font-mono text-[11px] text-muted">{c.total > 1 ? `${c.feitos}/${c.total} módulos · ` : ""}{ok ? "concluído" : `faltam ${h(c.minutosRestantes)} de ${h(c.minutosTotal)}`}</p></div>
+        <span className="h-1.5 w-28 overflow-hidden rounded-full bg-surface2"><span className={`block h-full rounded-full ${ok ? "bg-ok" : "bg-accent"}`} style={{ width: `${pct(c.minutosTotal - c.minutosRestantes, c.minutosTotal)}%` }} /></span>
+        {x && <Btn onClick={() => onSelect({ kind: "assunto", id: x })}>assunto</Btn>}
+      </li>; })}</ul>
+    </section>)}
+  </section>;
 }
 
 function MesPanel({ mes, onSelect }: { mes: number; onSelect: (s: Sel) => void }) {
@@ -502,7 +542,7 @@ function MesPanel({ mes, onSelect }: { mes: number; onSelect: (s: Sel) => void }
     <p className="mt-4"><strong>Problema real: </strong>{l.problema}</p>
     <p className="mt-2 text-muted"><strong className="text-text">Objetivo: </strong>{l.objetivo}</p>
     <p className="mt-3 font-mono text-[11px] leading-relaxed text-muted">Meta do calendário: {fmtDia(inicioMes(mes))} → {fmtDia(metaMes(mes))} · previsão no ritmo atual: {previsao ? fmtDia(previsao) : "concluído"}</p>
-    <div className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Semanas 1–2 · teoria:</strong> as leituras e os módulos de curso dos assuntos abaixo (~{assuntosDoMes(mes).reduce((t, x) => t + horasTeoria(x), 0)}h).</p><p className="mt-1"><strong>Semanas 3–4 · prática:</strong> a prática de cada assunto e as atividades do laboratório (~{assuntosDoMes(mes).reduce((t, x) => t + horasPratica(x), 0)}h).</p></div><h3 className="label mt-7 mb-2">Assuntos deste mês</h3>
+    <div className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Teoria:</strong> os módulos de curso dos assuntos abaixo (andam na fila de cursos, sem esperar o mês; artigos são aprofundamento opcional) (~{assuntosDoMes(mes).reduce((t, x) => t + horasTeoria(x), 0)}h).</p><p className="mt-1"><strong>Prática:</strong> a prática de cada assunto e as atividades do laboratório (~{assuntosDoMes(mes).reduce((t, x) => t + horasPratica(x), 0)}h).</p></div><h3 className="label mt-7 mb-2">Assuntos deste mês</h3>
     <div className="flex flex-col gap-2">{assuntosDoMes(mes).map(x => <button key={x.id} type="button" onClick={() => onSelect({ kind: "assunto", id: x.id })} className="flex items-center justify-between gap-3 rounded-lg border border-line bg-surface px-3 py-2 text-left hover:border-accent"><span className="flex items-center gap-2"><span className={`inline-block size-2 rounded-full ${DOT[x.pilar]}`} />{x.titulo}</span><span className="font-mono text-[11px] text-muted">{assuntoDone(x, a.done)}/{assuntoIds(x).length}</span></button>)}</div>
     <div className="mt-7 flex items-center gap-3"><h3 className="label">Atividades do laboratório</h3><button type="button" className="ml-auto rounded-md border border-line px-2 py-1 text-[12px] text-muted hover:border-accent hover:text-accent" onClick={() => a.setMany(ids, countDone(ids, a.done) !== ids.length)}>{countDone(ids, a.done) === ids.length ? "desmarcar" : "marcar todas"}</button></div>
     {l.atividades.map(x => <Check key={x.id} id={x.id} text={x.texto} />)}

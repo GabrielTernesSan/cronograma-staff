@@ -3,7 +3,7 @@ import { addDias, paraData } from "../datas";
 import type { Pilar, TipoLeitura } from "../types";
 import { laboratorios } from "./blocos";
 import { diaDeEstudo, fimMes, INICIO, SESSAO_MIN, type DiaSemana, type Parte } from "./cronograma";
-import { assuntos, assuntosDoMes, horasPratica, minLeitura } from "./trilha";
+import { assuntos, assuntosDoMes, horasPratica, minLeitura, obrigatorias } from "./trilha";
 
 // Fila única com todas as tarefas dos 36 meses, na ordem em que devem ser feitas.
 // Reaproveita os IDs da trilha e dos laboratórios: marcar aqui marca no mapa e vice-versa.
@@ -11,6 +11,8 @@ export type TipoTarefa = "leitura" | "pratica" | "lab" | "evidencia";
 export type Tarefa = {
   id: string; baseId: string; ultima: boolean; sessao?: [number, number];
   mes: number; assuntoId?: string; texto: string; minutos: number; tipo: TipoTarefa; url?: string;
+  // Módulo de curso (Branas ou Alura): tem fila própria nas partes com fonte "curso".
+  curso?: boolean;
   // Para a interface: título sem o prefixo do texto, de onde vem e o formato da leitura.
   titulo?: string; fonte?: string; formato?: TipoLeitura;
 };
@@ -28,7 +30,8 @@ const fatiar = (baseId: string, b: Base): Tarefa[] => {
 const doMes = (mes: number): Tarefa[] => {
   const xs = assuntosDoMes(mes), lab = laboratorios[mes - 1];
   const teoria = xs.flatMap(x => [
-    ...x.leituras.map(l => fatiar(l.id, { mes, assuntoId: x.id, tipo: "leitura", texto: `${l.tipo === "vídeo" ? "Assistir" : "Ler"}: ${l.titulo} (${l.fonte})`, minutos: minLeitura(l), url: l.url, titulo: l.titulo, fonte: l.fonte, formato: l.tipo })),
+    // Leitura opcional (aprofundamento) não entra na fila nem segura a prática.
+    ...obrigatorias(x).map(l => fatiar(l.id, { mes, assuntoId: x.id, tipo: "leitura", texto: `${l.tipo === "vídeo" ? "Assistir" : "Ler"}: ${l.titulo} (${l.fonte})`, minutos: minLeitura(l), url: l.url, titulo: l.titulo, fonte: l.fonte, formato: l.tipo, ...(l.curso ? { curso: true } : {}) })),
   ]).flat();
   const pratica = xs.flatMap(x => fatiar(x.pratica.id, { mes, assuntoId: x.id, tipo: "pratica", texto: `Prática: ${x.pratica.texto}`, titulo: x.pratica.texto, minutos: horasPratica(x) * 60 }));
   const atividades = lab ? lab.atividades.flatMap(a => fatiar(a.id, { mes, tipo: "lab", texto: `Laboratório M${String(mes).padStart(2, "0")}: ${a.texto}`, titulo: a.texto, minutos: 120 })) : [];
@@ -66,6 +69,7 @@ export const diaDaSemana = (iso: string): DiaSemana | undefined => diaDeEstudo(i
 export const proximoDiaDeEstudo = (iso: string) => { let d = iso < INICIO ? INICIO : iso; while (!diaDaSemana(d)) d = addDias(d, 1); return d; };
 
 const ehTeoria = (t: Tarefa) => t.tipo === "leitura";
+export const ehCurso = (t: Tarefa) => !!t.curso;
 const ehLab = (t: Tarefa) => t.tipo === "lab" || t.tipo === "evidencia";
 // Prática só depois de terminar a teoria do mesmo assunto.
 const pronta = (t: Tarefa, done: Set<string>, valores: Valores) => t.tipo !== "pratica" || !t.assuntoId || (teoriaDe.get(t.assuntoId) ?? []).every(x => feita(x, done, valores));
@@ -75,6 +79,8 @@ const filtros = (p: Parte): ((t: Tarefa) => boolean)[] => {
   const doPilar = (t: Tarefa) => pilarDe(t) === p.pilar;
   const lab = (t: Tarefa) => ehLab(t) || (t.tipo === "pratica" && pilarDe(t) === "arquitetura");
   switch (p.fonte) {
+    // Próximo módulo de curso de qualquer pilar; sem curso pendente, a parte volta ao pilar dela (ex.: carreira na quinta).
+    case "curso": return [ehCurso, t => doPilar(t), lab, () => true];
     case "teoria": return [t => doPilar(t) && ehTeoria(t), t => doPilar(t), lab, () => true];
     case "pratica": return [t => doPilar(t) && t.tipo === "pratica", t => doPilar(t), lab, () => true];
     case "lab": return [lab, () => true];
@@ -99,14 +105,15 @@ const encher = (xs: Tarefa[], minutos: number) => {
  * Tarefas de cada parte do dia (uma lista de ids por parte), ou null em dia livre.
  * Sempre parte do que está pendente agora: dia perdido não gera atraso, só empurra a fila.
  * Só pega tarefas até um mês à frente do mês mais atrasado, para os pilares não dispararem.
+ * Exceção: nas partes de curso, o módulo de curso não tem teto (os cursos andam na frente dos meses).
  */
 export const montarDia = (iso: string, done: Set<string>, valores: Valores): string[][] | null => {
   const d = diaDaSemana(iso); if (!d) return null;
   const pend = pendentes(done, valores).filter(t => pronta(t, done, valores));
-  const teto = (pendentes(done, valores)[0]?.mes ?? 36) + 1;
+  const teto = (pendentes(done, valores).find(t => !t.curso)?.mes ?? 36) + 1;
   const usadas = new Set<string>();
   return d.partes.map(p => {
-    const livres = pend.filter(t => t.mes <= teto && !usadas.has(t.id));
+    const livres = pend.filter(t => (t.mes <= teto || (p.fonte === "curso" && t.curso)) && !usadas.has(t.id));
     const xs = filtros(p).map(f => livres.filter(f)).find(l => l.length) ?? [];
     const escolhidas = encher(xs, p.horas * 60); escolhidas.forEach(t => usadas.add(t.id));
     return escolhidas.map(t => t.id);
@@ -154,3 +161,14 @@ export const previsaoMes = (mes: number, done: Set<string>, valores: Valores, ho
   return d;
 };
 export const metaMes = fimMes;
+
+// Minutos por dia das partes de curso.
+const capacidadeCurso = (iso: string) => (diaDaSemana(iso)?.partes ?? []).reduce((s, p) => s + (p.fonte === "curso" ? p.horas * 60 : 0), 0);
+/** Data aproximada em que a fila de cursos acaba seguindo a grade a partir de hoje; null se já acabou. */
+export const previsaoCursos = (done: Set<string>, valores: Valores, hoje: string) => {
+  const resto = TAREFAS.filter(t => t.curso && !feita(t, done, valores)).reduce((s, t) => s + t.minutos, 0);
+  if (!resto) return null;
+  let d = hoje < INICIO ? INICIO : hoje, soma = capacidadeCurso(d);
+  for (let i = 0; soma < resto && i < 5000; i++) { d = addDias(d, 1); soma += capacidadeCurso(d); }
+  return d;
+};

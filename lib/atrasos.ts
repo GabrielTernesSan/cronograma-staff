@@ -2,7 +2,7 @@
 import { idsParaMarcar, montarDia, tarefaById } from "./data/agenda";
 import { laboratorios } from "./data/blocos";
 import { diaDeEstudo, DURACAO_MESES, INICIO, type DiaSemana } from "./data/cronograma";
-import { assuntos } from "./data/trilha";
+import { assuntos, obrigatorias } from "./data/trilha";
 import { addDias, paraData, paraIso } from "./datas";
 import { fase, mesDoPlano, parteFeita, segunda } from "./grade";
 import { assuntoIds, labComplete } from "./stats";
@@ -26,7 +26,9 @@ export function atrasados(hoje: Date, done: Set<string>, valores: Valores): Atra
   // Depois do fim do plano tudo conta como mês fechado.
   const mesHoje = mesDoPlano(hoje), mes = mesHoje ?? DURACAO_MESES + 1, teoriaVencida = mesHoje !== null && fase(hoje) === "prática";
   const lista = assuntos.flatMap(x => {
-    const vencidos = x.mes < mes ? assuntoIds(x) : x.mes === mes && teoriaVencida ? x.leituras.map(l => l.id) : [];
+    // Módulo de curso segue a fila própria e leitura opcional é aprofundamento: nenhum dos dois vira atraso.
+    const conta = new Set(obrigatorias(x).filter(l => !l.curso).map(l => l.id));
+    const vencidos = (x.mes < mes ? assuntoIds(x) : x.mes === mes && teoriaVencida ? [...conta] : []).filter(id => id === x.pratica.id || conta.has(id));
     const ids = vencidos.filter(id => !done.has(id));
     return ids.length ? [{ x, ids }] : [];
   });

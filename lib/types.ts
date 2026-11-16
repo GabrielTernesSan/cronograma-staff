@@ -31,5 +31,6 @@ export type Marco = { id: string; texto: string; pilar: Pilar | "geral" };
 export type Trimestre = { id: string; rotulo: string; periodo: string; tema: string; meses: number[]; marco?: string; dependencias: string; marcos: Marco[] };
 export type Destino = { pais: string; via: string; minimo: string; pros: string; contras: string };
 export type TipoLeitura = "artigo" | "doc" | "curso" | "livro" | "ferramenta" | "vídeo";
-export type Leitura = { id: string; titulo: string; fonte: string; url: string; tipo: TipoLeitura; minutos?: number };
+// curso: módulo de curso (teoria obrigatória, com fila própria). opcional: aprofundamento, fora da fila e sem contar atraso.
+export type Leitura = { id: string; titulo: string; fonte: string; url: string; tipo: TipoLeitura; minutos?: number; curso?: true; opcional?: true };
 export type Assunto = { id: string; mes: number; pilar: Pilar; titulo: string; resumo: string; subtopicos: Activity[]; leituras: Leitura[]; pratica: Activity };

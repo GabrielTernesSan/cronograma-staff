@@ -6,7 +6,7 @@ require.extensions[".ts"] = (module, filename) => module._compile(ts.transpileMo
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText, filename);
 
-const { TAREFAS, tarefaById, pilarDe, feita, idsParaMarcar, montarDia, proximaTarefa, proximoDiaDeEstudo, diaDaSemana, pendentes, previsaoMes, metaMes } = require("../lib/data/agenda.ts");
+const { TAREFAS, tarefaById, pilarDe, feita, idsParaMarcar, montarDia, proximaTarefa, proximoDiaDeEstudo, diaDaSemana, pendentes, previsaoMes, previsaoCursos, metaMes } = require("../lib/data/agenda.ts");
 const { INICIO, SESSAO_MIN, SEMANA, inicioMes } = require("../lib/data/cronograma.ts");
 const { assuntos, horasPratica } = require("../lib/data/trilha.ts");
 const { laboratorios } = require("../lib/data/blocos.ts");
@@ -46,11 +46,13 @@ for (const d of semana) {
     if (p.fonte === "fixo") return assert.equal(xs.length, 0);
     if (xs.length > 1) assert.ok(min <= p.horas * 60 + 10, `${d} parte ${i}: ${min} min`);
     if (p.fonte === "teoria") assert.ok(xs.every(t => pilarDe(t) === p.pilar && t.tipo === "leitura"), `${d}: teoria fora do pilar`);
+    if (p.fonte === "curso") assert.ok(xs.length > 0 && xs.every(t => t.curso), `${d}: parte de curso sem módulo de curso`);
     if (p.fonte === "tudo") assert.ok(xs.every(t => pilarDe(t) === p.pilar));
-    assert.ok(xs.every(t => t.tipo !== "pratica"), `${d}: prática antes da teoria`);
+    // done vazio: só assunto sem teoria obrigatória (sem curso, artigos opcionais) pode ter prática
+    assert.ok(xs.every(t => t.tipo !== "pratica" || !TAREFAS.some(x => x.assuntoId === t.assuntoId && x.tipo === "leitura")), `${d}: prática antes da teoria`);
   });
 }
-assert.ok(montarDia("2026-11-11", new Set(), {})[0].length > 0, "quarta tem tarefa de IA");
+assert.ok(montarDia("2026-11-11", new Set(), {})[0].length > 0, "quarta tem módulo de curso");
 
 // Dia perdido: a quarta seguinte começa do mesmo lugar
 assert.deepEqual(montarDia("2026-11-18", new Set(), {}), montarDia("2026-11-11", new Set(), {}));
@@ -112,7 +114,27 @@ const { MODULOS } = require("../lib/data/cursos.ts");
 assert.equal(new Set(MODULOS.map(m => m.id)).size, MODULOS.length);
 for (const m of MODULOS) assert.ok(assuntos.some(a => a.id === m.assunto), `${m.id}: assunto ${m.assunto} não existe`);
 assert.ok(MODULOS.every(m => TAREFAS.some(t => t.baseId === m.id)), "módulo fora da fila");
-console.log("Módulos do Branas OK:", MODULOS.length);
+console.log("Módulos de curso OK:", MODULOS.length);
+
+// Cursos com fila própria e artigos opcionais
+const { opcionais } = require("../lib/data/trilha.ts");
+const idsOpcionais = new Set(assuntos.flatMap(a => opcionais(a).map(l => l.id)));
+assert.ok(idsOpcionais.size > 0, "há leituras opcionais");
+assert.ok(TAREFAS.every(t => !idsOpcionais.has(t.baseId)), "leitura opcional entrou na fila");
+assert.ok(assuntos.filter(a => ["ingles", "carreira"].includes(a.pilar)).every(a => opcionais(a).length === 0), "inglês e carreira mantêm as leituras");
+assert.ok(TAREFAS.filter(t => t.curso).every(t => MODULOS.some(m => m.id === t.baseId)), "tarefa de curso sem módulo");
+// Hermes (assunto do mês 29) chega bem antes, pela fila de cursos
+const longe = projetarDias("2026-11-09", "2028-06-30", new Set(), {});
+const diaHermes = [...longe].find(([, ps]) => ps.flat().some(id => T(id).baseId === "branas-ia-12"))?.[0];
+assert.ok(diaHermes && diaHermes < inicioMes(20), `Hermes só em ${diaHermes}`);
+const fimCursos = previsaoCursos(new Set(), {}, INICIO);
+console.log("Cursos:", Math.round(TAREFAS.filter(t => t.curso).reduce((s, t) => s + t.minutos, 0) / 60), "h; previsão de término", fimCursos, "; Hermes em", diaHermes);
+// Cursos feitos: a parte de curso da quinta volta para a carreira
+const cursosFeitos = new Set(MODULOS.map(m => m.id));
+const quinta = montarDia("2027-12-02", cursosFeitos, {}), iQuinta = diaDaSemana("2027-12-02").partes.findIndex(p => p.fonte === "curso");
+assert.ok(quinta[iQuinta].length > 0 && quinta[iQuinta].every(id => pilarDe(T(id)) === "carreira"), "quinta sem curso volta para a carreira");
+assert.equal(previsaoCursos(cursosFeitos, {}, INICIO), null);
+console.log("Fila de cursos OK");
 
 // Agrupar: sessões seguidas da mesma tarefa viram um item só; tarefas diferentes ficam separadas
 const { agrupar } = require("../lib/data/agenda.ts");
