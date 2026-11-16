@@ -55,6 +55,11 @@ export const feita = (t: Tarefa, done: Set<string>, valores: Valores) => {
 /** IDs a marcar/desmarcar. Desmarcar uma sessão desfaz também o id original. */
 export const idsParaMarcar = (t: Tarefa, valor: boolean) => valor ? (t.ultima && t.baseId !== t.id ? [t.id, t.baseId] : [t.id]) : [...new Set([t.id, t.baseId])];
 
+/** Todos os ids de uma tarefa da trilha (o original e as sessões), para marcar ou desmarcar fora do painel Hoje. */
+export const idsDaTarefa = (baseId: string) => [baseId, ...TAREFAS.filter(t => t.baseId === baseId && t.id !== baseId).map(t => t.id)];
+/** Prática ainda presa à teoria do assunto (módulo de curso pendente): não pode virar atraso. */
+export const praticaBloqueada = (assuntoId: string, done: Set<string>, valores: Valores) => (teoriaDe.get(assuntoId) ?? []).some(x => x.curso && !feita(x, done, valores));
+
 /** Junta sessões seguidas da mesma tarefa (mesmo baseId) num grupo, para a interface mostrar um item só. */
 export const agrupar = (ts: Tarefa[]): Tarefa[][] => ts.reduce<Tarefa[][]>((gs, t) => {
   const ult = gs[gs.length - 1]; if (ult && ult[0].baseId === t.baseId) ult.push(t); else gs.push([t]); return gs;
@@ -84,7 +89,7 @@ const filtros = (p: Parte): ((t: Tarefa) => boolean)[] => {
     case "teoria": return [t => doPilar(t) && ehTeoria(t), t => doPilar(t), lab, () => true];
     case "pratica": return [t => doPilar(t) && t.tipo === "pratica", t => doPilar(t), lab, () => true];
     case "lab": return [lab, () => true];
-    case "tudo": return [doPilar]; // inglês e carreira: sem tarefa do pilar, vale o texto da parte
+    case "tudo": return [t => doPilar(t) || (!!p.tambem && pilarDe(t) === p.tambem)]; // inglês e carreira: sem tarefa do pilar, vale o texto da parte
     case "fixo": return [];
   }
 };
@@ -109,8 +114,8 @@ const encher = (xs: Tarefa[], minutos: number) => {
  */
 export const montarDia = (iso: string, done: Set<string>, valores: Valores): string[][] | null => {
   const d = diaDaSemana(iso); if (!d) return null;
-  const pend = pendentes(done, valores).filter(t => pronta(t, done, valores));
-  const teto = (pendentes(done, valores).find(t => !t.curso)?.mes ?? 36) + 1;
+  const todas = pendentes(done, valores), pend = todas.filter(t => pronta(t, done, valores));
+  const teto = (todas.find(t => !t.curso)?.mes ?? 36) + 1;
   const usadas = new Set<string>();
   return d.partes.map(p => {
     const livres = pend.filter(t => (t.mes <= teto || (p.fonte === "curso" && t.curso)) && !usadas.has(t.id));
@@ -149,26 +154,36 @@ export const planoAte = (fixas: string[], dataFixa: string | null, de: string, a
 export const proximaTarefa = (done: Set<string>, valores: Valores, excluir: Set<string>) =>
   pendentes(done, valores).find(t => !excluir.has(t.id) && pronta(t, done, valores));
 
-// Minutos de trilha por dia da semana (partes "fixo" não consomem a fila).
-const capacidade = (iso: string) => (diaDaSemana(iso)?.partes ?? []).reduce((s, p) => s + (p.fonte === "fixo" ? 0 : p.horas * 60), 0);
-
-/** Data aproximada em que o mês fecha seguindo a grade a partir de hoje; null se já fechou. */
-export const previsaoMes = (mes: number, done: Set<string>, valores: Valores, hoje: string) => {
-  if (!TAREFAS.some(t => t.mes === mes && !feita(t, done, valores))) return null;
-  const resto = TAREFAS.filter(t => t.mes <= mes && !feita(t, done, valores)).reduce((s, t) => s + t.minutos, 0);
+// Minutos por dia das partes que passam no filtro (partes "fixo" nunca consomem a fila).
+const minutosDoDia = (iso: string, conta: (p: Parte) => boolean) => (diaDaSemana(iso)?.partes ?? []).reduce((s, p) => s + (p.fonte !== "fixo" && conta(p) ? p.horas * 60 : 0), 0);
+/** Primeiro dia, a partir de hoje, em que a capacidade acumulada cobre `minutos`. */
+const andar = (hoje: string, minutos: number, capacidade: (iso: string) => number) => {
   let d = hoje < INICIO ? INICIO : hoje, soma = capacidade(d);
-  for (let i = 0; soma < resto && i < 5000; i++) { d = addDias(d, 1); soma += capacidade(d); }
+  for (let i = 0; soma < minutos && i < 5000; i++) { d = addDias(d, 1); soma += capacidade(d); }
+  return d;
+};
+const restante = (done: Set<string>, valores: Valores, f: (t: Tarefa) => boolean) => TAREFAS.filter(t => f(t) && !feita(t, done, valores)).reduce((s, t) => s + t.minutos, 0);
+
+/** Data aproximada em que a fila de cursos acaba seguindo a grade a partir de hoje; null se já acabou. */
+export const previsaoCursos = (done: Set<string>, valores: Valores, hoje: string) => {
+  const resto = restante(done, valores, ehCurso);
+  return resto ? andar(hoje, resto, iso => minutosDoDia(iso, p => p.fonte === "curso")) : null;
+};
+
+/**
+ * Data em que o mês fecha seguindo a grade a partir de hoje; null se já fechou.
+ * Simula a própria fila dia a dia (como projetarDias), então respeita o pilar e a fonte de cada parte:
+ * as horas de curso só contam para o mês quando a parte de curso cai numa tarefa dele.
+ */
+export const previsaoMes = (mes: number, done: Set<string>, valores: Valores, hoje: string) => {
+  const sim = new Set(done), falta = () => TAREFAS.some(t => t.mes === mes && !feita(t, sim, valores));
+  if (!falta()) return null;
+  let d = hoje < INICIO ? INICIO : hoje;
+  for (let i = 0; i < 5000; i++, d = addDias(d, 1)) {
+    const partes = montarDia(d, sim, valores); if (!partes) continue;
+    partes.flat().forEach(id => { const t = tarefaById.get(id); if (t) idsParaMarcar(t, true).forEach(x => sim.add(x)); });
+    if (!falta()) return d;
+  }
   return d;
 };
 export const metaMes = fimMes;
-
-// Minutos por dia das partes de curso.
-const capacidadeCurso = (iso: string) => (diaDaSemana(iso)?.partes ?? []).reduce((s, p) => s + (p.fonte === "curso" ? p.horas * 60 : 0), 0);
-/** Data aproximada em que a fila de cursos acaba seguindo a grade a partir de hoje; null se já acabou. */
-export const previsaoCursos = (done: Set<string>, valores: Valores, hoje: string) => {
-  const resto = TAREFAS.filter(t => t.curso && !feita(t, done, valores)).reduce((s, t) => s + t.minutos, 0);
-  if (!resto) return null;
-  let d = hoje < INICIO ? INICIO : hoje, soma = capacidadeCurso(d);
-  for (let i = 0; soma < resto && i < 5000; i++) { d = addDias(d, 1); soma += capacidadeCurso(d); }
-  return d;
-};

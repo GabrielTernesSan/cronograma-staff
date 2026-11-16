@@ -14,13 +14,14 @@ export const FORMACOES = {
   alura: { fonte: "Alura", url: "https://www.alura.com.br" },
 } as const;
 
-export type Modulo = { id: string; formacao: keyof typeof FORMACOES; titulo: string; assunto: string; minutos?: number; url?: string };
+// curso: nome do curso da Alura (cada um é um curso); nos do Branas o curso é a formação.
+export type Modulo = { id: string; formacao: keyof typeof FORMACOES; titulo: string; assunto: string; minutos?: number; url?: string; curso?: string };
 
 const IA_PADRAO = 180;
 const ALURA = "https://www.alura.com.br/curso-online-";
 /** Curso da Alura: carga anunciada em horas vira 40% em minutos. */
 const alura = (id: string, titulo: string, assunto: string, carga: number, slug: string): Modulo =>
-  ({ id: `alura-${id}`, formacao: "alura", titulo: `${titulo} (${carga}h na Alura)`, assunto, minutos: Math.round(carga * 60 * 0.4), url: ALURA + slug });
+  ({ id: `alura-${id}`, formacao: "alura", titulo: `${titulo} (${carga}h na Alura)`, curso: titulo, assunto, minutos: Math.round(carga * 60 * 0.4), url: ALURA + slug });
 
 export const MODULOS: Modulo[] = [
   // Formação IA
@@ -89,4 +90,4 @@ export const MODULOS: Modulo[] = [
 ];
 
 /** Nome do curso de um módulo, para agrupar o progresso: a formação do Branas inteira ou cada curso da Alura. */
-export const cursoDe = (m: Modulo) => m.formacao === "alura" ? m.titulo.replace(/ \(\d+h na Alura\)$/, "") : FORMACOES[m.formacao].fonte;
+export const cursoDe = (m: Modulo) => m.curso ?? FORMACOES[m.formacao].fonte;

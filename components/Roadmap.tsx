@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
-import { agrupar, assuntoById, feita, idsParaMarcar, metaMes, planoAte, previsaoCursos, previsaoMes, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
+import { agrupar, assuntoById, feita, idsDaTarefa, idsParaMarcar, metaMes, planoAte, previsaoCursos, previsaoMes, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
 import { diaDeEstudo, diasDaSemana, DESTINOS, DESTINOS_NOTA, INICIO, inicioMes, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, periodo, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
 import { cursoDe, MODULOS } from "@/lib/data/cursos";
 import { assuntos, assuntosDoMes, horasPratica, horasTeoria, minLeitura, obrigatorias, opcionais } from "@/lib/data/trilha";
@@ -493,7 +493,7 @@ function AssuntoPanel({ id, onSelect }: { id: string; onSelect: (s: Sel) => void
 function Leituras({ ls }: { ls: Leitura[] }) {
   const a = useApp();
   return <ul>{ls.map(l => <li key={l.id} className="flex items-start gap-3 border-t border-line-soft py-3 first:border-t-0">
-    <input aria-label={`Marcar como feita: ${l.titulo}`} className="mt-1.5 size-4 shrink-0" type="checkbox" checked={a.done.has(l.id)} onChange={() => a.toggle(l.id)} />
+    <input aria-label={`Marcar como feita: ${l.titulo}`} className="mt-1.5 size-4 shrink-0" type="checkbox" checked={a.done.has(l.id)} onChange={() => a.setMany(idsDaTarefa(l.id), !a.done.has(l.id))} />
     <div className="min-w-0"><a href={l.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${a.done.has(l.id) ? "text-muted line-through" : ""}`}>{l.titulo} ↗</a><p className="font-mono text-[11px] text-muted">{l.fonte} · {l.curso ? "curso" : l.tipo} · ~{minLeitura(l)} min</p></div>
   </li>)}</ul>;
 }
@@ -563,6 +563,6 @@ function TriPanel({ id }: { id: string }) {
 }
 
 function Info({ h, x }: { h: string; x: string[] }) { return <div><p className="label mb-2">{h}</p><ul className="space-y-1.5 text-[14.5px] leading-relaxed text-muted">{x.map(y => <li key={y}>{y}</li>)}</ul></div>; }
-function Check({ id, text, disabled }: { id: string; text: string; disabled?: boolean }) { const a = useApp(); const c = a.isDone(id); return <label className={`flex items-start gap-2 border-t border-line-soft py-2 first:border-t-0 ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}><input className="mt-1 size-4 shrink-0" type="checkbox" checked={c} disabled={disabled} onChange={() => a.toggle(id)} /><span className={c ? "text-[14.5px] text-muted line-through" : "text-[14.5px]"}>{text}</span></label>; }
+function Check({ id, text, disabled }: { id: string; text: string; disabled?: boolean }) { const a = useApp(); const c = a.isDone(id); return <label className={`flex items-start gap-2 border-t border-line-soft py-2 first:border-t-0 ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}><input className="mt-1 size-4 shrink-0" type="checkbox" checked={c} disabled={disabled} onChange={() => a.setMany(idsDaTarefa(id), !c)} /><span className={c ? "text-[14.5px] text-muted line-through" : "text-[14.5px]"}>{text}</span></label>; }
 function Bar({ n, total }: { n: number; total: number }) { const p = pct(n, total); return <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface2"><div className={`h-full rounded-full ${p >= 100 ? "bg-ok" : "bg-accent"}`} style={{ width: `${p}%` }} /></div>; }
 function Btn({ children, onClick, active, danger }: { children: React.ReactNode; onClick: () => void; active?: boolean; danger?: boolean }) { return <button type="button" onClick={onClick} aria-pressed={active} className={`inline-flex shrink-0 items-center rounded-lg border px-2.5 py-1 text-[12.5px] font-medium transition ${danger ? "border-warn/60 text-warn hover:bg-warn/10" : active ? "border-accent bg-accent/10 text-accent" : "border-line bg-surface text-muted hover:border-accent hover:text-accent"}`}>{children}</button>; }

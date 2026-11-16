@@ -47,7 +47,7 @@ for (const d of semana) {
     if (xs.length > 1) assert.ok(min <= p.horas * 60 + 10, `${d} parte ${i}: ${min} min`);
     if (p.fonte === "teoria") assert.ok(xs.every(t => pilarDe(t) === p.pilar && t.tipo === "leitura"), `${d}: teoria fora do pilar`);
     if (p.fonte === "curso") assert.ok(xs.length > 0 && xs.every(t => t.curso), `${d}: parte de curso sem módulo de curso`);
-    if (p.fonte === "tudo") assert.ok(xs.every(t => pilarDe(t) === p.pilar));
+    if (p.fonte === "tudo") assert.ok(xs.every(t => pilarDe(t) === p.pilar || pilarDe(t) === p.tambem));
     // done vazio: só assunto sem teoria obrigatória (sem curso, artigos opcionais) pode ter prática
     assert.ok(xs.every(t => t.tipo !== "pratica" || !TAREFAS.some(x => x.assuntoId === t.assuntoId && x.tipo === "leitura")), `${d}: prática antes da teoria`);
   });
@@ -134,6 +134,24 @@ const cursosFeitos = new Set(MODULOS.map(m => m.id));
 const quinta = montarDia("2027-12-02", cursosFeitos, {}), iQuinta = diaDaSemana("2027-12-02").partes.findIndex(p => p.fonte === "curso");
 assert.ok(quinta[iQuinta].length > 0 && quinta[iQuinta].every(id => pilarDe(T(id)) === "carreira"), "quinta sem curso volta para a carreira");
 assert.equal(previsaoCursos(cursosFeitos, {}, INICIO), null);
+// Carreira tem horário no domingo enquanto os cursos ocupam a quinta: não trava a fila
+const diaDe = b => [...longe].find(([, ps]) => ps.flat().some(id => T(id).baseId === b))?.[0];
+assert.ok(diaDe("m01-brag-p") < "2027-01-01", `brag só em ${diaDe("m01-brag-p")}`);
+// Previsão do mês simula a fila: bate com a projeção (não conta as horas de curso como livres para o mês)
+const fechaMes = m => [...longe].filter(([, ps]) => ps.flat().some(id => T(id).mes === m)).map(x => x[0]).at(-1);
+for (const m of [1, 3, 6]) { const prev = previsaoMes(m, new Set(), {}, INICIO), proj = fechaMes(m); console.log(`M${m}: previsão ${prev}, projeção ${proj}, meta ${metaMes(m)}`); assert.equal(prev, proj, `M${m}: previsão diverge da projeção`); }
+// Sessões: marcar fora do Hoje usa o original e todas as sessões
+const { idsDaTarefa, praticaBloqueada } = require("../lib/data/agenda.ts");
+assert.deepEqual(idsDaTarefa("alura-terraform").length, TAREFAS.filter(t => t.baseId === "alura-terraform").length + 1);
+assert.deepEqual(idsDaTarefa("m01-adr-p")[0], "m01-adr-p");
+// Atraso: prática presa a curso pendente não conta; com o curso feito, conta
+const { atrasados } = require("../lib/atrasos.ts");
+const comCurso = assuntos.find(a => a.mes === 1 && a.leituras.some(l => l.curso));
+assert.ok(praticaBloqueada(comCurso.id, new Set(), {}));
+const depoisMes1 = new Date(addDias(metaMes(2), 1) + "T12:00:00");
+assert.ok(!atrasados(depoisMes1, new Set(), {}).assuntos.some(x => x.ids.includes(comCurso.pratica.id)), "prática presa ao curso virou atraso");
+const cursoFeito = new Set(comCurso.leituras.filter(l => l.curso).map(l => l.id));
+assert.ok(atrasados(depoisMes1, cursoFeito, {}).assuntos.some(x => x.ids.includes(comCurso.pratica.id)), "prática liberada e vencida não virou atraso");
 console.log("Fila de cursos OK");
 
 // Agrupar: sessões seguidas da mesma tarefa viram um item só; tarefas diferentes ficam separadas
@@ -160,7 +178,7 @@ assert.deepEqual(montarResgate([diaPerdido], { [perdido]: salvoAntes }, new Set(
 
 // Plano da semana x resgate: em dia livre (seg 16/11), a prévia de quarta e a projeção até domingo não se repetem no resgate
 const { planoAte } = require("../lib/data/agenda.ts");
-const { atrasados } = require("../lib/atrasos.ts");
+// (atrasados já importado acima)
 const previaQua = montarDia("2026-11-18", new Set(), {}).flat();
 const plano = planoAte(previaQua, "2026-11-18", "2026-11-16", "2026-11-22", new Set(), {});
 assert.equal(plano.de, "2026-11-19");

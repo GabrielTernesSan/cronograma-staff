@@ -30,14 +30,15 @@ export const ROTA = [
 // curso = próximo módulo da fila de cursos (Branas/Alura), de qualquer pilar; sem curso pendente, volta ao pilar da parte.
 // teoria/pratica = do pilar; tudo = qualquer tarefa do pilar; lab = laboratório; fixo = só o texto.
 export type Fonte = "curso" | "teoria" | "pratica" | "tudo" | "lab" | "fixo";
-export type Parte = { horas: number; texto: string; pilar?: Pilar; fonte: Fonte };
+// tambem: outro pilar aceito na parte (a carreira usa o domingo enquanto a hora da quinta vai para os cursos).
+export type Parte = { horas: number; texto: string; pilar?: Pilar; tambem?: Pilar; fonte: Fonte };
 const dia = (dia: string, dow: number, pilares: Pilar[], partes: Parte[]) => ({ dia, dow, pilares, partes, horas: partes.reduce((t, p) => t + p.horas, 0) });
 export const SEMANA = [
   dia("qua", 3, ["ia"], [{ horas: 1, texto: "Curso: próximo módulo da fila (Branas/Alura); sem curso, teoria de IA", pilar: "ia", fonte: "curso" }]),
   dia("qui", 4, ["ingles", "carreira"], [{ horas: 0.5, texto: "Listening: podcast ou palestra técnica em inglês", pilar: "ingles", fonte: "fixo" }, { horas: 1, texto: "Curso: próximo módulo da fila (Branas/Alura); quando os cursos acabarem, carreira: portfólio, LinkedIn, entrevistas e documentos", pilar: "carreira", fonte: "curso" }]),
   dia("sex", 5, ["cloud"], [{ horas: 1, texto: "Curso: próximo módulo da fila (Branas/Alura); sem curso, teoria de cloud", pilar: "cloud", fonte: "curso" }, { horas: 0.5, texto: "Prática do assunto de cloud do mês", pilar: "cloud", fonte: "pratica" }]),
   dia("sáb", 6, ["arquitetura"], [{ horas: 1, texto: "Curso: próximo módulo da fila (Branas/Alura); sem curso, teoria de arquitetura", pilar: "arquitetura", fonte: "curso" }, { horas: 1, texto: "Laboratório do mês e prática de arquitetura", pilar: "arquitetura", fonte: "lab" }]),
-  dia("dom", 0, ["ingles", "ia"], [{ horas: 1, texto: "Leitura e escrita técnica em inglês: ler um artigo da trilha e resumir em inglês", pilar: "ingles", fonte: "tudo" }, { horas: 0.5, texto: "Laboratório: prática do assunto de IA do mês", pilar: "ia", fonte: "pratica" }, { horas: 0.5, texto: "Fechar a semana e planejar a próxima", fonte: "fixo" }]),
+  dia("dom", 0, ["ingles", "ia"], [{ horas: 1, texto: "Inglês e carreira: leitura e escrita técnica em inglês (ler um artigo da trilha e resumir em inglês), portfólio, LinkedIn e documentos", pilar: "ingles", tambem: "carreira", fonte: "tudo" }, { horas: 0.5, texto: "Laboratório: prática do assunto de IA do mês", pilar: "ia", fonte: "pratica" }, { horas: 0.5, texto: "Fechar a semana e planejar a próxima", fonte: "fixo" }]),
 ];
 export type DiaSemana = (typeof SEMANA)[number];
 
@@ -52,7 +53,7 @@ export const diaDeEstudo = (iso: string): DiaSemana | undefined => DIAS_EXTRAS[i
 export const diasDaSemana = (segIso: string) => Array.from({ length: 7 }, (_, i) => diaDeEstudo(addDias(segIso, i))).filter((d): d is DiaSemana => !!d);
 export const META_SEMANA = 6; // horas marcadas para a semana contar na ofensiva
 export const DURACAO_MESES = 36;
-export const RITMO_NOTA = "8h por semana, de quarta a domingo: 1h na quarta (dia de academia), 1h30 na quinta e na sexta e 2h no sábado e no domingo; segunda e terça ficam livres. Os cursos (Branas e Alura) têm fila própria: a primeira hora de quarta, quinta, sexta e sábado vai para o próximo módulo, sem esperar o mês do assunto; a hora da quinta volta para a carreira quando os cursos acabarem. Os artigos dos assuntos técnicos são aprofundamento opcional. O inglês começa sem conversação (listening, leitura e escrita, que dá para fazer sozinho); quando houver aula ou parceiro, os 30 min de listening da quinta viram conversação. Dia perdido não é reposto: a próxima sessão começa da tarefa pendente seguinte, e o cronograma inteiro anda junto; o que ficou sem marcar aparece em “ficou pra trás”, onde dá para marcar o dia original quando repor. A semana conta na ofensiva com 6h ou mais marcadas. No ano 2, durante a busca de vaga (meses 19–24), a sexta de cloud pode virar treino de entrevista.";
+export const RITMO_NOTA = "8h por semana, de quarta a domingo: 1h na quarta (dia de academia), 1h30 na quinta e na sexta e 2h no sábado e no domingo; segunda e terça ficam livres. Os cursos (Branas e Alura) têm fila própria: a primeira hora de quarta, quinta, sexta e sábado vai para o próximo módulo, sem esperar o mês do assunto; a carreira divide com o inglês a hora de leitura do domingo e volta para a quinta quando os cursos acabarem. Os artigos dos assuntos técnicos são aprofundamento opcional. O inglês começa sem conversação (listening, leitura e escrita, que dá para fazer sozinho); quando houver aula ou parceiro, os 30 min de listening da quinta viram conversação. Dia perdido não é reposto: a próxima sessão começa da tarefa pendente seguinte, e o cronograma inteiro anda junto; o que ficou sem marcar aparece em “ficou pra trás”, onde dá para marcar o dia original quando repor. A semana conta na ofensiva com 6h ou mais marcadas. No ano 2, durante a busca de vaga (meses 19–24), a sexta de cloud pode virar treino de entrevista.";
 
 export const MERCADO_DADOS = [
   "IA virou requisito básico: aparece em 42% das descrições de vaga de software em 2026, contra 8% em 2022.",
