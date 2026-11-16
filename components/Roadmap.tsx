@@ -405,7 +405,7 @@ function Trilha({ onSelect }: { onSelect: (s: Sel) => void }) {
   const stats: [string, string][] = [["progresso", `${app.loaded ? pct(activities + evidence + topicItems, total) : 0}%`], ["assuntos", `${topicsDone}/${assuntos.length}`], ["módulos de curso", `${countDone(ALL_CURSO_IDS, done)}/${ALL_CURSO_IDS.length}`], ["laboratórios", `${labsComplete(done, valores)}/${laboratorios.length}`], ["marcos", `${countDone(ALL_MARCO_IDS, done)}/${ALL_MARCO_IDS.length}`]];
   return <section aria-labelledby="trilha-h">
     <div className="card p-5 sm:p-6">
-      <p className="label">36 meses · {fmtMesAno(INICIO)} → {fmtMesAno(metaMes(36))} · 8h por semana</p>
+      <p className="label">36 meses do plano · {fmtMesAno(INICIO)} → {fmtMesAno(metaMes(36))} · 8h por semana</p>
       <h1 id="trilha-h" className="mt-1 max-w-[30ch] text-[26px] font-bold leading-tight tracking-tight">Senior Abroad: Architecture, AI Engineering &amp; Cloud</h1>
       <p className="mt-2 max-w-[75ch] text-[14.5px] leading-relaxed text-muted">Sênior de .NET e Azure que constrói e opera sistemas com IA em produção. A saída do Brasil vem em dois passos: um contrato remoto internacional e, depois, a mudança com visto patrocinado.</p>
       <ol className="mt-4 flex flex-wrap gap-2">{ROTA.map(r => <li key={r.codigo} className="rounded-lg bg-surface2 px-3 py-2"><span className="block font-display text-[15px] font-bold">{r.codigo}</span><span className="text-[12px] text-muted">{r.quando} · {r.texto}</span></li>)}</ol>

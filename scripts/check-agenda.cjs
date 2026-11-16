@@ -17,8 +17,10 @@ const marcar = (done, ids) => ids.forEach(id => idsParaMarcar(T(id), true).forEa
 
 // Datas
 assert.equal(inicioMes(1), "2026-11-09");
-assert.equal(metaMes(1), "2026-12-08");
-assert.equal(metaMes(36), "2029-11-08");
+assert.equal(metaMes(1), "2027-03-08"); // meses 1–6 esticados pelo período dos cursos
+assert.equal(inicioMes(7), "2027-11-09");
+assert.equal(metaMes(36), "2030-05-08");
+for (let m = 1; m < 36; m++) assert.equal(inicioMes(m + 1), require("../lib/datas.ts").addDias(metaMes(m), 1), `M${m}: buraco entre meses`);
 assert.equal(fmtDiaSemana(INICIO), "seg 09/11");
 
 // Fila
@@ -139,7 +141,7 @@ const diaDe = b => [...longe].find(([, ps]) => ps.flat().some(id => T(id).baseId
 assert.ok(diaDe("m01-brag-p") < "2027-01-01", `brag só em ${diaDe("m01-brag-p")}`);
 // Previsão do mês simula a fila: bate com a projeção (não conta as horas de curso como livres para o mês)
 const fechaMes = m => [...longe].filter(([, ps]) => ps.flat().some(id => T(id).mes === m)).map(x => x[0]).at(-1);
-for (const m of [1, 3, 6]) { const prev = previsaoMes(m, new Set(), {}, INICIO), proj = fechaMes(m); console.log(`M${m}: previsão ${prev}, projeção ${proj}, meta ${metaMes(m)}`); assert.equal(prev, proj, `M${m}: previsão diverge da projeção`); }
+for (const m of [1, 3, 6]) { const prev = previsaoMes(m, new Set(), {}, INICIO), proj = fechaMes(m); assert.ok(prev <= metaMes(m), `M${m}: projeção ${prev} passa da meta ${metaMes(m)}`); console.log(`M${m}: previsão ${prev}, projeção ${proj}, meta ${metaMes(m)}`); assert.equal(prev, proj, `M${m}: previsão diverge da projeção`); }
 // Sessões: marcar fora do Hoje usa o original e todas as sessões
 const { idsDaTarefa, praticaBloqueada } = require("../lib/data/agenda.ts");
 assert.deepEqual(idsDaTarefa("alura-terraform").length, TAREFAS.filter(t => t.baseId === "alura-terraform").length + 1);
@@ -152,6 +154,10 @@ const depoisMes1 = new Date(addDias(metaMes(2), 1) + "T12:00:00");
 assert.ok(!atrasados(depoisMes1, new Set(), {}).assuntos.some(x => x.ids.includes(comCurso.pratica.id)), "prática presa ao curso virou atraso");
 const cursoFeito = new Set(comCurso.leituras.filter(l => l.curso).map(l => l.id));
 assert.ok(atrasados(depoisMes1, cursoFeito, {}).assuntos.some(x => x.ids.includes(comCurso.pratica.id)), "prática liberada e vencida não virou atraso");
+// Cumprindo a grade, todo mês fecha dentro da meta do calendário
+const tudo = projetarDias("2026-11-09", metaMes(36), new Set(), {}), fecha = {};
+for (const [d, ps] of tudo) ps.flat().forEach(id => { fecha[T(id).mes] = d; });
+for (let m = 1; m <= 36; m++) assert.ok(fecha[m] && fecha[m] <= metaMes(m), `M${m}: fecha em ${fecha[m]}, meta ${metaMes(m)}`);
 console.log("Fila de cursos OK");
 
 // Agrupar: sessões seguidas da mesma tarefa viram um item só; tarefas diferentes ficam separadas

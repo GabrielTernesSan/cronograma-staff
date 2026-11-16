@@ -5,9 +5,15 @@ import type { Destino, Marco, Material, Pilar, Trimestre } from "../types";
 export const INICIO = "2026-11-09";
 // Tarefa maior que isso vira sessões; casa com as partes de 30 min da grade semanal.
 export const SESSAO_MIN = 30;
-/** Primeiro e último dia do mês n do plano (mês 1 = 10/11 a 09/12). */
-export const inicioMes = (n: number) => addMeses(INICIO, n - 1);
-export const fimMes = (n: number) => addDias(addMeses(INICIO, n), -1);
+// Quantos meses de calendário dura cada mês do plano. Nos meses 1–6 os cursos (Branas e Alura) ocupam 4h da semana
+// até ~ago/2027 e a prática anda devagar; esses meses foram esticados até onde a projeção da fila (feita em nov/2026) os fecha.
+// Do mês 7 em diante é 1 mês de calendário cada e a projeção fica à frente da meta: adiantar é lucro.
+// O mês 36 passou de nov/2029 para mai/2030. Os ids não dependem disso: mudar aqui só mexe nas datas.
+const DURACAO_CALENDARIO = [4, 2, 3, 1, 1, 1];
+const mesesAte = (n: number) => Array.from({ length: n }, (_, i) => DURACAO_CALENDARIO[i] ?? 1).reduce((s, x) => s + x, 0);
+/** Primeiro e último dia do mês n do plano (mês 1 = 09/11/2026 a 08/03/2027). */
+export const inicioMes = (n: number) => addMeses(INICIO, mesesAte(n - 1));
+export const fimMes = (n: number) => addDias(addMeses(INICIO, mesesAte(n)), -1);
 export const periodo = (deMes: number, ateMes: number) => `${fmtMesAno(inicioMes(deMes))} – ${fmtMesAno(fimMes(ateMes))}`;
 
 export const PILARES: Record<Pilar, { titulo: string; cor: string }> = {
