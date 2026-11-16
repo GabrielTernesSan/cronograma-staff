@@ -4,7 +4,7 @@ import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
 import { agrupar, assuntoById, feita, idsDaTarefa, idsParaMarcar, metaMes, planoAte, previsaoCursos, previsaoMes, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
 import { diaDeEstudo, diasDaSemana, DESTINOS, DESTINOS_NOTA, INICIO, inicioMes, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, periodo, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
-import { cursoDe, MODULOS } from "@/lib/data/cursos";
+import { cursoDe, FORMACOES, MODULOS } from "@/lib/data/cursos";
 import { assuntos, assuntosDoMes, horasPratica, horasTeoria, minLeitura, obrigatorias, opcionais } from "@/lib/data/trilha";
 import { diasEntre, fmtDia, fmtDiaSemana, fmtMesAno, hojeIso, paraData, paraIso } from "@/lib/datas";
 import { addDias, DIA, dataDoDia, diaId, fase, horasDia, mesDoPlano, parteFeita, parteId, segunda } from "@/lib/grade";
@@ -509,6 +509,9 @@ function Cursos({ onSelect }: { onSelect: (s: Sel) => void }) {
   const horasSemana = SEMANA.reduce((s, d) => s + d.partes.reduce((t, p) => t + (p.fonte === "curso" ? p.horas : 0), 0), 0);
   const h = (min: number) => `${Math.round(min / 6) / 10}h`;
   const grupos: [string, typeof cursos][] = [["Rodrigo Branas", cursos.filter(c => c.formacao !== "alura")], ["Alura", cursos.filter(c => c.formacao === "alura")]];
+  // Módulos na ordem da fila (a ordem de TAREFAS), com as sessões já feitas de cada um.
+  const fila = ORDEM_CURSOS.map(m => { const ts = TAREFAS.filter(t => t.baseId === m.id); return { m, total: ts.length, feitas: ts.filter(t => feita(t, app.done, app.valores)).length }; });
+  const proximo = fila.find(x => !app.done.has(x.m.id) && x.feitas < x.total);
   // Assunto do primeiro módulo pendente de cada curso, para abrir no painel.
   const assuntoPendente = (curso: string) => { const m = MODULOS.find(x => cursoDe(x) === curso && !app.done.has(x.id)) ?? MODULOS.find(x => cursoDe(x) === curso); return m?.assunto; };
   return <section aria-labelledby="cursos-h" className="grid gap-6">
@@ -522,7 +525,19 @@ function Cursos({ onSelect }: { onSelect: (s: Sel) => void }) {
         <div className="rounded-lg border border-line-soft px-3 py-2"><dt className="text-[12px] text-muted">previsão de término</dt><dd className="font-mono text-[18px] font-bold">{!agora ? "…" : fim ? fmtDia(fim) : "concluído"}</dd></div>
       </dl>
     </div>
-    {grupos.map(([nome, cs]) => <section key={nome}><h2 className="text-xl font-bold">{nome}</h2>
+    {proximo && <div className="card border-accent/50 p-5"><p className="label">Próximo na fila</p>
+      <a href={proximo.m.url ?? FORMACOES[proximo.m.formacao].url} target="_blank" rel="noreferrer" className="mt-1 block font-display text-[17px] font-bold leading-snug hover:text-accent hover:underline">{proximo.m.titulo} ↗</a>
+      <p className="mt-1 font-mono text-[11.5px] text-muted">{FORMACOES[proximo.m.formacao].fonte} · {proximo.feitas > 0 ? `${proximo.feitas}/${proximo.total} sessões feitas · ` : ""}faltam ~{h((proximo.m.minutos ?? 0) * (proximo.total - proximo.feitas) / proximo.total)}</p></div>}
+    <section><h2 className="text-xl font-bold">Na ordem da fila</h2>
+      <p className="mt-1 text-[13.5px] text-muted">A mesma ordem que o painel Hoje segue. Marque aqui o que já fez fora do app: o módulo inteiro (com as sessões) fica feito e a fila pula para o próximo.</p>
+      <ul className="card mt-3 divide-y divide-line-soft">{fila.map(({ m, feitas, total }) => { const ok = app.done.has(m.id); return <li key={m.id} className={`flex items-start gap-3 px-4 py-2.5 ${m.id === proximo?.m.id ? "bg-accent/5" : ""}`}>
+        <input aria-label={`Marcar como feito: ${m.titulo}`} className="mt-1 size-4 shrink-0" type="checkbox" checked={ok} onChange={() => app.setMany(idsDaTarefa(m.id), !ok)} />
+        <div className="min-w-0 flex-1"><a href={m.url ?? FORMACOES[m.formacao].url} target="_blank" rel="noreferrer" className={`text-[14px] font-medium hover:text-accent hover:underline ${ok ? "text-muted line-through" : ""}`}>{m.titulo}</a>
+          <p className="font-mono text-[11px] text-muted">{m.formacao === "alura" ? "Alura" : FORMACOES[m.formacao].fonte.replace(" · Rodrigo Branas", "")} · ~{h(m.minutos ?? 0)}{!ok && feitas > 0 ? ` · ${feitas}/${total} sessões` : ""}</p></div>
+        <Btn onClick={() => onSelect({ kind: "assunto", id: m.assunto })}>assunto</Btn>
+      </li>; })}</ul>
+    </section>
+    {grupos.map(([nome, cs]) => <section key={nome}><h2 className="text-xl font-bold">Resumo · {nome}</h2>
       <ul className="card mt-3 divide-y divide-line-soft">{cs.map(c => { const ok = c.feitos === c.total, x = assuntoPendente(c.curso); return <li key={c.curso} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
         <div className="min-w-0 flex-1"><a href={c.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${ok ? "text-muted line-through" : ""}`}>{c.curso} ↗</a>
           <p className="font-mono text-[11px] text-muted">{c.total > 1 ? `${c.feitos}/${c.total} módulos · ` : ""}{ok ? "concluído" : `faltam ${h(c.minutosRestantes)} de ${h(c.minutosTotal)}`}</p></div>
@@ -532,6 +547,9 @@ function Cursos({ onSelect }: { onSelect: (s: Sel) => void }) {
     </section>)}
   </section>;
 }
+
+// Módulos de curso na ordem em que aparecem na fila (posição da primeira sessão em TAREFAS).
+const ORDEM_CURSOS = [...MODULOS].sort((a, b) => TAREFAS.findIndex(t => t.baseId === a.id) - TAREFAS.findIndex(t => t.baseId === b.id));
 
 function MesPanel({ mes, onSelect }: { mes: number; onSelect: (s: Sel) => void }) {
   const a = useApp(); const l = laboratorios[mes - 1]; if (!l) return null;

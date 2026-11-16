@@ -4,7 +4,8 @@
 // na ordem dos assuntos por mês e, dentro do mesmo assunto, na ordem desta lista.
 // O id é do módulo, não do assunto: trocar o módulo de assunto não perde o progresso.
 // Duração Branas: soma das aulas que a página pública lista; aula sem duração na página conta 30 min.
-// A página da Formação IA não lista aulas nem duração: cada módulo conta IA_PADRAO até ser conferido na plataforma.
+// Formação IA: módulos e aulas conferidos na plataforma (nov/2026); sem duração na plataforma, cada aula conta 30 min.
+// Os ids antigos (branas-ia-01 a 11) foram mantidos para os módulos que já existiam, mesmo com a numeração da plataforma diferente.
 // Duração Alura: a página só mostra a carga horária (vídeo + exercícios), bem maior que o vídeo
 // (ex.: 89 min de vídeo para 6h); cada curso conta 40% da carga até ser conferido na plataforma.
 
@@ -17,7 +18,10 @@ export const FORMACOES = {
 // curso: nome do curso da Alura (cada um é um curso); nos do Branas o curso é a formação.
 export type Modulo = { id: string; formacao: keyof typeof FORMACOES; titulo: string; assunto: string; minutos?: number; url?: string; curso?: string };
 
-const IA_PADRAO = 180;
+const AULA = 30;
+/** Módulo da Formação IA: número e nome da plataforma, aulas na ordem; 30 min por aula. */
+const ia = (id: string, n: number, nome: string, aulas: string[], assunto: string): Modulo =>
+  ({ id: `branas-ia-${id}`, formacao: "ia", titulo: `Módulo ${String(n).padStart(2, "0")} · ${nome}: ${aulas.join("; ")}`, assunto, minutos: aulas.length * AULA });
 const ALURA = "https://www.alura.com.br/curso-online-";
 /** Curso da Alura: carga anunciada em horas vira 40% em minutos. */
 const alura = (id: string, titulo: string, assunto: string, carga: number, slug: string): Modulo =>
@@ -25,18 +29,20 @@ const alura = (id: string, titulo: string, assunto: string, carga: number, slug:
 
 export const MODULOS: Modulo[] = [
   // Formação IA
-  { id: "branas-ia-01", formacao: "ia", titulo: "Módulo 01 · LLMs: tipos, modelos, preço, janela de contexto, caching e modelos locais", assunto: "m08-custo-latencia", minutos: IA_PADRAO },
-  { id: "branas-ia-02", formacao: "ia", titulo: "Módulo 02 · Harness: Claude Code, Codex, OpenCode, Copilot, Kiro e Antigravity", assunto: "m02-harness", minutos: IA_PADRAO },
-  { id: "branas-ia-03", formacao: "ia", titulo: "Módulo 03 · Context Engineering: memória, seleção, compactação, orçamento de tokens e handoffs", assunto: "m15-contexto", minutos: IA_PADRAO },
-  { id: "branas-ia-04", formacao: "ia", titulo: "Módulo 04 · Rules: AGENTS.md, CLAUDE.md, escopo e hierarquia de instruções", assunto: "m01-spec-agentes", minutos: IA_PADRAO },
-  { id: "branas-ia-05", formacao: "ia", titulo: "Módulo 05 · Skills: anatomia, progressive disclosure, gatilhos, testes e distribuição", assunto: "m02-harness", minutos: IA_PADRAO },
-  { id: "branas-ia-06", formacao: "ia", titulo: "Módulo 06 · MCPs: clientes, servidores, transportes, tools/resources/prompts e segurança", assunto: "m06-tools-mcp", minutos: IA_PADRAO },
-  { id: "branas-ia-07", formacao: "ia", titulo: "Módulo 07 · Spec-Driven Development: PRD, specs, critérios de aceite e ciclos de verificação", assunto: "m01-spec-agentes", minutos: IA_PADRAO },
-  { id: "branas-ia-08", formacao: "ia", titulo: "Módulo 08 · Construção de agentes: loop, tool calling, memória, multi-agente, evals e deploy", assunto: "m05-agentes-base", minutos: IA_PADRAO },
-  { id: "branas-ia-09", formacao: "ia", titulo: "Módulo 09 · RAG: ingestão, chunking, busca híbrida, reranking, citações e avaliação", assunto: "m03-embeddings", minutos: IA_PADRAO },
-  { id: "branas-ia-10", formacao: "ia", titulo: "Módulo 10 · Second Brain: captura, curadoria, busca semântica e memória entre agentes", assunto: "m25-second-brain", minutos: IA_PADRAO },
-  { id: "branas-ia-11", formacao: "ia", titulo: "Módulo 11 · OpenClaw: gateway, runtime, canais, automações agendadas e agentes 24/7", assunto: "m27-openclaw", minutos: IA_PADRAO },
-  { id: "branas-ia-12", formacao: "ia", titulo: "Módulo 12 · Hermes: modelos, loop de aprendizado, memória persistente, subagentes e MCP", assunto: "m29-hermes", minutos: IA_PADRAO },
+  ia("mercado", 1, "Mercado", ["as 5 etapas da adoção de IA", "os mitos da produtividade", "nosso papel mudou definitivamente", "o que mudou no SaaS com a chegada da IA"], "m06-vagas-alvo"),
+  ia("01", 2, "LLM", ["fundamentos das LLMs", "modelos para codificação", "degradação de contexto", "reasoning", "modelos locais"], "m08-custo-latencia"),
+  ia("02", 3, "Harness", ["fundamentos", "desenhando o funcionamento", "precificação", "comparando Claude Code e Codex"], "m02-harness"),
+  ia("03", 4, "Context Engineering", ["a importância dos guias e sensores", "estruturando o user harness"], "m15-contexto"),
+  ia("04", 5, "Rules", ["o que acontece quando não temos rules", "a importância do AGENTS.md", "definindo as rules do projeto", "o impacto das rules no código"], "m01-spec-agentes"),
+  ia("05", 6, "Skills", ["como as skills funcionam", "economizando tokens com a skill Caveman", "UI/UX com a skill Impeccable", "migrando rules para skills"], "m02-harness"),
+  ia("06", 7, "MCPs", ["estrutura dos MCPs", "MCPs stdio", "MCPs HTTP streamable", "caso prático: AeroBusca"], "m06-tools-mcp"),
+  ia("07", 8, "Spec-Driven Development", ["prompts sucessivos, plan mode ou SDD", "etapas do processo com skills", "SDD na prática", "tamanho ideal das tasks", "paralelismo com worktree"], "m01-spec-agentes"),
+  ia("08", 9, "Construção de Agentes", ["agente do zero: o CLI", "a janela de contexto", "chaveando modelo e reasoning", "conectando tools na LLM"], "m05-agentes-base"),
+  ia("mastra", 10, "Mastra", ["introdução ao Mastra", "Mastra Studio", "storage", "memória", "título das threads", "tools"], "m05-agentes-base"),
+  ia("09", 11, "RAG", ["introdução", "ingestão de fontes", "técnicas de chunking", "embedding", "storage (bancos vetoriais)", "pergunta e top k", "reranking", "RRF com BM25", "conectando o RAG na LLM", "multi-query"], "m03-embeddings"),
+  ia("10", 12, "Second Brain", ["o problema da gestão de conhecimento", "LLM Wiki", "processo no AGENTS.md", "INGEST", "QUERY: anúncios", "QUERY: artigos de blog", "QUERY: landing page", "LINT"], "m25-second-brain"),
+  { id: "branas-ia-live-llm-wiki", formacao: "ia", titulo: "Live · Second Brain usando LLM Wiki (Pedro Nauck)", assunto: "m25-second-brain", minutos: 60 },
+  ia("11", 13, "Agentes Autônomos", ["um pouco sobre a história", "comparação com outras ferramentas", "complexidade arquitetural", "visão geral: Hermes", "instalação do Hermes", "visão geral: OpenClaw", "Slack no Hermes", "Linear no Hermes"], "m27-openclaw"),
 
   // Formação Arquitetura
   { id: "branas-arq-01", formacao: "arq", titulo: "Módulo 01 · Automação de testes: fundamentos, FIRST e TDD, unit/integration/E2E", assunto: "m02-testes", minutos: 155 },

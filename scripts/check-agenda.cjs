@@ -125,9 +125,9 @@ assert.ok(idsOpcionais.size > 0, "há leituras opcionais");
 assert.ok(TAREFAS.every(t => !idsOpcionais.has(t.baseId)), "leitura opcional entrou na fila");
 assert.ok(assuntos.filter(a => ["ingles", "carreira"].includes(a.pilar)).every(a => opcionais(a).length === 0), "inglês e carreira mantêm as leituras");
 assert.ok(TAREFAS.filter(t => t.curso).every(t => MODULOS.some(m => m.id === t.baseId)), "tarefa de curso sem módulo");
-// Hermes (assunto do mês 29) chega bem antes, pela fila de cursos
+// Agentes Autônomos (Hermes e OpenClaw, assunto do mês 27) chega bem antes, pela fila de cursos
 const longe = projetarDias("2026-11-09", "2028-06-30", new Set(), {});
-const diaHermes = [...longe].find(([, ps]) => ps.flat().some(id => T(id).baseId === "branas-ia-12"))?.[0];
+const diaHermes = [...longe].find(([, ps]) => ps.flat().some(id => T(id).baseId === "branas-ia-11"))?.[0];
 assert.ok(diaHermes && diaHermes < inicioMes(20), `Hermes só em ${diaHermes}`);
 const fimCursos = previsaoCursos(new Set(), {}, INICIO);
 console.log("Cursos:", Math.round(TAREFAS.filter(t => t.curso).reduce((s, t) => s + t.minutos, 0) / 60), "h; previsão de término", fimCursos, "; Hermes em", diaHermes);
