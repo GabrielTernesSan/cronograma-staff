@@ -158,6 +158,16 @@ assert.ok(atrasados(depoisMes1, cursoFeito, {}).assuntos.some(x => x.ids.include
 const tudo = projetarDias("2026-11-09", metaMes(36), new Set(), {}), fecha = {};
 for (const [d, ps] of tudo) ps.flat().forEach(id => { fecha[T(id).mes] = d; });
 for (let m = 1; m <= 36; m++) assert.ok(fecha[m] && fecha[m] <= metaMes(m), `M${m}: fecha em ${fecha[m]}, meta ${metaMes(m)}`);
+// Todo assunto técnico com prática tem teoria obrigatória vinda de curso ou leitura? Hermes não pode ficar sem
+assert.ok(assuntos.find(a => a.id === "m29-hermes").leituras.some(l => l.curso), "Hermes sem teoria");
+// Nenhuma leitura da fila repete um artigo que já está no assunto
+for (const m of MODULOS) if (m.url) assert.ok(!assuntos.find(a => a.id === m.assunto).leituras.some(l => l.url === m.url && l.id !== m.id), `${m.id}: link repetido no assunto`);
+// Módulo concluído por sessões mesmo sem o id original marcado
+{
+  const { tarefaConcluida, idsDaTarefa: ids } = require("../lib/data/agenda.ts");
+  const sess = ids("branas-ia-10").slice(1);
+  assert.ok(sess.length === 8 && tarefaConcluida("branas-ia-10", new Set(sess), {}) && !tarefaConcluida("branas-ia-10", new Set(sess.slice(1)), {}));
+}
 console.log("Fila de cursos OK");
 
 // Agrupar: sessões seguidas da mesma tarefa viram um item só; tarefas diferentes ficam separadas
@@ -199,5 +209,6 @@ assert.deepEqual(comuns, [], "resgate repete tarefa do plano da semana");
   const r = montarResgate(at.dias, { "2026-11-09": [["branas-ia-09~s1"], []], "2026-11-10": [["tarefa-que-nao-existe"], []] }, new Set(), {}, []);
   assert.ok(Object.values(r).flat(2).every(id => !T(id).curso), "resgate com módulo de curso");
   assert.ok(Object.values(r).flat(2).length > 0, "resgate vazio");
+  assert.ok(!r["2026-11-10"].flat().includes("tarefa-que-nao-existe") && r["2026-11-10"].flat().length > 0, "resgate com tarefa que não existe não foi remontado");
 }
 console.log("Resgate sem repetir o plano da semana OK");

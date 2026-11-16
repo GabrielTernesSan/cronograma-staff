@@ -55,8 +55,21 @@ export const feita = (t: Tarefa, done: Set<string>, valores: Valores) => {
 /** IDs a marcar/desmarcar. Desmarcar uma sessão desfaz também o id original. */
 export const idsParaMarcar = (t: Tarefa, valor: boolean) => valor ? (t.ultima && t.baseId !== t.id ? [t.id, t.baseId] : [t.id]) : [...new Set([t.id, t.baseId])];
 
+// Sessões de cada tarefa (baseId → tarefas), montado uma vez.
+const sessoesDe = new Map<string, Tarefa[]>();
+TAREFAS.forEach(t => sessoesDe.set(t.baseId, [...(sessoesDe.get(t.baseId) ?? []), t]));
 /** Todos os ids de uma tarefa da trilha (o original e as sessões), para marcar ou desmarcar fora do painel Hoje. */
-export const idsDaTarefa = (baseId: string) => [baseId, ...TAREFAS.filter(t => t.baseId === baseId && t.id !== baseId).map(t => t.id)];
+export const idsDaTarefa = (baseId: string) => [baseId, ...(sessoesDe.get(baseId) ?? []).filter(t => t.id !== baseId).map(t => t.id)];
+/** Sessões feitas e total de uma tarefa (módulo de curso de 4h = 8 sessões). */
+export const sessoesFeitas = (baseId: string, done: Set<string>, valores: Valores) => {
+  const ss = sessoesDe.get(baseId) ?? []; return { feitas: ss.filter(t => feita(t, done, valores)).length, total: ss.length };
+};
+/** Tarefa concluída: o id original marcado ou todas as sessões feitas (desmarcar uma sessão tira o original). */
+export const tarefaConcluida = (baseId: string, done: Set<string>, valores: Valores) => {
+  if (done.has(baseId)) return true; const s = sessoesFeitas(baseId, done, valores); return s.total > 0 && s.feitas === s.total;
+};
+/** Módulos de curso (baseIds) na ordem da fila. */
+export const ORDEM_CURSOS = [...new Set(TAREFAS.filter(t => t.curso).map(t => t.baseId))];
 /** Prática ainda presa à teoria do assunto (módulo de curso pendente): não pode virar atraso. */
 export const praticaBloqueada = (assuntoId: string, done: Set<string>, valores: Valores) => (teoriaDe.get(assuntoId) ?? []).some(x => x.curso && !feita(x, done, valores));
 

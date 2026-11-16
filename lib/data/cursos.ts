@@ -5,15 +5,18 @@
 // O id é do módulo, não do assunto: trocar o módulo de assunto não perde o progresso.
 // Duração Branas: soma das aulas que a página pública lista; aula sem duração na página conta 30 min.
 // Formação IA: módulos e aulas conferidos na plataforma (nov/2026); sem duração na plataforma, cada aula conta 30 min.
-// Os ids antigos (branas-ia-01 a 11) foram mantidos para os módulos que já existiam, mesmo com a numeração da plataforma diferente.
+// Os ids que ficaram (branas-ia-09 RAG, 10 Second Brain, 11 OpenClaw, 12 Hermes) mantêm o tema de antes; a duração mudou
+// (e com ela as sessões ~sN), o que só importa para quem marcou sessões desses módulos antes de nov/2026.
+// Leituras em português: entram na fila no lugar dos módulos já feitos, como teoria do assunto; cada uma conta ARTIGO min.
 // Duração Alura: a página só mostra a carga horária (vídeo + exercícios), bem maior que o vídeo
 // (ex.: 89 min de vídeo para 6h); cada curso conta 40% da carga até ser conferido na plataforma.
 
+// curto: nome para listas apertadas. url: página do curso; a das leituras é vazia (cada leitura tem o seu link, de autores diferentes).
 export const FORMACOES = {
-  ia: { fonte: "Formação IA · Rodrigo Branas", url: "https://www.branas.io/formacoes/inteligencia-artificial" },
-  arq: { fonte: "Formação Arquitetura · Rodrigo Branas", url: "https://www.branas.io/formacoes/arquitetura-de-software" },
-  alura: { fonte: "Alura", url: "https://www.alura.com.br" },
-  leitura: { fonte: "Leituras em português", url: "https://akitaonrails.com" },
+  ia: { fonte: "Formação IA · Rodrigo Branas", curto: "Formação IA", url: "https://www.branas.io/formacoes/inteligencia-artificial" },
+  arq: { fonte: "Formação Arquitetura · Rodrigo Branas", curto: "Formação Arquitetura", url: "https://www.branas.io/formacoes/arquitetura-de-software" },
+  alura: { fonte: "Alura", curto: "Alura", url: "https://www.alura.com.br" },
+  leitura: { fonte: "Leituras em português", curto: "Leitura", url: "" },
 } as const;
 
 // curso: nome do curso da Alura (cada um é um curso); nos do Branas o curso é a formação. fonte: autor de uma leitura.
@@ -27,16 +30,24 @@ const ALURA = "https://www.alura.com.br/curso-online-";
 /** Curso da Alura: carga anunciada em horas vira 40% em minutos. */
 const alura = (id: string, titulo: string, assunto: string, carga: number, slug: string): Modulo =>
   ({ id: `alura-${id}`, formacao: "alura", titulo: `${titulo} (${carga}h na Alura)`, curso: titulo, assunto, minutos: Math.round(carga * 60 * 0.4), url: ALURA + slug });
+// Igual a MIN_LEITURA.artigo (trilha.ts); repetido aqui porque trilha.ts importa este arquivo.
+const ARTIGO = 40;
+/** Leitura em português (autor e link próprios): entra na fila de cursos como teoria do assunto. */
+const pt = (id: string, titulo: string, autor: string, url: string, assunto: string): Modulo =>
+  ({ id: `pt-${id}`, formacao: "leitura", titulo, fonte: autor, assunto, minutos: ARTIGO, url });
 
 export const MODULOS: Modulo[] = [
   // Formação IA
   // Módulos 01–10 (Mercado, LLM, Harness, Context Engineering, Rules, Skills, MCPs, Spec-Driven Development,
   // Construção de Agentes e Mastra) já estavam feitos na plataforma em nov/2026: saíram da fila e no lugar deles
   // entram as leituras em português do fim desta lista.
+  // O módulo 13 (Agentes Autônomos) está dividido em duas partes: a geral e o OpenClaw no assunto do OpenClaw,
+  // o Hermes no assunto do Hermes (que de outro modo ficaria sem teoria).
   ia("09", 11, "RAG", ["introdução", "ingestão de fontes", "técnicas de chunking", "embedding", "storage (bancos vetoriais)", "pergunta e top k", "reranking", "RRF com BM25", "conectando o RAG na LLM", "multi-query"], "m03-embeddings"),
   ia("10", 12, "Second Brain", ["o problema da gestão de conhecimento", "LLM Wiki", "processo no AGENTS.md", "INGEST", "QUERY: anúncios", "QUERY: artigos de blog", "QUERY: landing page", "LINT"], "m25-second-brain"),
   { id: "branas-ia-live-llm-wiki", formacao: "ia", titulo: "Live · Second Brain usando LLM Wiki (Pedro Nauck)", assunto: "m25-second-brain", minutos: 60 },
-  ia("11", 13, "Agentes Autônomos", ["um pouco sobre a história", "comparação com outras ferramentas", "complexidade arquitetural", "visão geral: Hermes", "instalação do Hermes", "visão geral: OpenClaw", "Slack no Hermes", "Linear no Hermes"], "m27-openclaw"),
+  ia("11", 13, "Agentes Autônomos (parte 1)", ["um pouco sobre a história", "comparação com outras ferramentas", "complexidade arquitetural", "visão geral: OpenClaw"], "m27-openclaw"),
+  ia("12", 13, "Agentes Autônomos (parte 2)", ["visão geral: Hermes", "instalação do Hermes", "Slack no Hermes", "Linear no Hermes"], "m29-hermes"),
 
   // Formação Arquitetura
   { id: "branas-arq-01", formacao: "arq", titulo: "Módulo 01 · Automação de testes: fundamentos, FIRST e TDD, unit/integration/E2E", assunto: "m02-testes", minutos: 155 },
@@ -87,16 +98,11 @@ export const MODULOS: Modulo[] = [
   alura("otel-grafana", "Observabilidade: métricas, logs e traces com OpenTelemetry e Grafana", "m05-observabilidade", 8, "observabilidade-e-monitoramento-em-ambientes-distribuidos"),
   alura("terraform", "Terraform: gerenciar infraestrutura como código e modularizar recursos", "m03-iac", 18, "terraform-provisionando-infraestrutura-na-nuvem"),
   alura("arq-azure-net", "Arquitetura em .NET: criando uma arquitetura de sistemas no Azure", "m06-waf", 8, "arquitetura-dotnet-arquitetura-sistemas-azure"),
-];
 
-/** Leitura em português no lugar de um módulo já feito: entra na fila de cursos como teoria do assunto. */
-const pt = (id: string, titulo: string, autor: string, url: string, assunto: string): Modulo =>
-  ({ id: `pt-${id}`, formacao: "leitura", titulo, fonte: autor, assunto, minutos: 40, url });
-MODULOS.push(
-  // LLM (no lugar do módulo LLM)
+  // Leituras em português no lugar dos módulos 01–10 da Formação IA, já feitos na plataforma
+  // LLM
   pt("limites-llms", "Os limites das LLMs", "Fabio Akita", "https://ailair.akitaonrails.com/pt-br/limits/", "m08-custo-latencia"),
   pt("benchmark-multimodelo", "LLM Benchmarks parte 2: vale combinar múltiplos modelos no mesmo projeto?", "Fabio Akita", "https://akitaonrails.com/2026/04/18/llm-benchmarks-parte-2-multiplos-modelos/", "m08-custo-latencia"),
-  pt("benchmark-refiz", "Novo LLM Benchmark: refiz todos os testes!", "Fabio Akita", "https://akitaonrails.com/2026/07/30/novo-llm-benchmark-refiz-todos-os-testes/", "m08-custo-latencia"),
   // Harness e Skills
   pt("o-que-e-harness", "Harness: o que é, como funciona e por que virou a palavra de 2026", "Alura", "https://www.alura.com.br/artigos/o-que-e-harness", "m02-harness"),
   pt("harness-bullshit", "Hot take: Harness, Loop Engineering, Graph Engineering são bullshit", "Fabio Akita", "https://akitaonrails.com/2026/08/18/hot-take-harness-loop-engineering-graph-engineering-sao-bullshit/", "m02-harness"),
@@ -114,7 +120,8 @@ MODULOS.push(
   pt("o-que-sao-agents", "O que são Agents?", "balta.io", "https://balta.io/articles/o-que-sao-agents", "m05-agentes-base"),
   pt("agentes-desafio-zig", "AI Agents: comparando as principais LLMs de 2026 no desafio de Zig", "Fabio Akita", "https://akitaonrails.com/2026/01/11/ai-agents-comparando-as-principais-llm-no-desafio-de-zig/", "m05-agentes-base"),
   pt("agentes-llms", "Como agentes potencializam a performance das LLMs", "Alura", "https://www.alura.com.br/artigos/como-agentes-podem-ajudar-llms", "m05-agentes-base"),
-);
+];
+
 
 /** De onde vem o módulo, para mostrar: autor da leitura ou nome da formação. */
 export const fonteDe = (m: Modulo) => m.fonte ?? FORMACOES[m.formacao].fonte;

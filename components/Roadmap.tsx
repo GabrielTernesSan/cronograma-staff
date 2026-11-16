@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
-import { agrupar, assuntoById, feita, idsDaTarefa, idsParaMarcar, metaMes, planoAte, previsaoCursos, previsaoMes, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
+import { agrupar, assuntoById, feita, idsDaTarefa, idsParaMarcar, metaMes, ORDEM_CURSOS, sessoesFeitas, tarefaConcluida, planoAte, previsaoCursos, previsaoMes, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
 import { diaDeEstudo, diasDaSemana, DESTINOS, DESTINOS_NOTA, INICIO, inicioMes, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, periodo, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
 import { cursoDe, fonteDe, FORMACOES, MODULOS } from "@/lib/data/cursos";
 import { assuntos, assuntosDoMes, horasPratica, horasTeoria, minLeitura, obrigatorias, opcionais } from "@/lib/data/trilha";
@@ -169,7 +169,7 @@ function Chip({ children, tom }: { children: React.ReactNode; tom?: "accent" | "
 // Um item por tarefa; sessões seguidas da mesma tarefa (g) aparecem juntas e são marcadas juntas.
 function TarefaItem({ g, onSelect, aoMarcar }: { g: Tarefa[]; onSelect: (s: Sel) => void; aoMarcar?: (g: Tarefa[], valor: boolean) => void }) {
   const a = useApp(); const t = g[0], c = g.every(x => feita(x, a.done, a.valores)); const assunto = t.assuntoId ? assuntoById.get(t.assuntoId) : undefined;
-  const titulo = t.titulo ?? t.texto, tipo = t.curso ? "curso" : t.formato === "vídeo" ? "vídeo" : t.formato === "curso" ? "curso" : TIPOS[t.tipo];
+  const titulo = t.titulo ?? t.texto, tipo = t.curso && t.formato === "vídeo" ? "curso" : t.formato === "vídeo" ? "vídeo" : t.formato === "curso" ? "curso" : TIPOS[t.tipo];
   const marcar = aoMarcar ?? ((xs: Tarefa[], v: boolean) => a.setMany(xs.flatMap(x => idsParaMarcar(x, v)), v));
   return <li className="flex items-start gap-3 px-4 py-3">
     <input aria-label={titulo} type="checkbox" className="mt-0.5 size-4 shrink-0" checked={c} onChange={() => marcar(g, !c)} />
@@ -478,7 +478,7 @@ function AssuntoPanel({ id, onSelect }: { id: string; onSelect: (s: Sel) => void
     <p className="mt-2 text-[16px] leading-relaxed text-muted">{x.resumo}</p>
     <Bar n={n} total={ids.length} /><p className="mt-1 font-mono text-[11px] text-muted">{n}/{ids.length} itens</p>
     <div className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Ordem:</strong> primeiro a teoria (~{horasTeoria(x)}h), depois a prática (~{horasPratica(x)}h). {obrigatorias(x).length ? `A prática libera quando ${obrigatorias(x).some(l => l.curso) ? "os módulos de curso" : "as leituras"} do assunto estiverem marcados.` : "Este assunto não tem curso: a prática já está liberada."}</p></div><h3 className="mt-7 text-lg font-bold">Passo 1 · Teoria <span className="font-mono text-[12px] font-normal text-muted">~{horasTeoria(x)}h</span></h3><h3 className="label mt-3 mb-1">O que o assunto cobre</h3><ul className="list-disc pl-5 text-[14.5px] text-muted">{x.subtopicos.map(s => <li key={s.id}>{s.texto}</li>)}</ul>
-    {obrigatorias(x).length > 0 && <><h3 className="label mt-7 mb-1">{obrigatorias(x).some(l => l.curso) ? "Cursos" : "Leituras"}</h3><Leituras ls={obrigatorias(x)} /></>}
+    {obrigatorias(x).length > 0 && <><h3 className="label mt-7 mb-1">{rotuloTeoria(x)}</h3><Leituras ls={obrigatorias(x)} /></>}
     {opcionais(x).length > 0 && <><h3 className="label mt-7 mb-1">Aprofundamento <span className="normal-case tracking-normal text-muted">(opcional, fora da fila)</span></h3><Leituras ls={opcionais(x)} /></>}
     <h3 className="label mt-7 mb-1">Anotações <span className="normal-case tracking-normal text-muted">(opcional)</span></h3>
     <textarea className="nota w-full" rows={4} value={a.valorDe(nota)} placeholder="o que vale guardar deste assunto" onChange={e => a.setValor(nota, e.target.value)} />
@@ -496,7 +496,7 @@ function Leituras({ ls }: { ls: Leitura[] }) {
   const a = useApp();
   return <ul>{ls.map(l => <li key={l.id} className="flex items-start gap-3 border-t border-line-soft py-3 first:border-t-0">
     <input aria-label={`Marcar como feita: ${l.titulo}`} className="mt-1.5 size-4 shrink-0" type="checkbox" checked={a.done.has(l.id)} onChange={() => a.setMany(idsDaTarefa(l.id), !a.done.has(l.id))} />
-    <div className="min-w-0"><a href={l.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${a.done.has(l.id) ? "text-muted line-through" : ""}`}>{l.titulo} ↗</a><p className="font-mono text-[11px] text-muted">{l.fonte} · {l.curso ? "curso" : l.tipo} · ~{minLeitura(l)} min</p></div>
+    <div className="min-w-0"><a href={l.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${a.done.has(l.id) ? "text-muted line-through" : ""}`}>{l.titulo} ↗</a><p className="font-mono text-[11px] text-muted">{l.fonte} · {l.curso && l.tipo === "vídeo" ? "curso" : l.tipo} · ~{minLeitura(l)} min</p></div>
   </li>)}</ul>;
 }
 
@@ -510,15 +510,15 @@ function Cursos({ onSelect }: { onSelect: (s: Sel) => void }) {
   const h = (min: number) => `${Math.round(min / 6) / 10}h`;
   const grupos: [string, typeof cursos][] = [["Rodrigo Branas", cursos.filter(c => c.formacao === "ia" || c.formacao === "arq")], ["Alura", cursos.filter(c => c.formacao === "alura")], ["Leituras em português", cursos.filter(c => c.formacao === "leitura")]];
   // Módulos na ordem da fila (a ordem de TAREFAS), com as sessões já feitas de cada um.
-  const fila = ORDEM_CURSOS.map(m => { const ts = TAREFAS.filter(t => t.baseId === m.id); return { m, total: ts.length, feitas: ts.filter(t => feita(t, app.done, app.valores)).length }; });
-  const proximo = fila.find(x => !app.done.has(x.m.id) && x.feitas < x.total);
+  const fila = MODULOS_NA_FILA.map(m => ({ m, ...sessoesFeitas(m.id, app.done, app.valores), ok: tarefaConcluida(m.id, app.done, app.valores) }));
+  const proximo = fila.find(x => !x.ok);
   // Assunto do primeiro módulo pendente de cada curso, para abrir no painel.
-  const assuntoPendente = (curso: string) => { const m = MODULOS.find(x => cursoDe(x) === curso && !app.done.has(x.id)) ?? MODULOS.find(x => cursoDe(x) === curso); return m?.assunto; };
+  const assuntoPendente = (curso: string) => { const m = MODULOS_NA_FILA.find(x => cursoDe(x) === curso && !tarefaConcluida(x.id, app.done, app.valores)) ?? MODULOS_NA_FILA.find(x => cursoDe(x) === curso); return m?.assunto; };
   return <section aria-labelledby="cursos-h" className="grid gap-6">
     <div className="card p-5 sm:p-6">
       <p className="label">Fila própria · {horasSemana}h por semana</p>
       <h1 id="cursos-h" className="mt-1 text-[26px] font-bold leading-tight tracking-tight">Cursos</h1>
-      <p className="mt-2 max-w-[75ch] text-[14.5px] leading-relaxed text-muted">Os módulos do Branas e os cursos da Alura são a teoria dos assuntos técnicos e andam toda semana, na ordem da trilha, sem esperar o mês do assunto. Os artigos de cada assunto ficam como aprofundamento opcional. Nos cursos da Alura, a duração é 40% da carga anunciada (a carga inclui exercícios) até ser conferida na plataforma.</p>
+      <p className="mt-2 max-w-[75ch] text-[14.5px] leading-relaxed text-muted">Os módulos do Branas, os cursos da Alura e as leituras em português (no lugar dos módulos da Formação IA que você já fez) são a teoria dos assuntos técnicos e andam toda semana, na ordem da trilha, sem esperar o mês do assunto. Os outros artigos de cada assunto ficam como aprofundamento opcional. Nos cursos da Alura, a duração é 40% da carga anunciada (a carga inclui exercícios) até ser conferida na plataforma.</p>
       <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-line-soft px-3 py-2"><dt className="text-[12px] text-muted">feito</dt><dd className="font-mono text-[18px] font-bold">{pct(total - restante, total)}%</dd></div>
         <div className="rounded-lg border border-line-soft px-3 py-2"><dt className="text-[12px] text-muted">faltam</dt><dd className="font-mono text-[18px] font-bold">{h(restante)} de {h(total)}</dd></div>
@@ -530,16 +530,16 @@ function Cursos({ onSelect }: { onSelect: (s: Sel) => void }) {
       <p className="mt-1 font-mono text-[11.5px] text-muted">{fonteDe(proximo.m)} · {proximo.feitas > 0 ? `${proximo.feitas}/${proximo.total} sessões feitas · ` : ""}faltam ~{h((proximo.m.minutos ?? 0) * (proximo.total - proximo.feitas) / proximo.total)}</p></div>}
     <section><h2 className="text-xl font-bold">Na ordem da fila</h2>
       <p className="mt-1 text-[13.5px] text-muted">A mesma ordem que o painel Hoje segue. Marque aqui o que já fez fora do app: o módulo inteiro (com as sessões) fica feito e a fila pula para o próximo.</p>
-      <ul className="card mt-3 divide-y divide-line-soft">{fila.map(({ m, feitas, total }) => { const ok = app.done.has(m.id); return <li key={m.id} className={`flex items-start gap-3 px-4 py-2.5 ${m.id === proximo?.m.id ? "bg-accent/5" : ""}`}>
+      <ul className="card mt-3 divide-y divide-line-soft">{fila.map(({ m, feitas, total, ok }) => { return <li key={m.id} className={`flex items-start gap-3 px-4 py-2.5 ${m.id === proximo?.m.id ? "bg-accent/5" : ""}`}>
         <input aria-label={`Marcar como feito: ${m.titulo}`} className="mt-1 size-4 shrink-0" type="checkbox" checked={ok} onChange={() => app.setMany(idsDaTarefa(m.id), !ok)} />
         <div className="min-w-0 flex-1"><a href={m.url ?? FORMACOES[m.formacao].url} target="_blank" rel="noreferrer" className={`text-[14px] font-medium hover:text-accent hover:underline ${ok ? "text-muted line-through" : ""}`}>{m.titulo}</a>
-          <p className="font-mono text-[11px] text-muted">{fonteDe(m).replace(" · Rodrigo Branas", "")} · ~{h(m.minutos ?? 0)}{!ok && feitas > 0 ? ` · ${feitas}/${total} sessões` : ""}</p></div>
+          <p className="font-mono text-[11px] text-muted">{m.fonte ?? FORMACOES[m.formacao].curto} · ~{h(m.minutos ?? 0)}{!ok && feitas > 0 ? ` · ${feitas}/${total} sessões` : ""}</p></div>
         <Btn onClick={() => onSelect({ kind: "assunto", id: m.assunto })}>assunto</Btn>
       </li>; })}</ul>
     </section>
     {grupos.map(([nome, cs]) => <section key={nome}><h2 className="text-xl font-bold">Resumo · {nome}</h2>
       <ul className="card mt-3 divide-y divide-line-soft">{cs.map(c => { const ok = c.feitos === c.total, x = assuntoPendente(c.curso); return <li key={c.curso} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
-        <div className="min-w-0 flex-1"><a href={c.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${ok ? "text-muted line-through" : ""}`}>{c.curso} ↗</a>
+        <div className="min-w-0 flex-1">{c.url ? <a href={c.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${ok ? "text-muted line-through" : ""}`}>{c.curso} ↗</a> : <span className={`font-medium ${ok ? "text-muted line-through" : ""}`}>{c.curso}</span>}
           <p className="font-mono text-[11px] text-muted">{c.total > 1 ? `${c.feitos}/${c.total} ${c.formacao === "leitura" ? "leituras" : "módulos"} · ` : ""}{ok ? "concluído" : `faltam ${h(c.minutosRestantes)} de ${h(c.minutosTotal)}`}</p></div>
         <span className="h-1.5 w-28 overflow-hidden rounded-full bg-surface2"><span className={`block h-full rounded-full ${ok ? "bg-ok" : "bg-accent"}`} style={{ width: `${pct(c.minutosTotal - c.minutosRestantes, c.minutosTotal)}%` }} /></span>
         {x && <Btn onClick={() => onSelect({ kind: "assunto", id: x })}>assunto</Btn>}
@@ -548,8 +548,11 @@ function Cursos({ onSelect }: { onSelect: (s: Sel) => void }) {
   </section>;
 }
 
-// Módulos de curso na ordem em que aparecem na fila (posição da primeira sessão em TAREFAS).
-const ORDEM_CURSOS = [...MODULOS].sort((a, b) => TAREFAS.findIndex(t => t.baseId === a.id) - TAREFAS.findIndex(t => t.baseId === b.id));
+// Módulos de curso na ordem da fila.
+const moduloById = new Map(MODULOS.map(m => [m.id, m]));
+const MODULOS_NA_FILA = ORDEM_CURSOS.map(id => moduloById.get(id)).filter((m): m is (typeof MODULOS)[number] => !!m);
+/** Título da teoria obrigatória do assunto: cursos, leituras ou os dois. */
+const rotuloTeoria = (x: Assunto) => { const ls = obrigatorias(x), v = ls.some(l => l.curso && l.tipo === "vídeo"), a = ls.some(l => !(l.curso && l.tipo === "vídeo")); return v && a ? "Cursos e leituras" : v ? "Cursos" : "Leituras"; };
 
 function MesPanel({ mes, onSelect }: { mes: number; onSelect: (s: Sel) => void }) {
   const a = useApp(); const l = laboratorios[mes - 1]; if (!l) return null;
