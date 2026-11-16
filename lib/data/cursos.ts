@@ -5,8 +5,8 @@
 // O id é do módulo, não do assunto: trocar o módulo de assunto não perde o progresso.
 // Duração Branas: soma das aulas que a página pública lista; aula sem duração na página conta 30 min.
 // Formação IA: módulos e aulas conferidos na plataforma (nov/2026); sem duração na plataforma, cada aula conta 30 min.
-// Os ids que ficaram (branas-ia-09 RAG, 10 Second Brain, 11 OpenClaw, 12 Hermes) mantêm o tema de antes; a duração mudou
-// (e com ela as sessões ~sN), o que só importa para quem marcou sessões desses módulos antes de nov/2026.
+// Ids novos (nov/2026) para os módulos de IA conferidos na plataforma: os antigos (branas-ia-01 a 12) tinham outra divisão
+// de aulas e de sessões, então não são reaproveitados (ids são o contrato do progresso; ninguém tinha marcado esses módulos).
 // Leituras em português: entram na fila no lugar dos módulos já feitos, como teoria do assunto; cada uma conta ARTIGO min.
 // Duração Alura: a página só mostra a carga horária (vídeo + exercícios), bem maior que o vídeo
 // (ex.: 89 min de vídeo para 6h); cada curso conta 40% da carga até ser conferido na plataforma.
@@ -43,11 +43,11 @@ export const MODULOS: Modulo[] = [
   // entram as leituras em português do fim desta lista.
   // O módulo 13 (Agentes Autônomos) está dividido em duas partes: a geral e o OpenClaw no assunto do OpenClaw,
   // o Hermes no assunto do Hermes (que de outro modo ficaria sem teoria).
-  ia("09", 11, "RAG", ["introdução", "ingestão de fontes", "técnicas de chunking", "embedding", "storage (bancos vetoriais)", "pergunta e top k", "reranking", "RRF com BM25", "conectando o RAG na LLM", "multi-query"], "m03-embeddings"),
-  ia("10", 12, "Second Brain", ["o problema da gestão de conhecimento", "LLM Wiki", "processo no AGENTS.md", "INGEST", "QUERY: anúncios", "QUERY: artigos de blog", "QUERY: landing page", "LINT"], "m25-second-brain"),
+  ia("rag", 11, "RAG", ["introdução", "ingestão de fontes", "técnicas de chunking", "embedding", "storage (bancos vetoriais)", "pergunta e top k", "reranking", "RRF com BM25", "conectando o RAG na LLM", "multi-query"], "m03-embeddings"),
+  ia("second-brain", 12, "Second Brain", ["o problema da gestão de conhecimento", "LLM Wiki", "processo no AGENTS.md", "INGEST", "QUERY: anúncios", "QUERY: artigos de blog", "QUERY: landing page", "LINT"], "m25-second-brain"),
   { id: "branas-ia-live-llm-wiki", formacao: "ia", titulo: "Live · Second Brain usando LLM Wiki (Pedro Nauck)", assunto: "m25-second-brain", minutos: 60 },
-  ia("11", 13, "Agentes Autônomos (parte 1)", ["um pouco sobre a história", "comparação com outras ferramentas", "complexidade arquitetural", "visão geral: OpenClaw"], "m27-openclaw"),
-  ia("12", 13, "Agentes Autônomos (parte 2)", ["visão geral: Hermes", "instalação do Hermes", "Slack no Hermes", "Linear no Hermes"], "m29-hermes"),
+  ia("agentes-autonomos-1", 13, "Agentes Autônomos (parte 1)", ["um pouco sobre a história", "comparação com outras ferramentas", "complexidade arquitetural", "visão geral: OpenClaw"], "m27-openclaw"),
+  ia("agentes-autonomos-2", 13, "Agentes Autônomos (parte 2)", ["visão geral: Hermes", "instalação do Hermes", "Slack no Hermes", "Linear no Hermes"], "m29-hermes"),
 
   // Formação Arquitetura
   { id: "branas-arq-01", formacao: "arq", titulo: "Módulo 01 · Automação de testes: fundamentos, FIRST e TDD, unit/integration/E2E", assunto: "m02-testes", minutos: 155 },

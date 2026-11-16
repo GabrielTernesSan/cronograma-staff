@@ -125,9 +125,9 @@ assert.ok(idsOpcionais.size > 0, "há leituras opcionais");
 assert.ok(TAREFAS.every(t => !idsOpcionais.has(t.baseId)), "leitura opcional entrou na fila");
 assert.ok(assuntos.filter(a => ["ingles", "carreira"].includes(a.pilar)).every(a => opcionais(a).length === 0), "inglês e carreira mantêm as leituras");
 assert.ok(TAREFAS.filter(t => t.curso).every(t => MODULOS.some(m => m.id === t.baseId)), "tarefa de curso sem módulo");
-// Agentes Autônomos (Hermes e OpenClaw, assunto do mês 27) chega bem antes, pela fila de cursos
+// Hermes (Agentes Autônomos parte 2, assunto do mês 29) chega bem antes, pela fila de cursos
 const longe = projetarDias("2026-11-09", "2028-06-30", new Set(), {});
-const diaHermes = [...longe].find(([, ps]) => ps.flat().some(id => T(id).baseId === "branas-ia-11"))?.[0];
+const diaHermes = [...longe].find(([, ps]) => ps.flat().some(id => T(id).baseId === "branas-ia-agentes-autonomos-2"))?.[0];
 assert.ok(diaHermes && diaHermes < inicioMes(20), `Hermes só em ${diaHermes}`);
 const fimCursos = previsaoCursos(new Set(), {}, INICIO);
 console.log("Cursos:", Math.round(TAREFAS.filter(t => t.curso).reduce((s, t) => s + t.minutos, 0) / 60), "h; previsão de término", fimCursos, "; Hermes em", diaHermes);
@@ -165,8 +165,13 @@ for (const m of MODULOS) if (m.url) assert.ok(!assuntos.find(a => a.id === m.ass
 // Módulo concluído por sessões mesmo sem o id original marcado
 {
   const { tarefaConcluida, idsDaTarefa: ids } = require("../lib/data/agenda.ts");
-  const sess = ids("branas-ia-10").slice(1);
-  assert.ok(sess.length === 8 && tarefaConcluida("branas-ia-10", new Set(sess), {}) && !tarefaConcluida("branas-ia-10", new Set(sess.slice(1)), {}));
+  const sess = ids("branas-ia-second-brain").slice(1);
+  assert.ok(sess.length === 8 && tarefaConcluida("branas-ia-second-brain", new Set(sess), {}) && !tarefaConcluida("branas-ia-second-brain", new Set(sess.slice(1)), {}));
+  // Marcar a sessão que faltava (do meio, não a última) também marca o módulo
+  const { idsAoMarcar } = require("../lib/data/agenda.ts");
+  const semS3 = new Set(sess.filter(id => !id.endsWith("~s3")));
+  assert.ok(idsAoMarcar([T(sess[2])], semS3).includes("branas-ia-second-brain"), "remarcar sessão do meio não fechou o módulo");
+  assert.ok(!idsAoMarcar([T(sess[2])], new Set()).includes("branas-ia-second-brain"), "sessão sozinha fechou o módulo");
 }
 console.log("Fila de cursos OK");
 
@@ -206,7 +211,7 @@ assert.deepEqual(comuns, [], "resgate repete tarefa do plano da semana");
 // Resgate não pega módulo de curso (a fila de cursos anda em ordem pelo Hoje); resgate salvo com curso é remontado
 {
   const at = atrasados(new Date("2026-11-16T12:00:00"), new Set(), {});
-  const r = montarResgate(at.dias, { "2026-11-09": [["branas-ia-09~s1"], []], "2026-11-10": [["tarefa-que-nao-existe"], []] }, new Set(), {}, []);
+  const r = montarResgate(at.dias, { "2026-11-09": [["branas-ia-rag~s1"], []], "2026-11-10": [["tarefa-que-nao-existe"], []] }, new Set(), {}, []);
   assert.ok(Object.values(r).flat(2).every(id => !T(id).curso), "resgate com módulo de curso");
   assert.ok(Object.values(r).flat(2).length > 0, "resgate vazio");
   assert.ok(!r["2026-11-10"].flat().includes("tarefa-que-nao-existe") && r["2026-11-10"].flat().length > 0, "resgate com tarefa que não existe não foi remontado");

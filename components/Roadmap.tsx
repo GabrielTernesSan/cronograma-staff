@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
-import { agrupar, assuntoById, feita, idsDaTarefa, idsParaMarcar, metaMes, ORDEM_CURSOS, sessoesFeitas, tarefaConcluida, planoAte, previsaoCursos, previsaoMes, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
+import { agrupar, assuntoById, feita, idsAoMarcar, idsDaTarefa, idsParaMarcar, metaMes, minutosRestantes, MODULOS_NA_FILA, sessoesFeitas, planoAte, previsaoCursos, previsaoMes, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
 import { diaDeEstudo, diasDaSemana, DESTINOS, DESTINOS_NOTA, INICIO, inicioMes, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, periodo, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
 import { cursoDe, fonteDe, FORMACOES, MODULOS } from "@/lib/data/cursos";
 import { assuntos, assuntosDoMes, horasPratica, horasTeoria, minLeitura, obrigatorias, opcionais } from "@/lib/data/trilha";
@@ -148,7 +148,7 @@ function PartesDoDia({ dia, seg, ativo, onSelect }: { dia: DiaHoje; seg: Date; a
   return <ol className="mt-5 grid gap-3">{dia.partes.map(p => {
     const id = parteId(seg, dia.dia.dow, p.indice), f = parteFeita(seg, dia.dia, p.indice, a.done), base = dia.dia.partes[p.indice];
     // Marcar a última tarefa da parte marca a parte; desmarcar uma tarefa desmarca a parte.
-    const aoMarcar = (g: Tarefa[], valor: boolean) => { const resto = p.tarefas.filter(x => !g.includes(x)).every(x => feita(x, a.done, a.valores)); a.setMany([...g.flatMap(t => idsParaMarcar(t, valor)), ...(valor ? (resto ? [id] : []) : [id])], valor); };
+    const aoMarcar = (g: Tarefa[], valor: boolean) => { const resto = p.tarefas.filter(x => !g.includes(x)).every(x => feita(x, a.done, a.valores)); a.setMany([...(valor ? idsAoMarcar(g, a.done) : g.flatMap(t => idsParaMarcar(t, false))), ...(valor ? (resto ? [id] : []) : [id])], valor); };
     return <li key={p.indice} className={`overflow-hidden rounded-xl border ${ativo && f ? "border-ok/40 bg-ok/5" : "border-line bg-surface"}`}>
       <label className={`flex items-start gap-3 bg-surface2/60 px-4 py-3 ${ativo ? "cursor-pointer" : ""}`}>
         <span className={`mt-1.5 inline-block size-2 shrink-0 rounded-full ${base?.pilar ? DOT[base.pilar] : "bg-muted"}`} />
@@ -170,7 +170,7 @@ function Chip({ children, tom }: { children: React.ReactNode; tom?: "accent" | "
 function TarefaItem({ g, onSelect, aoMarcar }: { g: Tarefa[]; onSelect: (s: Sel) => void; aoMarcar?: (g: Tarefa[], valor: boolean) => void }) {
   const a = useApp(); const t = g[0], c = g.every(x => feita(x, a.done, a.valores)); const assunto = t.assuntoId ? assuntoById.get(t.assuntoId) : undefined;
   const titulo = t.titulo ?? t.texto, tipo = t.curso && t.formato === "vídeo" ? "curso" : t.formato === "vídeo" ? "vídeo" : t.formato === "curso" ? "curso" : TIPOS[t.tipo];
-  const marcar = aoMarcar ?? ((xs: Tarefa[], v: boolean) => a.setMany(xs.flatMap(x => idsParaMarcar(x, v)), v));
+  const marcar = aoMarcar ?? ((xs: Tarefa[], v: boolean) => a.setMany(v ? idsAoMarcar(xs, a.done) : xs.flatMap(x => idsParaMarcar(x, false)), v));
   return <li className="flex items-start gap-3 px-4 py-3">
     <input aria-label={titulo} type="checkbox" className="mt-0.5 size-4 shrink-0" checked={c} onChange={() => marcar(g, !c)} />
     <div className="min-w-0 flex-1">
@@ -477,7 +477,7 @@ function AssuntoPanel({ id, onSelect }: { id: string; onSelect: (s: Sel) => void
     <h2 className="mt-2 text-2xl font-bold">{x.titulo}</h2>
     <p className="mt-2 text-[16px] leading-relaxed text-muted">{x.resumo}</p>
     <Bar n={n} total={ids.length} /><p className="mt-1 font-mono text-[11px] text-muted">{n}/{ids.length} itens</p>
-    <div className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Ordem:</strong> primeiro a teoria (~{horasTeoria(x)}h), depois a prática (~{horasPratica(x)}h). {obrigatorias(x).length ? `A prática libera quando ${obrigatorias(x).some(l => l.curso) ? "os módulos de curso" : "as leituras"} do assunto estiverem marcados.` : "Este assunto não tem curso: a prática já está liberada."}</p></div><h3 className="mt-7 text-lg font-bold">Passo 1 · Teoria <span className="font-mono text-[12px] font-normal text-muted">~{horasTeoria(x)}h</span></h3><h3 className="label mt-3 mb-1">O que o assunto cobre</h3><ul className="list-disc pl-5 text-[14.5px] text-muted">{x.subtopicos.map(s => <li key={s.id}>{s.texto}</li>)}</ul>
+    <div className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Ordem:</strong> primeiro a teoria (~{horasTeoria(x)}h), depois a prática (~{horasPratica(x)}h). {obrigatorias(x).length ? `A prática libera quando ${({ Cursos: "os cursos", Leituras: "as leituras", "Cursos e leituras": "os cursos e as leituras" } as const)[rotuloTeoria(x)]} do assunto estiverem marcados.` : "Este assunto não tem curso: a prática já está liberada."}</p></div><h3 className="mt-7 text-lg font-bold">Passo 1 · Teoria <span className="font-mono text-[12px] font-normal text-muted">~{horasTeoria(x)}h</span></h3><h3 className="label mt-3 mb-1">O que o assunto cobre</h3><ul className="list-disc pl-5 text-[14.5px] text-muted">{x.subtopicos.map(s => <li key={s.id}>{s.texto}</li>)}</ul>
     {obrigatorias(x).length > 0 && <><h3 className="label mt-7 mb-1">{rotuloTeoria(x)}</h3><Leituras ls={obrigatorias(x)} /></>}
     {opcionais(x).length > 0 && <><h3 className="label mt-7 mb-1">Aprofundamento <span className="normal-case tracking-normal text-muted">(opcional, fora da fila)</span></h3><Leituras ls={opcionais(x)} /></>}
     <h3 className="label mt-7 mb-1">Anotações <span className="normal-case tracking-normal text-muted">(opcional)</span></h3>
@@ -510,10 +510,11 @@ function Cursos({ onSelect }: { onSelect: (s: Sel) => void }) {
   const h = (min: number) => `${Math.round(min / 6) / 10}h`;
   const grupos: [string, typeof cursos][] = [["Rodrigo Branas", cursos.filter(c => c.formacao === "ia" || c.formacao === "arq")], ["Alura", cursos.filter(c => c.formacao === "alura")], ["Leituras em português", cursos.filter(c => c.formacao === "leitura")]];
   // Módulos na ordem da fila (a ordem de TAREFAS), com as sessões já feitas de cada um.
-  const fila = MODULOS_NA_FILA.map(m => ({ m, ...sessoesFeitas(m.id, app.done, app.valores), ok: tarefaConcluida(m.id, app.done, app.valores) }));
+  // ok: o id original marcado ou todas as sessões feitas; resto: minutos das sessões que faltam.
+  const fila = useMemo(() => MODULOS_NA_FILA.map(m => { const s = sessoesFeitas(m.id, app.done, app.valores); return { m, ...s, ok: app.done.has(m.id) || (s.total > 0 && s.feitas === s.total), resto: minutosRestantes(m.id, app.done, app.valores) }; }), [app.done, app.valores]);
   const proximo = fila.find(x => !x.ok);
   // Assunto do primeiro módulo pendente de cada curso, para abrir no painel.
-  const assuntoPendente = (curso: string) => { const m = MODULOS_NA_FILA.find(x => cursoDe(x) === curso && !tarefaConcluida(x.id, app.done, app.valores)) ?? MODULOS_NA_FILA.find(x => cursoDe(x) === curso); return m?.assunto; };
+  const assuntoPendente = (curso: string) => (fila.find(x => cursoDe(x.m) === curso && !x.ok) ?? fila.find(x => cursoDe(x.m) === curso))?.m.assunto;
   return <section aria-labelledby="cursos-h" className="grid gap-6">
     <div className="card p-5 sm:p-6">
       <p className="label">Fila própria · {horasSemana}h por semana</p>
@@ -527,7 +528,7 @@ function Cursos({ onSelect }: { onSelect: (s: Sel) => void }) {
     </div>
     {proximo && <div className="card border-accent/50 p-5"><p className="label">Próximo na fila</p>
       <a href={proximo.m.url ?? FORMACOES[proximo.m.formacao].url} target="_blank" rel="noreferrer" className="mt-1 block font-display text-[17px] font-bold leading-snug hover:text-accent hover:underline">{proximo.m.titulo} ↗</a>
-      <p className="mt-1 font-mono text-[11.5px] text-muted">{fonteDe(proximo.m)} · {proximo.feitas > 0 ? `${proximo.feitas}/${proximo.total} sessões feitas · ` : ""}faltam ~{h((proximo.m.minutos ?? 0) * (proximo.total - proximo.feitas) / proximo.total)}</p></div>}
+      <p className="mt-1 font-mono text-[11.5px] text-muted">{fonteDe(proximo.m)} · {proximo.feitas > 0 ? `${proximo.feitas}/${proximo.total} sessões feitas · ` : ""}faltam ~{h(proximo.resto)}</p></div>}
     <section><h2 className="text-xl font-bold">Na ordem da fila</h2>
       <p className="mt-1 text-[13.5px] text-muted">A mesma ordem que o painel Hoje segue. Marque aqui o que já fez fora do app: o módulo inteiro (com as sessões) fica feito e a fila pula para o próximo.</p>
       <ul className="card mt-3 divide-y divide-line-soft">{fila.map(({ m, feitas, total, ok }) => { return <li key={m.id} className={`flex items-start gap-3 px-4 py-2.5 ${m.id === proximo?.m.id ? "bg-accent/5" : ""}`}>
@@ -548,11 +549,8 @@ function Cursos({ onSelect }: { onSelect: (s: Sel) => void }) {
   </section>;
 }
 
-// Módulos de curso na ordem da fila.
-const moduloById = new Map(MODULOS.map(m => [m.id, m]));
-const MODULOS_NA_FILA = ORDEM_CURSOS.map(id => moduloById.get(id)).filter((m): m is (typeof MODULOS)[number] => !!m);
 /** Título da teoria obrigatória do assunto: cursos, leituras ou os dois. */
-const rotuloTeoria = (x: Assunto) => { const ls = obrigatorias(x), v = ls.some(l => l.curso && l.tipo === "vídeo"), a = ls.some(l => !(l.curso && l.tipo === "vídeo")); return v && a ? "Cursos e leituras" : v ? "Cursos" : "Leituras"; };
+const rotuloTeoria = (x: Assunto) => { const ls = obrigatorias(x), v = ls.some(l => l.curso && l.tipo === "vídeo"), a = ls.some(l => !(l.curso && l.tipo === "vídeo")); return v && a ? "Cursos e leituras" as const : v ? "Cursos" as const : "Leituras" as const; };
 
 function MesPanel({ mes, onSelect }: { mes: number; onSelect: (s: Sel) => void }) {
   const a = useApp(); const l = laboratorios[mes - 1]; if (!l) return null;
@@ -565,7 +563,7 @@ function MesPanel({ mes, onSelect }: { mes: number; onSelect: (s: Sel) => void }
     <p className="mt-4"><strong>Problema real: </strong>{l.problema}</p>
     <p className="mt-2 text-muted"><strong className="text-text">Objetivo: </strong>{l.objetivo}</p>
     <p className="mt-3 font-mono text-[11px] leading-relaxed text-muted">Meta do calendário: {fmtDia(inicioMes(mes))} → {fmtDia(metaMes(mes))} · previsão no ritmo atual: {previsao ? fmtDia(previsao) : "concluído"}</p>
-    <div className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Teoria:</strong> os módulos de curso dos assuntos abaixo (andam na fila de cursos, sem esperar o mês; artigos são aprofundamento opcional) (~{assuntosDoMes(mes).reduce((t, x) => t + horasTeoria(x), 0)}h).</p><p className="mt-1"><strong>Prática:</strong> a prática de cada assunto e as atividades do laboratório (~{assuntosDoMes(mes).reduce((t, x) => t + horasPratica(x), 0)}h).</p></div><h3 className="label mt-7 mb-2">Assuntos deste mês</h3>
+    <div className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-[14.5px]"><p><strong>Teoria:</strong> os cursos e as leituras dos assuntos abaixo (andam na fila de cursos, sem esperar o mês; os outros artigos são aprofundamento opcional) (~{assuntosDoMes(mes).reduce((t, x) => t + horasTeoria(x), 0)}h).</p><p className="mt-1"><strong>Prática:</strong> a prática de cada assunto e as atividades do laboratório (~{assuntosDoMes(mes).reduce((t, x) => t + horasPratica(x), 0)}h).</p></div><h3 className="label mt-7 mb-2">Assuntos deste mês</h3>
     <div className="flex flex-col gap-2">{assuntosDoMes(mes).map(x => <button key={x.id} type="button" onClick={() => onSelect({ kind: "assunto", id: x.id })} className="flex items-center justify-between gap-3 rounded-lg border border-line bg-surface px-3 py-2 text-left hover:border-accent"><span className="flex items-center gap-2"><span className={`inline-block size-2 rounded-full ${DOT[x.pilar]}`} />{x.titulo}</span><span className="font-mono text-[11px] text-muted">{assuntoDone(x, a.done)}/{assuntoIds(x).length}</span></button>)}</div>
     <div className="mt-7 flex items-center gap-3"><h3 className="label">Atividades do laboratório</h3><button type="button" className="ml-auto rounded-md border border-line px-2 py-1 text-[12px] text-muted hover:border-accent hover:text-accent" onClick={() => a.setMany(ids, countDone(ids, a.done) !== ids.length)}>{countDone(ids, a.done) === ids.length ? "desmarcar" : "marcar todas"}</button></div>
     {l.atividades.map(x => <Check key={x.id} id={x.id} text={x.texto} />)}
