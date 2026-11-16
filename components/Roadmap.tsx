@@ -2,9 +2,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import { laboratorios } from "@/lib/data/blocos";
-import { agrupar, assuntoById, feita, idsDaTarefa, idsParaMarcar, metaMes, minutosRestantes, MODULOS_NA_FILA, sessoesFeitas, tarefaDeVideoCurso, planoAte, previsaoCursos, previsaoMes, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
+import { agrupar, assuntoById, feita, idsDaTarefa, idsParaMarcar, metaMes, minutosRestantes, minutosTotais, MODULOS_NA_FILA, proximaSessao, sessoesFeitas, tarefaDeVideoCurso, planoAte, previsaoCursos, previsaoMes, TAREFAS, tarefaById, type Tarefa, type TipoTarefa } from "@/lib/data/agenda";
 import { diaDeEstudo, diasDaSemana, DESTINOS, DESTINOS_NOTA, INICIO, inicioMes, materiais, MERCADO_DADOS, MERCADO_FONTES, MERCADO_LEITURA, META_SEMANA, periodo, PILARES, RITMO_NOTA, ROTA, SEMANA, trimestres } from "@/lib/data/cronograma";
-import { cursoDe, fonteCurtaDe, fonteDe, urlDe } from "@/lib/data/cursos";
+import { cursoDe, fonteCurtaDe, urlDe } from "@/lib/data/cursos";
 import { assuntos, assuntosDoMes, ehVideoCurso, horasPratica, horasTeoria, minLeitura, obrigatorias, opcionais } from "@/lib/data/trilha";
 import { diasEntre, fmtDia, fmtDiaSemana, fmtMesAno, hojeIso, paraData, paraIso } from "@/lib/datas";
 import { addDias, DIA, dataDoDia, diaId, fase, horasDia, mesDoPlano, parteFeita, parteId, segunda } from "@/lib/grade";
@@ -49,7 +49,7 @@ export function Roadmap() {
       </div>}
       {aba === "semana" && <Semana h={hojeApi} onSelect={setSel} />}
       {aba === "trilha" && <Trilha onSelect={setSel} />}
-      {aba === "cursos" && <Cursos onSelect={setSel} />}
+      {aba === "cursos" && <Cursos h={hojeApi} onSelect={setSel} />}
       {aba === "mercado" && <Mercado />}
     </main>
     <Drawer sel={sel} h={hojeApi} onClose={() => setSel(null)} onSelect={setSel} />
@@ -106,8 +106,8 @@ const minutosTotal = (ts: Tarefa[]) => ts.reduce((s, t) => s + t.minutos, 0);
 const fmtSessoes = (g: Tarefa[]) => { const [i, n] = g[0].sessao ?? [1, 1], j = g[g.length - 1].sessao?.[0] ?? i; return j > i ? `sessões ${i}–${j}/${n}` : `sessão ${i}/${n}`; };
 
 type HojeApi = ReturnType<typeof useHoje>;
-/** Ids já fixados no painel Hoje: o dia de hoje com as adiantadas, ou a prévia do próximo dia em dia livre. */
-const idsFixos = (hoje: DiaHoje | null, proximo: DiaHoje | null, extra: Tarefa[]) => { const d = hoje ?? proximo; return d ? [...d.partes.flatMap(p => p.tarefas.map(t => t.id)), ...(hoje ? extra : []).map(t => t.id)] : []; };
+/** Ids já fixados no painel Hoje: o dia de hoje (ou a prévia do próximo dia, em dia livre) mais as adiantadas de hoje. */
+const idsFixos = (hoje: DiaHoje | null, proximo: DiaHoje | null, extra: Tarefa[]) => { const d = hoje ?? proximo; return d ? [...d.partes.flatMap(p => p.tarefas.map(t => t.id)), ...extra.map(t => t.id)] : extra.map(t => t.id); };
 function Hoje({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void }) {
   const a = useApp(); const { data, hoje, extra, proximo, antesDoInicio, adiantar } = h;
   if (!data) return <section className="card p-5 sm:p-6"><p className="label">Hoje</p><p className="mt-3 text-muted">Carregando as tarefas…</p></section>;
@@ -136,7 +136,7 @@ function Hoje({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void }) {
     </div>
     {!hoje && proximo && <p className="mt-4 rounded-lg bg-surface2 px-4 py-2.5 text-[14px] text-muted">{antesDoInicio ? `Segunda e terça são livres; o primeiro estudo é ${fmtDiaSemana(proximo.data)}.` : `Hoje é dia livre. Abaixo, a prévia de ${fmtDiaSemana(proximo.data)}.`}</p>}
     {dia && seg && <PartesDoDia dia={dia} seg={seg} ativo={!!hoje} onSelect={onSelect} />}
-    {hoje && extra.length > 0 && <div className="mt-4 rounded-xl border border-line"><p className="label border-b border-line-soft px-4 py-2.5">Adiantadas</p><ul className="divide-y divide-line-soft">{agrupar(extra).map(g => <TarefaItem key={g[0].id} g={g} onSelect={onSelect} />)}</ul></div>}
+    {extra.length > 0 && <div className="mt-4 rounded-xl border border-line"><p className="label border-b border-line-soft px-4 py-2.5">{hoje ? "Adiantadas" : "Adiantadas hoje (dia livre)"}</p><ul className="divide-y divide-line-soft">{agrupar(extra).map(g => <TarefaItem key={g[0].id} g={g} onSelect={onSelect} />)}</ul></div>}
     {concluido && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-ok/10 px-4 py-3"><p className="font-semibold text-ok" role="status">✓ Dia concluído</p><Btn onClick={adiantar}>adiantar a próxima tarefa</Btn></div>}
     <p className="mt-4 text-[12.5px] text-muted">Dia perdido não vira atraso: o próximo dia de estudo começa da tarefa que ainda não foi feita.</p>
   </section>;
@@ -501,51 +501,58 @@ function Leituras({ ls }: { ls: Leitura[] }) {
 }
 
 /* ───────── Cursos (Branas e Alura): fila própria ───────── */
-function Cursos({ onSelect }: { onSelect: (s: Sel) => void }) {
-  const app = useApp(); const agora = useAgora();
+function Cursos({ h: hojeApi, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void }) {
+  const app = useApp(); const agora = useAgora(); const [verFeitos, setVerFeitos] = useState(false);
   const cursos = useMemo(() => progressoCursos(app.done), [app.done]);
   const restante = cursos.reduce((s, c) => s + c.minutosRestantes, 0), total = cursos.reduce((s, c) => s + c.minutosTotal, 0);
   const fim = agora ? previsaoCursos(app.done, app.valores, paraIso(agora)) : null;
   const horasSemana = SEMANA.reduce((s, d) => s + d.partes.reduce((t, p) => t + (p.fonte === "curso" ? p.horas : 0), 0), 0);
   const h = (min: number) => `${Math.round(min / 6) / 10}h`;
   const grupos: [string, typeof cursos][] = [["Rodrigo Branas", cursos.filter(c => c.formacao === "ia" || c.formacao === "arq")], ["Alura", cursos.filter(c => c.formacao === "alura")], ["Leituras em português", cursos.filter(c => c.formacao === "leitura")]];
-  // Módulos na ordem da fila (a ordem de TAREFAS), com as sessões já feitas de cada um.
+  // Módulos na ordem da fila, numerados, com as sessões já feitas e a próxima sessão (para adiantar).
   // ok: o id original marcado (o useProgress o completa quando todas as sessões estão feitas); resto: minutos das sessões que faltam.
-  const fila = useMemo(() => MODULOS_NA_FILA.map(m => { const s = sessoesFeitas(m.id, app.done, app.valores); return { m, ...s, ok: app.done.has(m.id), resto: minutosRestantes(m.id, app.done, app.valores) }; }), [app.done, app.valores]);
-  const proximo = fila.find(x => !x.ok);
+  const fila = useMemo(() => MODULOS_NA_FILA.map((m, i) => { const s = sessoesFeitas(m.id, app.done, app.valores); return { n: i + 1, m, ...s, ok: app.done.has(m.id), resto: minutosRestantes(m.id, app.done, app.valores), prox: proximaSessao(m.id, app.done, app.valores) }; }), [app.done, app.valores]);
+  const proximo = fila.find(x => !x.ok), feitos = fila.filter(x => x.ok).length;
+  const visiveis = verFeitos ? fila : fila.filter(x => !x.ok);
   // Assunto do primeiro módulo pendente de cada curso, para abrir no painel.
   const assuntoPendente = (curso: string) => (fila.find(x => cursoDe(x.m) === curso && !x.ok) ?? fila.find(x => cursoDe(x.m) === curso))?.m.assunto;
   return <section aria-labelledby="cursos-h" className="grid gap-6">
     <div className="card p-5 sm:p-6">
       <p className="label">Fila própria · {horasSemana}h por semana</p>
       <h1 id="cursos-h" className="mt-1 text-[26px] font-bold leading-tight tracking-tight">Cursos</h1>
-      <p className="mt-2 max-w-[75ch] text-[14.5px] leading-relaxed text-muted">Os módulos do Branas, os cursos da Alura e as leituras em português (no lugar dos módulos da Formação IA que você já fez) são a teoria dos assuntos técnicos e andam toda semana, na ordem da trilha, sem esperar o mês do assunto. Os outros artigos de cada assunto ficam como aprofundamento opcional. Nos cursos da Alura, a duração é 40% da carga anunciada (a carga inclui exercícios) até ser conferida na plataforma.</p>
+      <p className="mt-2 max-w-[75ch] text-[14.5px] leading-relaxed text-muted">Os módulos do Branas, os cursos da Alura e as leituras em português (no lugar dos módulos da Formação IA que você já fez) são a teoria dos assuntos técnicos. Eles andam toda semana na ordem abaixo, sem esperar o mês do assunto. Os outros artigos de cada assunto ficam como aprofundamento opcional. Nos cursos da Alura, a duração é 40% da carga anunciada (a carga inclui exercícios) até ser conferida na plataforma.</p>
       <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-line-soft px-3 py-2"><dt className="text-[12px] text-muted">feito</dt><dd className="font-mono text-[18px] font-bold">{pct(total - restante, total)}%</dd></div>
         <div className="rounded-lg border border-line-soft px-3 py-2"><dt className="text-[12px] text-muted">faltam</dt><dd className="font-mono text-[18px] font-bold">{h(restante)} de {h(total)}</dd></div>
         <div className="rounded-lg border border-line-soft px-3 py-2"><dt className="text-[12px] text-muted">previsão de término</dt><dd className="font-mono text-[18px] font-bold">{!agora ? "…" : fim ? fmtDia(fim) : "concluído"}</dd></div>
       </dl>
     </div>
-    {proximo && <div className="card border-accent/50 p-5"><p className="label">Próximo na fila</p>
-      <a href={urlDe(proximo.m)} target="_blank" rel="noreferrer" className="mt-1 block font-display text-[17px] font-bold leading-snug hover:text-accent hover:underline">{proximo.m.titulo} ↗</a>
-      <p className="mt-1 font-mono text-[11.5px] text-muted">{fonteDe(proximo.m)} · {proximo.feitas > 0 ? `${proximo.feitas}/${proximo.total} sessões feitas · ` : ""}faltam ~{h(proximo.resto)}</p></div>}
-    <section><h2 className="text-xl font-bold">Na ordem da fila</h2>
-      <p className="mt-1 text-[13.5px] text-muted">A ordem em que o painel Hoje puxa os cursos (se um item não cabe no horário do dia, o Hoje adianta o seguinte e volta nele depois). Marque aqui o que já fez fora do app: o módulo inteiro (com as sessões) fica feito e a fila pula para o próximo.</p>
-      <ul className="card mt-3 divide-y divide-line-soft">{fila.map(({ m, feitas, total, ok }) => { return <li key={m.id} className={`flex items-start gap-3 px-4 py-2.5 ${m.id === proximo?.m.id ? "bg-accent/5" : ""}`}>
+    <section aria-labelledby="fila-h">
+      <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 id="fila-h" className="text-xl font-bold">Fila de cursos</h2>
+        {feitos > 0 && <Btn active={verFeitos} onClick={() => setVerFeitos(v => !v)}>{verFeitos ? "esconder" : "mostrar"} os {feitos} feitos</Btn>}</div>
+      <p className="mt-1 max-w-[75ch] text-[13.5px] text-muted">A ordem em que o painel Hoje puxa os cursos (se um item não cabe no horário do dia, o Hoje adianta o seguinte e volta nele depois). Tem tempo sobrando? <strong className="font-semibold text-text">adiantar</strong> põe a próxima sessão do item no painel Hoje, em "Adiantadas", mesmo em dia livre e fora da ordem. Fez fora do app? Marque a caixa: o item inteiro (com as sessões) fica feito.</p>
+      {visiveis.length === 0 ? <p className="card mt-3 px-4 py-3 text-[14px] text-ok">✓ Todos os cursos da fila estão feitos.</p>
+      : <ol className="card mt-3 divide-y divide-line-soft">{visiveis.map(({ n, m, feitas, total, ok, prox }) => { const atual = m.id === proximo?.m.id, noHoje = !!prox && hojeApi.naLista.has(prox.id); return <li key={m.id} className={`flex items-start gap-3 px-4 py-2.5 ${atual ? "bg-accent/5" : ""}`}>
+        <span className="mt-0.5 w-6 shrink-0 text-right font-mono text-[11.5px] text-muted">{n}</span>
         <input aria-label={`Marcar como feito: ${m.titulo}`} className="mt-1 size-4 shrink-0" type="checkbox" checked={ok} onChange={() => app.setMany(idsDaTarefa(m.id), !ok)} />
-        <div className="min-w-0 flex-1"><a href={urlDe(m)} target="_blank" rel="noreferrer" className={`text-[14px] font-medium hover:text-accent hover:underline ${ok ? "text-muted line-through" : ""}`}>{m.titulo}</a>
-          <p className="font-mono text-[11px] text-muted">{fonteCurtaDe(m)} · ~{h(m.minutos ?? 0)}{!ok && feitas > 0 ? ` · ${feitas}/${total} sessões` : ""}</p></div>
-        <Btn onClick={() => onSelect({ kind: "assunto", id: m.assunto })}>assunto</Btn>
-      </li>; })}</ul>
+        <div className="min-w-0 flex-1">{atual && <span className="label mr-2 text-accent">próximo</span>}<a href={urlDe(m)} target="_blank" rel="noreferrer" className={`text-[14px] font-medium hover:text-accent hover:underline ${ok ? "text-muted line-through" : ""}`}>{m.titulo}</a>
+          <p className="font-mono text-[11px] text-muted">{fonteCurtaDe(m)} · ~{h(minutosTotais(m.id))}{!ok && feitas > 0 ? ` · ${feitas}/${total} sessões` : ""}</p></div>
+        <span className="flex shrink-0 flex-wrap justify-end gap-1.5">
+          {!ok && prox && hojeApi.data && (noHoje ? <span className="self-center px-1 text-[12px] text-ok">no Hoje</span> : <Btn onClick={() => hojeApi.adiantarTarefa(prox.id)}>adiantar</Btn>)}
+          <Btn onClick={() => onSelect({ kind: "assunto", id: m.assunto })}>assunto</Btn>
+        </span>
+      </li>; })}</ol>}
     </section>
-    {grupos.map(([nome, cs]) => <section key={nome}><h2 className="text-xl font-bold">Resumo · {nome}</h2>
-      <ul className="card mt-3 divide-y divide-line-soft">{cs.map(c => { const ok = c.feitos === c.total, x = assuntoPendente(c.curso); return <li key={c.curso} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
-        <div className="min-w-0 flex-1">{c.url ? <a href={c.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${ok ? "text-muted line-through" : ""}`}>{c.curso} ↗</a> : <span className={`font-medium ${ok ? "text-muted line-through" : ""}`}>{c.curso}</span>}
-          <p className="font-mono text-[11px] text-muted">{c.total > 1 ? `${c.feitos}/${c.total} ${c.formacao === "leitura" ? "leituras" : "módulos"} · ` : ""}{ok ? "concluído" : `faltam ${h(c.minutosRestantes)} de ${h(c.minutosTotal)}`}</p></div>
-        <span className="h-1.5 w-28 overflow-hidden rounded-full bg-surface2"><span className={`block h-full rounded-full ${ok ? "bg-ok" : "bg-accent"}`} style={{ width: `${pct(c.minutosTotal - c.minutosRestantes, c.minutosTotal)}%` }} /></span>
-        {x && <Btn onClick={() => onSelect({ kind: "assunto", id: x })}>assunto</Btn>}
-      </li>; })}</ul>
-    </section>)}
+    <details className="group"><summary className="cursor-pointer text-xl font-bold marker:text-muted">Resumo por curso</summary>
+      <div className="mt-3 grid gap-6">{grupos.map(([nome, cs]) => <section key={nome}><h3 className="label mb-2">{nome}</h3>
+        <ul className="card divide-y divide-line-soft">{cs.map(c => { const ok = c.feitos === c.total, x = assuntoPendente(c.curso); return <li key={c.curso} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
+          <div className="min-w-0 flex-1">{c.url ? <a href={c.url} target="_blank" rel="noreferrer" className={`font-medium hover:text-accent hover:underline ${ok ? "text-muted line-through" : ""}`}>{c.curso} ↗</a> : <span className={`font-medium ${ok ? "text-muted line-through" : ""}`}>{c.curso}</span>}
+            <p className="font-mono text-[11px] text-muted">{c.total > 1 ? `${c.feitos}/${c.total} ${c.formacao === "leitura" ? "leituras" : "módulos"} · ` : ""}{ok ? "concluído" : `faltam ${h(c.minutosRestantes)} de ${h(c.minutosTotal)}`}</p></div>
+          <span className="h-1.5 w-28 overflow-hidden rounded-full bg-surface2"><span className={`block h-full rounded-full ${ok ? "bg-ok" : "bg-accent"}`} style={{ width: `${pct(c.minutosTotal - c.minutosRestantes, c.minutosTotal)}%` }} /></span>
+          {x && <Btn onClick={() => onSelect({ kind: "assunto", id: x })}>assunto</Btn>}
+        </li>; })}</ul>
+      </section>)}</div>
+    </details>
   </section>;
 }
 

@@ -76,6 +76,8 @@ export const idsDaTarefa = (baseId: string) => [baseId, ...(sessoesDe.get(baseId
 export const sessoesFeitas = (baseId: string, done: Set<string>, valores: Valores) => {
   const ss = sessoesDe.get(baseId) ?? []; return { feitas: ss.filter(t => feita(t, done, valores)).length, total: ss.length };
 };
+/** Próxima sessão pendente de uma tarefa (para adiantar um curso escolhido na aba Cursos); undefined se acabou. */
+export const proximaSessao = (baseId: string, done: Set<string>, valores: Valores) => (sessoesDe.get(baseId) ?? []).find(t => !feita(t, done, valores));
 /** Minutos de uma tarefa: a soma das sessões (a mesma conta da fila, com a estimativa por tipo quando falta duração). */
 export const minutosTotais = (baseId: string) => (sessoesDe.get(baseId) ?? []).reduce((s, t) => s + t.minutos, 0);
 /** Minutos que faltam de uma tarefa: a soma das sessões ainda não feitas (0 se concluída). */
