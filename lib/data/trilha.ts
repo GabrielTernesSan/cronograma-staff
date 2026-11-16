@@ -30,9 +30,13 @@ const MES: Record<string, number> = {
   "m06-waf": 22, "m08-functions": 22, "m03-ddd-cqrs": 23, "m02-ml-base": 30, "m03-metricas": 31, "m02-llm-schema": 31,
 };
 
-// Módulos das formações do Branas abrem as leituras do assunto (o curso é a base, os artigos aprofundam), com id e duração próprios.
+// Módulos de curso (Branas e Alura) abrem as leituras do assunto, com id, link e duração próprios.
 // Os ids das outras leituras (-r1, -r2...) saem da posição dentro de a(), então pôr o módulo na frente não os muda.
-const modulosDe = (assuntoId: string): Leitura[] => MODULOS.filter(m => m.assunto === assuntoId).map(m => ({ id: m.id, titulo: m.titulo, ...FORMACOES[m.formacao], tipo: "vídeo", minutos: m.minutos }));
+const modulosDe = (assuntoId: string): Leitura[] => MODULOS.filter(m => m.assunto === assuntoId).map(m => ({ id: m.id, titulo: m.titulo, fonte: FORMACOES[m.formacao].fonte, url: m.url ?? FORMACOES[m.formacao].url, tipo: "vídeo", minutos: m.minutos, curso: true }));
+// Nos pilares técnicos o curso é a teoria; artigo, doc e link de curso externo viram aprofundamento opcional.
+// Inglês e carreira não têm curso: as leituras deles continuam sendo a teoria.
+const TECNICOS: Pilar[] = ["arquitetura", "ia", "cloud"];
+const marcarOpcionais = (x: Assunto): Leitura[] => TECNICOS.includes(x.pilar) ? x.leituras.map(l => l.curso ? l : { ...l, opcional: true }) : x.leituras;
 
 export const assuntos: Assunto[] = [
   // ───────── Ano 1 · base sênior com IA ─────────
@@ -608,7 +612,7 @@ export const assuntos: Assunto[] = [
     ["Modelos e provedores", "Loop de aprendizado e criação de skills", "Memória persistente", "Subagentes, MCP e containers"],
     [],
     "Configurar o Hermes com memória persistente e um MCP do time e comparar com o harness montado no ano 1."),
-].map((x) => ({ ...x, mes: MES[x.id] ?? x.mes, leituras: [...modulosDe(x.id), ...x.leituras] })).sort((x, y) => x.mes - y.mes); // sort estável: mantém a ordem de escrita dentro de cada mês
+].map((x) => ({ ...x, mes: MES[x.id] ?? x.mes, leituras: marcarOpcionais({ ...x, leituras: [...modulosDe(x.id), ...x.leituras] }) })).sort((x, y) => x.mes - y.mes); // sort estável: mantém a ordem de escrita dentro de cada mês
 
 export const assuntosDoMes = (mes: number) => assuntos.filter((x) => x.mes === mes);
 
@@ -616,5 +620,8 @@ export const assuntosDoMes = (mes: number) => assuntos.filter((x) => x.mes === m
 export const MIN_LEITURA: Record<TipoLeitura, number> = { artigo: 40, doc: 60, curso: 180, livro: 120, ferramenta: 30, "vídeo": 60 };
 /** Duração própria (módulo de curso) ou a estimativa do tipo. */
 export const minLeitura = (l: Leitura) => l.minutos ?? MIN_LEITURA[l.tipo];
-export const horasTeoria = (x: Assunto) => Math.round(x.leituras.reduce((t, l) => t + minLeitura(l), 0) / 30) / 2;
+/** Leituras que contam: módulos de curso (e as leituras de inglês e carreira). As opcionais são aprofundamento. */
+export const obrigatorias = (x: Assunto) => x.leituras.filter(l => !l.opcional);
+export const opcionais = (x: Assunto) => x.leituras.filter(l => l.opcional);
+export const horasTeoria = (x: Assunto) => Math.round(obrigatorias(x).reduce((t, l) => t + minLeitura(l), 0) / 30) / 2;
 export const horasPratica = (x: Assunto) => (x.pilar === "ingles" || x.pilar === "carreira" ? 2 : 4);

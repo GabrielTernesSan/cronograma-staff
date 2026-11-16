@@ -12,6 +12,8 @@ export const dataDoDia = (seg: Date, dow: number) => addDias(seg, (dow + 6) % 7)
 // O id do dia inteiro vem de antes das partes e continua valendo como todas marcadas.
 export const parteFeita = (seg: Date, d: DiaSemana, i: number, done: Set<string>) => done.has(diaId(seg, d.dow)) || done.has(parteId(seg, d.dow, i));
 export const horasDia = (seg: Date, d: DiaSemana, done: Set<string>) => d.partes.reduce((t, p, i) => t + (parteFeita(seg, d, i, done) ? p.horas : 0), 0);
-// Mês do plano pela data do dia (M01 começa em INICIO); fora do plano devolve null. Primeiros 14 dias do mês são teoria, depois prática.
+// Mês do plano pela data do dia (M01 começa em INICIO); fora do plano devolve null. A primeira metade do mês é teoria, depois prática
+// (num mês de calendário, ~14 dias; nos meses esticados do início, a metade deles).
 export const mesDoPlano = (d: Date) => { const x = paraIso(d); if (x < INICIO) return null; let m = 1; while (m < DURACAO_MESES && inicioMes(m + 1) <= x) m++; return x <= metaMes(DURACAO_MESES) ? m : null; };
-export const fase = (d: Date) => { const m = mesDoPlano(d); return m && diasEntre(inicioMes(m), paraIso(d)) < 14 ? "teoria" : "prática"; };
+const metadeTeoria = (m: number) => { const dur = diasEntre(inicioMes(m), metaMes(m)); return dur > 31 ? Math.floor(dur / 2) : 14; };
+export const fase = (d: Date) => { const m = mesDoPlano(d); return m && diasEntre(inicioMes(m), paraIso(d)) < metadeTeoria(m) ? "teoria" : "prática"; };

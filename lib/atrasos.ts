@@ -1,11 +1,11 @@
 // O que ficou para trás até ontem: dias da grade com parte sem marcar, itens de assunto vencidos e laboratórios de meses fechados.
-import { idsParaMarcar, montarDia, tarefaById } from "./data/agenda";
+import { idsParaMarcar, montarDia, praticaBloqueada, tarefaById } from "./data/agenda";
 import { laboratorios } from "./data/blocos";
 import { diaDeEstudo, DURACAO_MESES, INICIO, type DiaSemana } from "./data/cronograma";
-import { assuntos } from "./data/trilha";
+import { assuntos, obrigatorias } from "./data/trilha";
 import { addDias, paraData, paraIso } from "./datas";
 import { fase, mesDoPlano, parteFeita, segunda } from "./grade";
-import { assuntoIds, labComplete } from "./stats";
+import { labComplete } from "./stats";
 import type { Assunto, Laboratorio } from "./types";
 import type { Valores } from "./progresso";
 
@@ -26,7 +26,11 @@ export function atrasados(hoje: Date, done: Set<string>, valores: Valores): Atra
   // Depois do fim do plano tudo conta como mês fechado.
   const mesHoje = mesDoPlano(hoje), mes = mesHoje ?? DURACAO_MESES + 1, teoriaVencida = mesHoje !== null && fase(hoje) === "prática";
   const lista = assuntos.flatMap(x => {
-    const vencidos = x.mes < mes ? assuntoIds(x) : x.mes === mes && teoriaVencida ? x.leituras.map(l => l.id) : [];
+    // Módulo de curso segue a fila própria e leitura opcional é aprofundamento: nenhum dos dois vira atraso.
+    // A prática presa a um curso pendente também não: ainda não dá para fazê-la.
+    const teoria = obrigatorias(x).filter(l => !l.curso).map(l => l.id);
+    const pratica = praticaBloqueada(x.id, done, valores) ? [] : [x.pratica.id];
+    const vencidos = x.mes < mes ? [...teoria, ...pratica] : x.mes === mes && teoriaVencida ? teoria : [];
     const ids = vencidos.filter(id => !done.has(id));
     return ids.length ? [{ x, ids }] : [];
   });
