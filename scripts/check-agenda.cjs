@@ -175,7 +175,7 @@ const { montarResgate } = require("../lib/atrasos.ts");
 const { segunda } = require("../lib/grade.ts");
 const { paraData } = require("../lib/datas.ts");
 const perdido = "2026-11-11", diaPerdido = { iso: perdido, data: paraData(perdido), seg: segunda(paraData(perdido)), dia: diaDaSemana(perdido), partes: [0] };
-const salvoAntes = montarDia(perdido, new Set(), {}), repetida = salvoAntes[0][0];
+const salvoAntes = montarDia(perdido, new Set(), {}, { semCurso: true }), repetida = salvoAntes[0][0];
 const resgate = montarResgate([diaPerdido], { [perdido]: salvoAntes }, new Set(), {}, [repetida]);
 assert.ok(!resgate[perdido].flat().includes(repetida), "tarefa de hoje continuou no resgate");
 assert.ok(resgate[perdido][0].length > 0, "dia remontado ficou vazio");
@@ -193,4 +193,11 @@ assert.equal(new Set(planoIds).size, planoIds.length, "plano da semana repete ta
 const resgSem = montarResgate(atrasados(paraData("2026-11-16"), new Set(), {}).dias, {}, new Set(), {}, planoIds);
 const comuns = Object.values(resgSem).flat(2).filter(id => planoIds.includes(id));
 assert.deepEqual(comuns, [], "resgate repete tarefa do plano da semana");
+// Resgate não pega módulo de curso (a fila de cursos anda em ordem pelo Hoje); resgate salvo com curso é remontado
+{
+  const at = atrasados(new Date("2026-11-16T12:00:00"), new Set(), {});
+  const r = montarResgate(at.dias, { "2026-11-09": [["branas-ia-07~s1"], []] }, new Set(), {}, []);
+  assert.ok(Object.values(r).flat(2).every(id => !T(id).curso), "resgate com módulo de curso");
+  assert.ok(Object.values(r).flat(2).length > 0, "resgate vazio");
+}
 console.log("Resgate sem repetir o plano da semana OK");

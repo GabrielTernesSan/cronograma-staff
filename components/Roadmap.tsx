@@ -363,7 +363,9 @@ function AtrasosPanel({ h, onSelect }: { h: HojeApi; onSelect: (s: Sel) => void 
     try { localStorage.setItem(RESGATE_KEY, JSON.stringify(r)); } catch {}
     return r;
   });
-  const doDia = (d: DiaAtrasado): DiaHoje => ({ data: d.iso, dia: d.dia, partes: d.partes.map(i => ({ indice: i, texto: d.dia.partes[i].texto, horas: d.dia.partes[i].horas, tarefas: (material[d.iso]?.[i] ?? []).map(id => tarefaById.get(id)).filter((t): t is Tarefa => !!t) })) });
+  // No resgate a parte de curso não pega módulo (a fila de cursos anda em ordem pelo Hoje): pega o trabalho do pilar.
+  const textoResgate = (p: DiaAtrasado["dia"]["partes"][number]) => p.fonte === "curso" && p.pilar ? `Resgate · ${title(p.pilar)}: tarefas do pilar (o curso segue em ordem pelo Hoje)` : p.texto;
+  const doDia = (d: DiaAtrasado): DiaHoje => ({ data: d.iso, dia: d.dia, partes: d.partes.map(i => ({ indice: i, texto: textoResgate(d.dia.partes[i]), horas: d.dia.partes[i].horas, tarefas: (material[d.iso]?.[i] ?? []).map(id => tarefaById.get(id)).filter((t): t is Tarefa => !!t) })) });
   const texto = (s: Assunto, id: string) => s.subtopicos.find(t => t.id === id)?.texto ?? s.leituras.find(l => l.id === id)?.titulo ?? (s.pratica.id === id ? `Prática: ${s.pratica.texto}` : id);
   const vazio = !x.dias.length && !x.assuntos.length && !x.labs.length;
   return <article>

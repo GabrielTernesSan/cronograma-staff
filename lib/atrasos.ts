@@ -43,7 +43,9 @@ export const totalItens = (a: Atrasados) => a.assuntos.reduce((t, x) => t + x.id
 /** Tarefas por parte de cada dia resgatado (ids), por data. */
 export type Resgate = Record<string, string[][]>;
 /**
- * Material de cada dia perdido: as próximas tarefas pendentes da fila, como o painel Hoje faria.
+ * Material de cada dia perdido: as próximas tarefas pendentes da fila, como o painel Hoje faria, menos módulo de curso
+ * (a fila de cursos anda só pelo Hoje, em ordem; a parte de curso do dia perdido pega o trabalho do pilar dela).
+ * Resgate salvo com módulo de curso (montado antes dessa regra) é remontado.
  * Dias já montados (salvos) ficam como estão; as tarefas de hoje (reservadas) e as de outros dias resgatados
  * não se repetem. Parte já marcada não recebe tarefa. `reservadas` é o plano da semana (hoje ou a prévia e a
  * projeção até domingo): o resgate só recebe o que vem depois dele. Dia salvo que tenha tarefa reservada
@@ -53,10 +55,10 @@ export function montarResgate(dias: DiaAtrasado[], salvos: Resgate, done: Set<st
   const sim = new Set(done), out: Resgate = {}, plano = new Set(reservadas);
   const usar = (id: string) => { const t = tarefaById.get(id); if (t) idsParaMarcar(t, true).forEach(x => sim.add(x)); };
   reservadas.forEach(usar);
-  dias.forEach(d => { const s = salvos[d.iso]; if (Array.isArray(s) && s.length === d.dia.partes.length && !s.flat().some(id => plano.has(id))) { out[d.iso] = s; s.flat().forEach(usar); } });
+  dias.forEach(d => { const s = salvos[d.iso]; if (Array.isArray(s) && s.length === d.dia.partes.length && !s.flat().some(id => plano.has(id) || tarefaById.get(id)?.curso)) { out[d.iso] = s; s.flat().forEach(usar); } });
   dias.forEach(d => {
     if (out[d.iso]) return;
-    const p = (montarDia(d.iso, sim, valores) ?? []).map((ids, i) => d.partes.includes(i) ? ids : []);
+    const p = (montarDia(d.iso, sim, valores, { semCurso: true }) ?? []).map((ids, i) => d.partes.includes(i) ? ids : []);
     out[d.iso] = p; p.flat().forEach(usar);
   });
   return out;

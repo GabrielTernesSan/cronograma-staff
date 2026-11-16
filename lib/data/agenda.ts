@@ -112,9 +112,11 @@ const encher = (xs: Tarefa[], minutos: number) => {
  * Só pega tarefas até um mês à frente do mês mais atrasado, para os pilares não dispararem.
  * Exceção: nas partes de curso, o módulo de curso não tem teto (os cursos andam na frente dos meses).
  */
-export const montarDia = (iso: string, done: Set<string>, valores: Valores): string[][] | null => {
+export const montarDia = (iso: string, done: Set<string>, valores: Valores, opts: { semCurso?: boolean } = {}): string[][] | null => {
   const d = diaDaSemana(iso); if (!d) return null;
-  const todas = pendentes(done, valores), pend = todas.filter(t => pronta(t, done, valores));
+  // semCurso: dia de resgate. A fila de cursos é uma sequência só e quem anda com ela é o Hoje;
+  // o resgate não pega módulo (seria um módulo à frente, fora de ordem) e a parte de curso cai no trabalho do pilar.
+  const todas = pendentes(done, valores), pend = todas.filter(t => pronta(t, done, valores) && !(opts.semCurso && t.curso));
   const teto = (todas.find(t => !t.curso)?.mes ?? 36) + 1;
   const usadas = new Set<string>();
   return d.partes.map(p => {
